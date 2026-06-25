@@ -86,9 +86,9 @@ const SIM   = '{{ simbolo }}';
 function fmt(n){ return SIM + ' ' + Math.round(n).toLocaleString('es-AR'); }
 
 function calcNCuotas(dias, frecuencia){
-  if(frecuencia === 'semanal')   return Math.max(0, Math.ceil(dias/5)  - 1);
-  if(frecuencia === 'quincenal') return Math.max(0, Math.ceil(dias/10) - 1);
-  return Math.max(0, Math.ceil(dias/22) - 1);
+  if(frecuencia === 'semanal')   return Math.max(0, Math.floor((dias - 1) / 7));
+  if(frecuencia === 'quincenal') return Math.max(0, Math.floor((dias - 1) / 15));
+  return Math.max(0, Math.floor((dias - 1) / 30));
 }
 
 function frecLabel(freq){
