@@ -596,7 +596,7 @@ ANALISIS = {
         {"n":'Ayudante albañil',"c":0.3,"p":5000.0,"m":0},
     ],
     'Ho de Pendiente c/perlitas 10cm': [
-        {"n":'Perlitas Telgopor',"c":106.0,"p":66.67,"m":1},
+        {"n":'Perlitas Telgopor (75 Lts)',"c":106.0,"p":66.67,"m":1},
         {"n":'Cemento portland bolsas',"c":10.4,"p":240.0,"m":1},
         {"n":'Arena común',"c":0.014,"p":29000.0,"m":1},
         {"n":'Granza',"c":0.014,"p":20000.0,"m":1},
@@ -604,7 +604,7 @@ ANALISIS = {
         {"n":'Ayudante albañil',"c":0.4,"p":5000.0,"m":0},
     ],
     'Contrapiso c/perlitas 10cm.': [
-        {"n":'Perlitas Telgopor',"c":106.0,"p":66.67,"m":1},
+        {"n":'Perlitas Telgopor (75 Lts)',"c":106.0,"p":66.67,"m":1},
         {"n":'Cemento portland bolsas',"c":10.5,"p":240.0,"m":1},
         {"n":'Arena común',"c":0.02,"p":29000.0,"m":1},
         {"n":'Granza',"c":0.02,"p":20000.0,"m":1},
@@ -612,7 +612,7 @@ ANALISIS = {
         {"n":'Ayudante albañil',"c":0.3,"p":5000.0,"m":0},
     ],
     'Contrapiso c/perlitas  5cm.': [
-        {"n":'Perlitas Telgopor',"c":70.0,"p":66.67,"m":1},
+        {"n":'Perlitas Telgopor (75 Lts)',"c":70.0,"p":66.67,"m":1},
         {"n":'Cemento portland bolsas',"c":6.5,"p":240.0,"m":1},
         {"n":'Arena común',"c":0.014,"p":29000.0,"m":1},
         {"n":'Granza',"c":0.014,"p":20000.0,"m":1},

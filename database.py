@@ -19,14 +19,26 @@ def _actualizar_mo_analisis(db):
     Solo corre si Replanteo.precio_mo_ars == 0 (primer arranque o reset)."""
     import unicodedata, re
     xlsx_path = os.path.join(os.path.dirname(Config.DATABASE), 'PRESUPUESTO HOTMART.xlsx')
-    if not os.path.exists(xlsx_path):
-        return
+    xlsx_exists = os.path.exists(xlsx_path)
 
-    r = db.execute(
-        "SELECT precio_mo_ars FROM items_obra WHERE nombre='Replanteo'"
-    ).fetchone()
-    if r and r[0] and float(r[0]) > 0:
-        return  # Ya actualizado
+    # Verificar si ya fue actualizado (todos los items con hof/hay tienen precio_mo_ars)
+    sin_mo = db.execute(
+        "SELECT COUNT(*) FROM items_obra WHERE (hof > 0 OR hay > 0) AND (precio_mo_ars IS NULL OR precio_mo_ars = 0)"
+    ).fetchone()[0]
+    if sin_mo == 0:
+        return  # Todos los ítems ya tienen precio_mo_ars
+
+    if not xlsx_exists:
+        # Sin Excel: usar fallback hof×$10000 + hay×$5000 para items sin valor
+        db.execute("""
+            UPDATE items_obra
+            SET precio_mo_ars = ROUND(hof * 10000 + hay * 5000, 2)
+            WHERE (precio_mo_ars IS NULL OR precio_mo_ars = 0) AND (hof > 0 OR hay > 0)
+        """)
+        db.commit()
+        updated = db.execute("SELECT changes()").fetchone()[0]
+        print(f"[migrate_db] precio_mo_ars fallback hof/hay: {updated} ítems actualizados")
+        return
 
     try:
         import openpyxl
@@ -1036,7 +1048,7 @@ def init_db():
         ('Áridos y gravas',         'Arena fina',                  'm3',           1.30),
         ('Áridos y gravas',         'Piedra partida 6/20',         'm3',           1.10),
         ('Áridos y gravas',         'Cascotes',                    'm3',           0.80),
-        ('Áridos y gravas',         'Perlitas',                    'bolsa 100l',   5.00),
+        ('Áridos y gravas',         'Perlitas Telgopor (75 Lts)',  'bolsa',        5.00),
         ('Ladrillos y bloques',     'Ladrillo común 18x9x5cm',    'millar',    1800.00),
         ('Ladrillos y bloques',     'Ladrillo hueco 8x18x33cm',   'millar',    2200.00),
         ('Ladrillos y bloques',     'Ladrillo hueco 12x18x33cm',  'millar',    2800.00),
@@ -1089,7 +1101,7 @@ def init_db():
         """, materiales_base)
 
 
-    # ── Análisis sub-items (materiales + MO por item) ─────────────────────────
+    # ── Análisis sub-items (materiales + MO por item) ─────────────────────
     analisis_count = db.execute("SELECT COUNT(*) as c FROM analisis_sub").fetchone()['c']
     if analisis_count == 0:
         try:
@@ -1105,6 +1117,9 @@ def init_db():
             print(f"[init_db] analisis_sub: {len(rows)} filas insertadas")
         except Exception as e:
             print(f"[init_db] analisis_sub no cargado: {e}")
+
+    # ── precio_mo_ars: fallback hof/hay si no hay Excel ────────────────
+    _actualizar_mo_analisis(db)
 
     db.commit()
     db.close()
