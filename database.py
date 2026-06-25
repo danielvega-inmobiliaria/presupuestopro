@@ -1084,7 +1084,7 @@ def init_db():
     mat_exist = db.execute("SELECT COUNT(*) as c FROM materiales").fetchone()['c']
     if mat_exist == 0:
         db.executemany("""
-            INSERT INTO materiale            INSERT INTO materiales (categoria, nombre, unidad, precio_usd)
+            INSERT INTO materiales (categoria, nombre, unidad, precio_usd)
             VALUES (?, ?, ?, ?)
         """, materiales_base)
 
