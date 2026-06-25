@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash
 from config import Config
 
 def get_db():
+    os.makedirs(os.path.dirname(Config.DATABASE), exist_ok=True)
     db = sqlite3.connect(Config.DATABASE, timeout=20)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA journal_mode=DELETE")
