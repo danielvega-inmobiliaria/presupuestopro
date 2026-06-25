@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% block title %}Paso 2: Computo de Obra{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3" style="max-width:960px; margin:0 auto;">
+
+  <!-- Encabezado -->
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-warning text-dark fs-6 px-3 py-2">Paso 2 / 8</span>
+    <h5 class="mb-0 fw-bold">Computo de Obra</h5>
+  </div>
+
+  <!-- Barra total sticky -->
+  <div class="card border-0 shadow-sm mb-3" style="position:sticky; top:60px; z-index:100; background:#0f1e3c;">
+    <div class="card-body py-2 px-3">
+      <div class="row align-items-center g-2 text-white">
+        <div class="col-auto">
+          <small class="opacity-75">COSTO DIRECTO TOTAL</small><br>
+          <strong class="fs-5" id="totalGeneral">{{ simbolo }} 0</strong>
+        </div>
+        <div class="col-auto ms-3">
+          <small class="opacity-75">HH CALCULADAS</small><br>
+          <strong id="hhTotal">0 hs</strong>
+        </div>
+        <div class="col text-end">
+          <small class="opacity-50 d-none d-md-inline">Ingrese cantidades por item</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" id="formComputo">
+
+    <!-- Superficie -->
+    <div class="card mb-3 border-0 shadow-sm">
+      <div class="card-body py-2">
+        <div class="row align-items-center g-2">
+          <div class="col-auto">
+            <label class="form-label mb-0 fw-semibold">
+              <i class="bi bi-rulers text-warning"></i> Superficie cubierta
+            </label>
+          </div>
+          <div class="col-auto">
+            <div class="input-group input-group-sm" style="width:160px;">
+              <input type="number" class="form-control" name="superficie"
+                     value="{{ p.superficie or '' }}" min="0" step="0.01" placeholder="m2"
+                     inputmode="decimal">
+              <span class="input-group-text">m2</span>
+            </div>
+          </div>
+          <div class="col">
+            <small class="text-muted">Para el resumen y PDF</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Acordeon -->
+    <div class="accordion" id="accordionRubros">
+
+      {% for r in rubros_default %}
+      {% set rnum = r['num'] %}
+      {% set grupo = rubros_agrupados[rnum] %}
+
+      <div class="accordion-item border-0 shadow-sm mb-2 rounded-3 overflow-hidden">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed fw-semibold py-3" type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#rubro{{ rnum }}"
+                  aria-expanded="false">
+            <span class="badge bg-secondary text-white me-2">{{ rnum }}</span>
+            {{ r['nombre'] }}
+            <span class="ms-auto me-2 badge bg-light text-dark border"
+                  id="badge{{ rnum }}">{{ simbolo }} 0</span>
+          </button>
+        </h2>
+
+        <div id="rubro{{ rnum }}" class="accordion-collapse collapse"
+             data-bs-parent="#accordionRubros">
+          <div class="accordion-body p-0">
+
+            {% set items_list = grupo['items'] %}
+            {% if items_list %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0" style="font-size:.85rem;">
+                <thead class="table-dark">
+                  <tr>
+                    <th style="min-width:200px;">Item</th>
+                    <th class="text-center" style="width:65px;">Unidad</th>
+                    <th class="text-center" style="width:110px;">Cantidad</th>
+                    <th class="text-end d-none d-md-table-cell" style="width:130px;">P. Unit ({{ simbolo }})</th>
+                    <th class="text-end" style="width:130px;">Subtotal ({{ simbolo }})</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for it in items_list %}
+                  {% set prev_cant = cantidades.get(it['id'], 0) %}
+                  <tr id="row-{{ it['id'] }}" class="{{ 'table-warning' if prev_cant > 0 else '' }}">
+                    <td class="align-middle">{{ it['nombre'] }}</td>
+                    <td class="text-center align-middle">
+                      <span class="badge bg-secondary">{{ it['unidad'] }}</span>
+                    </td>
+                    <td class="text-center align-middle">
+                      <input type="number"
+                             class="form-control form-control-sm text-center cant-input"
+                             name="item_{{ it['id'] }}"
+                             id="cant_{{ it['id'] }}"
+                             data-precio="{{ it['precio_ars'] }}"
+                             data-hof="{{ it['hof'] }}"
+                             data-hay="{{ it['hay'] }}"
+                             data-rubro="{{ rnum }}"
+                             data-subtotal="subtotal_{{ it['id'] }}"
+                             min="0" step="any"
+                             value="{{ prev_cant if prev_cant > 0 else '' }}"
+                             placeholder="0" inputmode="decimal">
+                    </td>
+                    <td class="text-end align-middle text-muted d-none d-md-table-cell">
+                      {{ "{:,.0f}".format(it['precio_ars']).replace(",",".") }}
+                    </td>
+                    <td class="text-end align-middle fw-semibold" id="subtotal_{{ it['id'] }}">
+                      {% if prev_cant > 0 %}
+                      {{ "{:,.0f}".format(prev_cant * it['precio_ars']).replace(",",".") }}
+                      {% else %}—{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot class="table-secondary">
+                  <tr>
+                    <td colspan="3" class="fw-bold ps-3">Total {{ r['nombre'] }}</td>
+                    <td class="d-none d-md-table-cell"></td>
+                    <td class="text-end fw-bold" id="total{{ rnum }}">{{ simbolo }} 0</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {% else %}
+            <div class="p-3 text-muted"><i class="bi bi-info-circle"></i> Sin items para este rubro.</div>
+            {% endif %}
+
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+    </div><!-- /accordion -->
+
+    <!-- Resumen por rubros -->
+    <div class="card border-0 shadow-sm mt-3 mb-3">
+      <div class="card-header bg-dark text-white fw-bold py-2">
+        <i class="bi bi-list-check"></i> Resumen de Costos Directos
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            {% for r in rubros_default %}
+            <tr>
+              <td class="ps-3 text-muted" style="font-size:.85rem;">
+                <span class="badge bg-secondary me-1">{{ r['num'] }}</span>{{ r['nombre'] }}
+              </td>
+              <td class="text-end pe-3 fw-semibold" id="resumen{{ r['num'] }}">—</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-warning">
+            <tr>
+              <td class="ps-3 fw-bold">COSTO DIRECTO TOTAL</td>
+              <td class="text-end pe-3 fw-bold fs-6" id="resumenTotal">{{ simbolo }} 0</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Botones -->
+    <div class="d-flex justify-content-between pb-4">
+      <a href="{{ url_for('presupuesto.nuevo') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Anterior
+      </a>
+      <button type="submit" class="btn btn-warning fw-bold px-4">
+        Siguiente <i class="bi bi-arrow-right"></i>
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+const SIMBOLO = "{{ simbolo }}";
+const totalesRubro = {};
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('es-AR');
+}
+
+function recalcularRubro(rnum) {
+  let total = 0;
+  document.querySelectorAll('.cant-input[data-rubro="' + rnum + '"]').forEach(function(inp) {
+    var cant = parseFloat(inp.value) || 0;
+    var precio = parseFloat(inp.dataset.precio) || 0;
+    var sub = cant * precio;
+    total += sub;
+
+    var subtotalEl = document.getElementById(inp.dataset.subtotal);
+    if (subtotalEl) {
+      subtotalEl.textContent = cant > 0 ? fmt(sub) : '—';
+    }
+    var row = inp.closest('tr');
+    if (row) {
+      if (cant > 0) { row.classList.add('table-warning'); }
+      else { row.classList.remove('table-warning'); }
+    }
+  });
+
+  totalesRubro[rnum] = total;
+
+  var totalEl = document.getElementById('total' + rnum);
+  if (totalEl) {
+    totalEl.textContent = total > 0 ? SIMBOLO + ' ' + fmt(total) : SIMBOLO + ' 0';
+  }
+
+  var badgeEl = document.getElementById('badge' + rnum);
+  if (badgeEl) {
+    if (total > 0) {
+      badgeEl.textContent = SIMBOLO + ' ' + fmt(total);
+      badgeEl.className = 'ms-auto me-2 badge bg-warning text-dark';
+    } else {
+      badgeEl.textContent = SIMBOLO + ' 0';
+      badgeEl.className = 'ms-auto me-2 badge bg-light text-dark border';
+    }
+  }
+
+  var resumenEl = document.getElementById('resumen' + rnum);
+  if (resumenEl) {
+    resumenEl.textContent = total > 0 ? SIMBOLO + ' ' + fmt(total) : '—';
+  }
+
+  recalcularTotal();
+}
+
+function recalcularTotal() {
+  var grand = 0;
+  for (var k in totalesRubro) { grand += totalesRubro[k]; }
+  document.getElementById('totalGeneral').textContent = SIMBOLO + ' ' + fmt(grand);
+  document.getElementById('resumenTotal').textContent = SIMBOLO + ' ' + fmt(grand);
+}
+
+function recalcularHH() {
+  var hh = 0;
+  document.querySelectorAll('.cant-input').forEach(function(inp) {
+    var cant = parseFloat(inp.value) || 0;
+    var hof = parseFloat(inp.dataset.hof) || 0;
+    var hay = parseFloat(inp.dataset.hay) || 0;
+    hh += cant * (hof + hay);
+  });
+  document.getElementById('hhTotal').textContent = hh > 0 ? hh.toFixed(1) + ' hs' : '0 hs';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Inicializar totales desde cantidades previas
+  {% for r in rubros_default %}
+  totalesRubro["{{ r['num'] }}"] = 0;
+  {% endfor %}
+
+  {% for r in rubros_default %}
+  recalcularRubro("{{ r['num'] }}");
+  {% endfor %}
+  recalcularHH();
+
+  // Scroll al header cuando se abre un acordeon
+  document.querySelectorAll(".accordion-collapse").forEach(function(el) {
+    el.addEventListener("shown.bs.collapse", function() {
+      var header = this.previousElementSibling;
+      if (header) {
+        setTimeout(function(){ header.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
+      }
+    });
+  });
+
+  // Listener en cada input
+  document.querySelectorAll('.cant-input').forEach(function(inp) {
+    inp.addEventListener('input', function() {
+      recalcularRubro(this.dataset.rubro);
+      recalcularHH();
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% block title %}Mi Perfil de Empresa{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <h4 class="mb-1"><i class="bi bi-building me-2"></i>Perfil de empresa</h4>
+    <p class="text-muted small mb-4">Estos datos aparecen en el encabezado de los PDFs.</p>
+
+    <form method="POST" action="{{ url_for('perfil.guardar') }}" enctype="multipart/form-data">
+
+      <!-- Logo -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold"><i class="bi bi-image me-1"></i> Logo</div>
+        <div class="card-body">
+          {% if perfil.get('logo_data') %}
+          <div class="mb-3 d-flex align-items-center gap-3">
+            <img src="data:image/*;base64,{{ perfil.logo_data }}"
+                 alt="Logo actual"
+                 style="max-height:80px;max-width:200px;object-fit:contain;border:1px solid #dee2e6;border-radius:6px;padding:4px;">
+            <div>
+              <p class="mb-1 small text-muted">{{ perfil.logo_filename }}</p>
+              <form method="POST" action="{{ url_for('perfil.borrar_logo') }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-danger"
+                        onclick="return confirm('Eliminar el logo?')">
+                  <i class="bi bi-trash"></i> Eliminar
+                </button>
+              </form>
+            </div>
+          </div>
+          <label class="form-label small">Reemplazar logo:</label>
+          {% else %}
+          <label class="form-label">Subir logo <span class="text-muted small">(PNG, JPG, SVG — max. 2 MB)</span></label>
+          {% endif %}
+          <input type="file" class="form-control" name="logo" accept="image/*">
+          <div id="logo-preview" class="mt-2"></div>
+        </div>
+      </div>
+
+      <!-- Datos -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold"><i class="bi bi-info-circle me-1"></i> Datos de la empresa</div>
+        <div class="card-body row g-3">
+
+          <div class="col-12">
+            <label class="form-label">Nombre de la empresa</label>
+            <input type="text" class="form-control" name="nombre"
+                   value="{{ perfil.get('nombre', '') }}" placeholder="Constructora Ejemplo S.A.">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Slogan <span class="text-muted small">(opcional)</span></label>
+            <input type="text" class="form-control" name="slogan"
+                   value="{{ perfil.get('slogan', '') }}" placeholder="Calidad y confianza en cada obra">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Nombre del contacto</label>
+            <input type="text" class="form-control" name="contacto"
+                   value="{{ perfil.get('contacto', '') }}" placeholder="Ing. Juan Perez">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Telefono</label>
+            <input type="text" class="form-control" name="telefono"
+                   value="{{ perfil.get('telefono', '') }}" placeholder="+54 11 1234-5678">
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email"
+                   value="{{ perfil.get('email', '') }}" placeholder="contacto@empresa.com">
+          </div>
+
+        </div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-floppy me-1"></i> Guardar perfil
+        </button>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelector('input[name="logo"]').addEventListener('change', function () {
+  const prev = document.getElementById('logo-preview');
+  prev.innerHTML = '';
+  if (!this.files[0]) return;
+  const img = document.createElement('img');
+  img.src = URL.createObjectURL(this.files[0]);
+  img.style.cssText = 'max-height:80px;max-width:200px;object-fit:contain;border:1px solid #dee2e6;border-radius:6px;padding:4px;';
+  prev.appendChild(img);
+});
+</script>
+{% endblock %}

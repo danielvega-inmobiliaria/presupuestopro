@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% block title %}Modo y tiempo — Paso 5{% endblock %}
+
+{% block content %}
+{% include 'presupuesto/_wizard_steps.html' with context %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header card-header-blue">
+        <i class="bi bi-clock-history"></i> Paso 5 — Modo de cotizacion y tiempo de obra
+      </div>
+      <div class="card-body">
+        <form method="post" id="formModo">
+
+          <!-- Modo -->
+          <h6 class="text-muted mb-3">Que incluye el presupuesto?</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-6">
+              <input type="radio" class="btn-check" name="modo" id="modo_mo_mat"
+                     value="mo_mat" autocomplete="off"
+                     {{ 'checked' if p.get('modo','mo_mat') != 'solo_mo' else '' }}>
+              <label class="btn btn-outline-primary w-100 py-4" for="modo_mo_mat"
+                     style="height:auto; white-space:normal;">
+                <i class="bi bi-hammer d-block fs-2 mb-1"></i>
+                <strong>MO + Materiales</strong><br>
+                <small class="text-muted">Incluye mano de obra y materiales</small>
+              </label>
+            </div>
+            <div class="col-6">
+              <input type="radio" class="btn-check" name="modo" id="modo_solo_mo"
+                     value="solo_mo" autocomplete="off"
+                     {{ 'checked' if p.get('modo') == 'solo_mo' else '' }}>
+              <label class="btn btn-outline-warning w-100 py-4" for="modo_solo_mo"
+                     style="height:auto; white-space:normal;">
+                <i class="bi bi-person-raised-hand d-block fs-2 mb-1"></i>
+                <strong>Solo mano de obra</strong><br>
+                <small class="text-muted">El cliente pone los materiales</small>
+              </label>
+            </div>
+          </div>
+
+          <!-- Equipo de trabajo -->
+          <h6 class="text-muted mb-2">Equipo de trabajo</h6>
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+              <label class="form-label form-label-sm">
+                Oficiales
+              </label>
+              <input type="number" name="n_oficiales" id="n_of" class="form-control"
+                     min="1" max="20" value="{{ p.get('n_oficiales', 2) }}" inputmode="numeric">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label form-label-sm">
+                Ayudantes
+              </label>
+              <input type="number" name="n_ayudantes" id="n_ay" class="form-control"
+                     min="0" max="20" value="{{ p.get('n_ayudantes', 1) }}" inputmode="numeric">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label form-label-sm">Jornal oficial ({{ simbolo }}/día)</label>
+              <input type="number" name="jornal_oficial" id="jornal_of" class="form-control" autocomplete="off"
+                     min="0" step="100"
+                     value="{{ p.get('jornal_oficial','') }}" placeholder="{{ simbolo }} 0"
+                     inputmode="decimal">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label form-label-sm">Jornal ayudante ({{ simbolo }}/día)</label>
+              <input type="number" name="jornal_ayudante" id="jornal_ay" class="form-control" autocomplete="off"
+                     min="0" step="100"
+                     value="{{ p.get('jornal_ayudante','') }}" placeholder="{{ simbolo }} 0"
+                     inputmode="decimal">
+            </div>
+          </div>
+
+          <!-- Info Días Totales (Items!G4) -->
+          {% if hh_total and hh_total > 0 %}
+          <div class="alert alert-info py-2 mb-3">
+            <i class="bi bi-calculator me-1"></i>
+            Dias Totales:
+            <strong id="dias-sugeridos" class="text-success">— dias</strong>
+            <button type="button" class="btn btn-sm btn-outline-success ms-2 py-0"
+                    onclick="aplicarSugerido()">Aplicar</button>
+          </div>
+          {% else %}
+          <div class="alert alert-warning py-2 mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            HH no disponibles. Ingresa los dias manualmente.
+          </div>
+          {% endif %}
+
+          <!-- Dias de obra -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold">Dias de obra</label>
+              <input type="number" name="dias_obra" id="dias-obra" class="form-control"
+                     min="0" value="{{ p.get('dias_obra','') }}"
+                     placeholder="Ingresa los dias" inputmode="numeric">
+              <div class="form-text">Editable manualmente o usa "Aplicar".</div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="text-muted small" id="tiempo-display"></div>
+            </div>
+          </div>
+
+          <!-- GG e Impuestos (movidos desde paso 4) -->
+          <h6 class="text-muted mb-2">Beneficio y cargas</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label">% Gastos generales / Beneficio</label>
+              <div class="input-group">
+                <input type="number" name="pct_gg" id="pct_gg" class="form-control"
+                       min="0" max="100" step="0.5" value="{{ pct_gg }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">% Impuestos y seguros</label>
+              <div class="input-group">
+                <input type="number" name="pct_imp" id="pct_imp" class="form-control"
+                       min="0" max="100" step="0.5" value="{{ pct_imp }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ BARRA 1: Costo base (azul) ═══════════════════════════════════ -->
+          <div class="totals-bar mb-2">
+            <div class="row text-center g-0">
+              <div class="col-6 col-md-3 border-end border-secondary py-2">
+                <div class="small opacity-75" id="lbl-costo-d">Costo Directo</div>
+                <div class="fw-bold" id="bar1-cd">{{ simbolo }} 0</div>
+              </div>
+              <div class="col-6 col-md-3 border-end border-secondary py-2">
+                <div class="small opacity-75">Subcontratos</div>
+                <div class="fw-bold" id="bar1-subc">{{ simbolo }} {{ "{:,.0f}".format(totales.get('total_subc',0)).replace(',','.') }}</div>
+              </div>
+              <div class="col-6 col-md-3 border-end border-secondary py-2">
+                <div class="small opacity-75">Indirectos</div>
+                <div class="fw-bold" id="bar1-ind">{{ simbolo }} {{ "{:,.0f}".format(totales.get('total_ind',0)).replace(',','.') }}</div>
+              </div>
+              <div class="col-6 col-md-3 py-2">
+                <div class="small opacity-75">TOTAL BASE</div>
+                <div class="fw-bold" id="bar1-base">{{ simbolo }} 0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ BARRA 2: GG + Imp + Total final ══════════════════════════════ -->
+          <div class="totals-bar mb-2" style="background:linear-gradient(135deg,#1d44aa,#0f1e3c)">
+            <div class="row text-center g-0">
+              <div class="col-6 col-md-4 border-end border-secondary py-2">
+                <div class="small opacity-75">GG / Beneficio (<span id="lbl-pct-gg">{{ pct_gg }}</span>%)</div>
+                <div class="fw-bold" id="bar2-gg">{{ simbolo }} 0</div>
+              </div>
+              <div class="col-6 col-md-4 border-end border-secondary py-2">
+                <div class="small opacity-75">Imp. y seguros (<span id="lbl-pct-imp">{{ pct_imp }}</span>%)</div>
+                <div class="fw-bold" id="bar2-imp">{{ simbolo }} 0</div>
+              </div>
+              <div class="col-6 col-md-4 py-2">
+                <div class="small opacity-75">TOTAL FINAL</div>
+                <div class="fw-bold text-warning fs-6" id="bar2-total">{{ simbolo }} 0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ BARRA 3: Ganancia Real ════════════════════════════════════════ -->
+          <div class="mb-4 p-3 rounded" style="background:#166534;color:#fff">
+            <div class="row align-items-center">
+              <div class="col-md-8">
+                <div class="small opacity-75 mb-1">
+                  Ganancia Real = MO cobrada + GG$ − Operarios reales
+                </div>
+                <div class="small opacity-75">
+                  Operarios reales: <span id="lbl-op-reales">—</span>
+                  &nbsp;|&nbsp; MO cobrada: <span id="lbl-mo-cobrada">—</span>
+                </div>
+              </div>
+              <div class="col-md-4 text-end">
+                <div class="fw-bold fs-5" id="bar3-ganancia">{{ simbolo }} 0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a href="{{ url_for('presupuesto.indirectos') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> Anterior
+            </a>
+            <button type="submit" class="btn btn-warning fw-bold px-5">
+              Siguiente <i class="bi bi-arrow-right"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HH_TOTAL        = {{ hh_total | default(0) | float }};
+// HH_OFICIALES = solo horas "Oficial *" → base para Items!G4
+// G4 = REDONDEAR.MAS(HH_OFICIALES / (Cant_Of × 8), 0)
+const HH_OFICIALES    = {{ hh_oficiales | default(0) | float }};
+const SIM             = '{{ simbolo }}';
+// Valores estáticos desde DB (rubros, subc, ind ya calculados)
+const CD_RUBROS       = {{ totales.get('costo_directo', 0) }};   // MO+Mat de rubros
+const TOTAL_SUBC      = {{ totales.get('total_subc', 0) }};
+const TOTAL_IND       = {{ totales.get('total_ind', 0) }};
+const TOTAL_MAT       = {{ p.get('total_materiales', 0) }};      // RESUMEN!E2
+const MO_ANALISIS     = {{ total_mo_analisis | default(0) }};    // RESUMEN!E3 (desde Análisis)
+
+var _diasSugerido = 0;
+
+function fmtAR(n){
+  return SIM + ' ' + Math.round(n).toLocaleString('es-AR');
+}
+
+// ── Días sugeridos (Items!G4) ───────────────────────────────────────────────
+// G4 = REDONDEAR.MAS( SUM_items[(HOF_i+HAY_i)/(8*(of+ay))] , 0)
+//    = REDONDEAR.MAS( HH_OFICIALES / (8*(of+ay)) , 0)
+function calcDias(){
+  var nOf  = parseInt(document.getElementById('n_of').value) || 0;
+  var nAy  = parseInt(document.getElementById('n_ay').value) || 0;
+  var workers = nOf + nAy;
+  var hhRef = HH_OFICIALES > 0 ? HH_OFICIALES : HH_TOTAL;
+  if(hhRef > 0 && workers > 0){
+    _diasSugerido = Math.ceil(hhRef / (workers * 8));
+    var dSug = document.getElementById('dias-sugeridos');
+    if(dSug){ dSug.textContent = _diasSugerido + ' dias'; }
+    // Auto-actualizar el campo siempre que cambie el equipo
+    document.getElementById('dias-obra').value = _diasSugerido;
+  }
+  mostrarTiempo(parseInt(document.getElementById('dias-obra').value)||0);
+  recalc();
+}
+
+function aplicarSugerido(){
+  if(_diasSugerido > 0){
+    document.getElementById('dias-obra').value = _diasSugerido;
+    mostrarTiempo(_diasSugerido);
+    recalc();
+  }
+}
+
+function mostrarTiempo(dias){
+  var el = document.getElementById('tiempo-display');
+  if(!el || !dias) return;
+  var sem = Math.ceil(dias/5);
+  var mes = (dias/22).toFixed(1);
+  el.innerHTML = '<i class="bi bi-calendar3 me-1"></i>' + sem + ' sem. / ' + mes + ' meses';
+}
+
+// ── Recalculo completo de las 3 barras ─────────────────────────────────────
+function recalc(){
+  var nOf   = parseInt(document.getElementById('n_of').value) || 0;
+  var nAy   = parseInt(document.getElementById('n_ay').value) || 0;
+  var jOf   = parseFloat(document.getElementById('jornal_of').value) || 0;
+  var jAy   = parseFloat(document.getElementById('jornal_ay').value) || 0;
+  var dias  = parseInt(document.getElementById('dias-obra').value) || 0;
+  var pctGG = parseFloat(document.getElementById('pct_gg').value) || 0;
+  var pctImp= parseFloat(document.getElementById('pct_imp').value) || 0;
+  var nTotal= nOf + nAy;
+  var isSoloMO = document.getElementById('modo_solo_mo').checked;
+
+  // RESUMEN!E3 = MO cobrada
+  // Prioridad: valor calculado desde Análisis en paso2 (exacto = Excel)
+  // Fallback: HH × jornal_horario (si no hay datos Análisis)
+  var totalMO = 0;
+  if(MO_ANALISIS > 0){
+    totalMO = MO_ANALISIS;
+  } else if(nTotal > 0 && HH_TOTAL > 0){
+    var jHorario = (nOf * jOf + nAy * jAy) / (nTotal * 8);
+    totalMO = jHorario * HH_TOTAL;
+  } else if(dias > 0 && nTotal > 0){
+    totalMO = (nOf * jOf + nAy * jAy) * dias;
+  }
+
+  // Operarios reales (costo de bolsillo)
+  var opReales = (nOf * jOf + nAy * jAy) * dias;
+
+  // ── BARRA 1: base sin GG/Imp ──
+  var costoD, base;
+  if(isSoloMO){
+    costoD = totalMO;
+    base   = totalMO + TOTAL_SUBC + TOTAL_IND;
+    document.getElementById('lbl-costo-d').textContent = 'MO total';
+  } else {
+    costoD = CD_RUBROS;
+    base   = CD_RUBROS + TOTAL_SUBC + TOTAL_IND;
+    document.getElementById('lbl-costo-d').textContent = 'Costo Directo';
+  }
+  document.getElementById('bar1-cd').textContent   = fmtAR(costoD);
+  document.getElementById('bar1-subc').textContent = fmtAR(TOTAL_SUBC);
+  document.getElementById('bar1-ind').textContent  = fmtAR(TOTAL_IND);
+  document.getElementById('bar1-base').textContent = fmtAR(base);
+
+  // ── BARRA 2: GG + Imp + Total final ──
+  var montoGG  = base * pctGG  / 100;
+  var montoImp = base * pctImp / 100;
+  var totalFinal = base + montoGG + montoImp;
+  document.getElementById('bar2-gg').textContent    = fmtAR(montoGG);
+  document.getElementById('bar2-imp').textContent   = fmtAR(montoImp);
+  document.getElementById('bar2-total').textContent = fmtAR(totalFinal);
+  document.getElementById('lbl-pct-gg').textContent  = pctGG;
+  document.getElementById('lbl-pct-imp').textContent = pctImp;
+
+  // ── BARRA 3: Ganancia Real ──
+  var moCobrada, gReal;
+  if(isSoloMO){
+    // Solo MO: RESUMEN!E3 + GG$ − operarios_reales
+    moCobrada = totalMO;
+    gReal = totalMO + montoGG - opReales;
+  } else {
+    // MO+Mat: MO cobrada + GG$ aplicado al total (MO+Materiales) − operarios_reales
+    moCobrada = totalMO;
+    gReal = totalMO + montoGG - opReales;
+  }
+  document.getElementById('bar3-ganancia').textContent = fmtAR(gReal);
+  document.getElementById('lbl-op-reales').textContent = fmtAR(opReales);
+  document.getElementById('lbl-mo-cobrada').textContent = fmtAR(moCobrada);
+}
+
+// ── Listeners ───────────────────────────────────────────────────────────────
+['n_of','n_ay'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', calcDias);
+});
+['jornal_of','jornal_ay','pct_gg','pct_imp'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', recalc);
+});
+document.getElementById('dias-obra').addEventListener('input', function(){
+  mostrarTiempo(parseInt(this.value)||0);
+  recalc();
+});
+document.getElementById('modo_solo_mo').addEventListener('change', recalc);
+document.getElementById('modo_mo_mat').addEventListener('change', recalc);
+
+// ── Init ────────────────────────────────────────────────────────────────────
+// calcDias() ya setea el valor sugerido en el input
+calcDias();
+mostrarTiempo(parseInt(document.getElementById('dias-obra').value)||0);
+recalc();
+</script>
+{% endblock %}

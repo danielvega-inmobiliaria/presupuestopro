@@ -1,0 +1,57 @@
+:root {
+  --pp-blue: #0d1e3c;
+  --pp-gold: #eab308;
+}
+
+body { background: #f8f9fa; }
+
+.navbar { background-color: var(--pp-blue) !important; }
+.navbar-brand { color: var(--pp-gold) !important; }
+
+/* Wizard steps */
+.wizard-steps { display: flex; gap: 0; margin-bottom: 2rem; }
+.wizard-steps .step {
+  flex: 1; text-align: center; padding: .4rem .2rem;
+  font-size: .75rem; font-weight: 600;
+  background: #dee2e6; color: #6c757d;
+  border-right: 2px solid #fff;
+}
+.wizard-steps .step:last-child { border-right: none; }
+.wizard-steps .step.active { background: var(--pp-blue); color: #fff; }
+.wizard-steps .step.done  { background: #198754; color: #fff; }
+/* Pasos clickeables (etiqueta <a>) */
+.wizard-steps a.step {
+  display: block; text-decoration: none;
+  transition: filter .15s, transform .1s;
+  cursor: pointer;
+}
+.wizard-steps a.step:hover {
+  filter: brightness(1.18);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+/* Cards */
+.card { border: none; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.card-header-blue { background: var(--pp-blue); color: #fff; }
+
+/* Totals bar */
+.totals-bar { background: var(--pp-blue); color: #fff; border-radius: .5rem; padding: 1rem 1.5rem; }
+.totals-bar .total-main { font-size: 1.6rem; font-weight: 700; color: var(--pp-gold); }
+
+/* Rubros table */
+.table-rubros th { background: #343a40; color: #fff; }
+.table-rubros td input { max-width: 160px; }
+
+/* Cuadro pago */
+.cuota-anticipo { background: #d1e7dd; }
+.cuota-saldo { background: #ffe5d0; }
+.cuota-cuota { background: #f8f9fa; }
+
+/* Badges */
+.badge-pais { font-size: .85rem; padding: .35em .7em; }
+
+/* Print */
+@media print {
+  nav, .btn, .wizard-steps, .alert { display: none !important; }
+}

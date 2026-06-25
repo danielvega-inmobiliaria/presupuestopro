@@ -1,0 +1,45 @@
+# Base de datos SQLite — vive en el volumen de Railway, no en el repo
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.bak
+
+# Archivos temporales de Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Variables de entorno locales
+.env
+.env.local
+
+# Archivos Excel (datos sensibles / muy pesados)
+*.xlsx
+*.xls
+
+# Archivos de backup / recuperación
+recover_db.py
+db_data_fixed.json
+pp_clean.db*
+pp_new.db*
+pp_recovered.db*
+presupuestopro.bak*
+database.py.bak*
+update_rendimiento.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

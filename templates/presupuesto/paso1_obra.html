@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo presupuesto — Paso 1{% endblock %}
+
+{% block content %}
+{% include 'presupuesto/_wizard_steps.html' with context %}
+
+<div class="card mx-auto" style="max-width:700px">
+  <div class="card-header card-header-blue">
+    <i class="bi bi-person-lines-fill"></i> Paso 1 — Datos del cliente y la obra
+  </div>
+  <div class="card-body p-4">
+    <form method="post">
+      <h6 class="text-muted mb-3">Cliente</h6>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Nombre completo *</label>
+          <input type="text" name="cliente_nombre" class="form-control" required autofocus
+                 value="{{ p.get('cliente_nombre', '') }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Teléfono</label>
+          <input type="text" name="cliente_tel" class="form-control"
+                 value="{{ p.get('cliente_tel', '') }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Email</label>
+          <input type="email" name="cliente_email" class="form-control"
+                 value="{{ p.get('cliente_email', '') }}">
+        </div>
+      </div>
+
+      <hr class="my-4">
+      <h6 class="text-muted mb-3">Obra</h6>
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Descripción de la obra *</label>
+          <input type="text" name="obra_descripcion" class="form-control"
+                 placeholder="Ej: Construcción de vivienda unifamiliar" required
+                 value="{{ p.get('obra_descripcion', '') }}">
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Dirección</label>
+          <input type="text" name="obra_direccion" class="form-control"
+                 placeholder="Calle, número, ciudad"
+                 value="{{ p.get('obra_direccion', '') }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Tipo de obra</label>
+          <select name="obra_tipo" class="form-select">
+            {% set tipo_actual = p.get('obra_tipo', 'Vivienda nueva') %}
+            <option {{ 'selected' if tipo_actual == 'Vivienda nueva' }}>Vivienda nueva</option>
+            <option {{ 'selected' if tipo_actual == 'Ampliación' }}>Ampliación</option>
+            <option {{ 'selected' if tipo_actual == 'Refacción' }}>Refacción</option>
+            <option {{ 'selected' if tipo_actual == 'Comercial' }}>Comercial</option>
+            <option {{ 'selected' if tipo_actual == 'Industrial' }}>Industrial</option>
+            <option {{ 'selected' if tipo_actual == 'Otro' }}>Otro</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Fecha del presupuesto</label>
+          <input type="date" name="fecha_presup" class="form-control"
+                 value="{{ p.get('fecha_presup', hoy) }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Validez (días)</label>
+          <input type="number" name="validez" class="form-control"
+                 value="{{ p.get('validez', 15) }}" min="1">
+        </div>
+        <div class="col-12">
+          <label class="form-label">Descripción de trabajos <span class="text-muted small">(aparece en el presupuesto)</span></label>
+          <textarea name="descripcion_trabajos" class="form-control" rows="3"
+                    placeholder="Ej: Se incluye demolición de revoque, mampostería en planta baja, instalación sanitaria completa y pinturas...">{{ p.get('descripcion_trabajos', '') if p else '' }}</textarea>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-primary px-5">
+          Siguiente <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

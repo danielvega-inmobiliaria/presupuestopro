@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Presupuesto {{ p.nro }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="mb-0">Presupuesto <span class="badge bg-secondary">{{ p.nro }}</span></h4>
+    <span class="text-muted small">{{ p.fecha_presup }} · {{ p.cliente_nombre }}</span>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('presupuesto.editar', pid=p.id) }}" class="btn btn-outline-success">
+      <i class="bi bi-pencil"></i> Editar
+    </a>
+    <a href="{{ url_for('pdf.propietario', pid=p.id) }}" class="btn btn-outline-primary">
+      <i class="bi bi-file-person"></i> PDF Propietario
+    </a>
+    <a href="{{ url_for('pdf.constructor', pid=p.id) }}" class="btn btn-outline-dark">
+      <i class="bi bi-tools"></i> PDF Constructor
+    </a>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Totales -->
+  <div class="col-lg-4">
+    <div class="totals-bar mb-3">
+      <div class="text-center">
+        <div class="small opacity-75 mb-1">TOTAL DEL PRESUPUESTO</div>
+        <div class="total-main">{{ simbolo }} {{ "{:,.0f}".format(p.total_presupuesto).replace(',','.') }}</div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-light fw-bold small">Datos de obra</div>
+      <ul class="list-group list-group-flush small">
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">Cliente</span>
+          <strong>{{ p.cliente_nombre }}</strong>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">Obra</span>
+          <span>{{ p.obra_descripcion }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">Tiempo</span>
+          <strong>{{ p.dias_obra }} días</strong>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          <span class="text-muted">Equipo</span>
+          <span>{{ p.n_oficiales }} of. + {{ p.n_ayudantes }} ay.</span>
+        </li>
+        {% if p.descripcion_trabajos %}
+        <li class="list-group-item">
+          <div class="text-muted small mb-1">Descripción de trabajos</div>
+          <div class="small">{{ p.descripcion_trabajos }}</div>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- Cuadro de pago -->
+    <div class="card">
+      <div class="card-header bg-light fw-bold small">Forma de pago</div>
+      {% set nc = cuadro.n_cuotas %}
+      {% set frec_raw = p.frecuencia_pago %}
+      {% set frec_lbl = {'semanal':'semanales','quincenal':'quincenales','mensual':'mensuales'}.get(frec_raw, frec_raw) %}
+      <ul class="list-group list-group-flush small">
+        <li class="list-group-item cuota-anticipo d-flex justify-content-between">
+          <span>Anticipo</span>
+          <strong>{{ simbolo }} {{ "{:,.0f}".format(cuadro.anticipo).replace(',','.') }}</strong>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+          {% if nc > 0 %}
+          <span>{{ nc }} cuota{{ 's' if nc != 1 }} {{ frec_lbl }} de {{ simbolo }} {{ "{:,.0f}".format(cuadro.monto_cuota).replace(',','.') }} c/u</span>
+          <span class="text-muted">{{ simbolo }} {{ "{:,.0f}".format(cuadro.monto_cuota * nc).replace(',','.') }}</span>
+          {% else %}
+          <span class="text-muted fst-italic">Sin cuotas intermedias</span>
+          <span>—</span>
+          {% endif %}
+        </li>
+        <li class="list-group-item cuota-saldo d-flex justify-content-between">
+          <span>Saldo final</span>
+          <strong>{{ simbolo }} {{ "{:,.0f}".format(cuadro.saldo_final).replace(',','.') }}</strong>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Detalle de rubros -->
+  <div class="col-lg-8">
+    {% if p.rubros %}
+    <div class="card mb-3">
+      <div class="card-header bg-light fw-bold small">Items de obra</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>N°</th><th>Rubro</th><th class="text-end">{{ simbolo }}</th></tr>
+          </thead>
+          <tbody>
+            {% for r in p.rubros if r.total_local > 0 %}
+            <tr>
+              <td class="text-muted">{{ r.num }}</td>
+              <td>{{ r.nombre }}</td>
+              <td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(r.total_local).replace(',','.') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if p.subcontratos %}
+    <div class="card mb-3">
+      <div class="card-header bg-light fw-bold small">Subcontratos</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Rubro</th><th class="text-end">MO</th><th class="text-end">Mat.</th><th class="text-end">Total</th></tr>
+          </thead>
+          <tbody>
+            {% for s in p.subcontratos %}
+            <tr>
+              <td>{{ s.nombre }}</td>
+              <td class="text-end">{{ "{:,.0f}".format(s.mo_local).replace(',','.') }}</td>
+              <td class="text-end">{{ "{:,.0f}".format(s.mat_local).replace(',','.') }}</td>
+              <td class="text-end fw-bold">{{ simbolo }} {{ "{:,.0f}".format(s.total_local).replace(',','.') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if p.materiales %}
+    <div class="card">
+      <div class="card-header bg-light fw-bold small">Materiales incluidos</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Material</th><th class="text-center">Cant.</th><th class="text-end">P.Unit.</th><th class="text-end">Subtotal</th></tr>
+          </thead>
+          <tbody>
+            {% for m in p.materiales %}
+            <tr>
+              <td>{{ m.nombre }}</td>
+              <td class="text-center">{{ m.cantidad }} {{ m.unidad }}</td>
+              <td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(m.precio_local).replace(',','.') }}</td>
+              <td class="text-end fw-bold">{{ simbolo }} {{ "{:,.0f}".format(m.subtotal).replace(',','.') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

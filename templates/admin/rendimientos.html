@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Rendimientos HOF/HAY — Admin{% endblock %}
+
+{% block content %}
+<h4 class="mb-1"><i class="bi bi-speedometer2"></i> Rendimientos de mano de obra</h4>
+<p class="text-muted small mb-4">HOF = Horas Oficial por unidad · HAY = Horas Ayudante por unidad. Se usan para calcular días de obra automáticamente.</p>
+
+<form method="post" action="{{ url_for('admin.rendimientos_actualizar') }}">
+  {% for rubro in rubros %}
+  {% set rubro_items = items | selectattr('rubro_num', 'equalto', rubro.num) | list %}
+  {% if rubro_items %}
+  <div class="card mb-3">
+    <div class="card-header py-2" style="background:#1d44aa;color:#fff">
+      <strong>{{ rubro.num }} — {{ rubro.nombre }}</strong>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Item</th>
+            <th class="text-center" style="width:60px">Unidad</th>
+            <th style="width:140px">HOF (h/un)</th>
+            <th style="width:140px">HAY (h/un)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in rubro_items %}
+          <tr>
+            <td class="small">{{ it.nombre }}</td>
+            <td class="text-center text-muted small">{{ it.unidad }}</td>
+            <td>
+              <input type="number" name="hof_{{ it.id }}"
+                     class="form-control form-control-sm"
+                     value="{{ it.hof }}" step="0.01" min="0">
+            </td>
+            <td>
+              <input type="number" name="hay_{{ it.id }}"
+                     class="form-control form-control-sm"
+                     value="{{ it.hay }}" step="0.01" min="0">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <div class="sticky-bottom py-3 bg-white border-top">
+    <button type="submit" class="btn btn-warning fw-bold px-4">
+      <i class="bi bi-save"></i> Guardar rendimientos
+    </button>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary ms-2">Cancelar</a>
+  </div>
+</form>
+{% endblock %}

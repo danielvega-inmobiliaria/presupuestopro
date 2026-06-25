@@ -1,0 +1,37 @@
+<div class="wizard-steps mb-4">
+  {% set steps = [
+    ('1','Datos',       'nuevo'),
+    ('2','Rubros',      'rubros'),
+    ('3','Subc.',       'subcontratos'),
+    ('4','Indirec.',    'indirectos'),
+    ('5','Modo/Tiempo', 'modo_tiempo'),
+    ('6','Materiales',  'materiales'),
+    ('7','Pago',        'forma_pago'),
+    ('8','Resumen',     'resumen'),
+  ] %}
+  {% set current_ep = request.endpoint.replace('presupuesto.','') %}
+  {% set paso_num = namespace(val=0) %}
+  {% for num, label, ep in steps %}
+    {% if ep == current_ep %}{% set paso_num.val = loop.index %}{% endif %}
+  {% endfor %}
+  {# wizard_step = el paso más alto que ya fue guardado #}
+  {% set max_step = p.get('wizard_step', paso_num.val) if p is defined else paso_num.val %}
+
+  {% for num, label, ep in steps %}
+    {% set is_active = (loop.index == paso_num.val) %}
+    {% set is_done   = (loop.index < paso_num.val) %}
+    {% set is_nav    = (loop.index <= max_step) %}  {# clickeable si ya fue visitado #}
+
+    {% if is_nav and not is_active %}
+      <a href="{{ url_for('presupuesto.' ~ ep) }}"
+         class="step done{% if is_active %} active{% endif %}"
+         title="Ir a {{ label }}">
+        <i class="bi bi-check"></i><br>{{ label }}
+      </a>
+    {% elif is_active %}
+      <div class="step active">{{ num }}<br>{{ label }}</div>
+    {% else %}
+      <div class="step">{{ num }}<br>{{ label }}</div>
+    {% endif %}
+  {% endfor %}
+</div>

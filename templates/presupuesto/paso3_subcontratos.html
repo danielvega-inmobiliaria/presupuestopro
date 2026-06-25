@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Subcontratos — Paso 3{% endblock %}
+
+{% block content %}
+{% include 'presupuesto/_wizard_steps.html' with context %}
+
+<div class="card mx-auto" style="max-width:760px">
+  <div class="card-header card-header-blue">
+    <i class="bi bi-people"></i> Paso 3 — Subcontratos
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">Marca los rubros que vas a subcontratar e ingresa los montos en {{ simbolo }}.</p>
+
+    <form method="post" id="formSubc">
+
+      <!-- Sugeridos -->
+      {% for s in sugeridos %}
+      <div class="card mb-2 border" id="card-{{ s.id }}">
+        <div class="card-body py-2">
+          <div class="row align-items-center g-2">
+            <div class="col-auto">
+              <input class="form-check-input" type="checkbox"
+                     name="subc_sel" value="{{ s.id }}" id="chk-{{ s.id }}"
+                     onchange="toggleSubc('{{ s.id }}')">
+            </div>
+            <div class="col-3">
+              <label class="form-check-label fw-semibold" for="chk-{{ s.id }}">{{ s.nombre }}</label>
+            </div>
+            <div class="col subc-fields-{{ s.id }}" style="display:none">
+              <div class="row g-2">
+                <div class="col-6">
+                  <input type="number" name="subc_{{ s.id }}_mo" class="form-control form-control-sm"
+                         min="0" step="1000" placeholder="MO ({{ simbolo }})">
+                </div>
+                <div class="col-6">
+                  <input type="number" name="subc_{{ s.id }}_mat" class="form-control form-control-sm"
+                         min="0" step="1000" placeholder="Materiales ({{ simbolo }})">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <!-- Personalizados (dinámicos) -->
+      <div id="customs-container"></div>
+
+      <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="agregarSubc()">
+        <i class="bi bi-plus-circle"></i> Agregar otro subcontrato
+      </button>
+
+      <div class="d-flex justify-content-between mt-4">
+        <a href="{{ url_for('presupuesto.rubros') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i> Anterior
+        </a>
+        <button type="submit" class="btn btn-warning fw-bold px-5">
+          Siguiente <i class="bi bi-arrow-right"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SIM = "{{ simbolo }}";
+let customIdx = 0;
+
+// Pre-llenar subcontratos guardados (al editar o volver atrás)
+const SUBC_PREV = {{ p.get('subcontratos', []) | tojson }};
+window.addEventListener('DOMContentLoaded', function(){
+  SUBC_PREV.forEach(function(s){
+    const chk = document.getElementById('chk-' + s.id);
+    if(chk){
+      chk.checked = true;
+      toggleSubc(s.id);
+      const moIn = document.querySelector('[name="subc_' + s.id + '_mo"]');
+      const matIn = document.querySelector('[name="subc_' + s.id + '_mat"]');
+      if(moIn)  moIn.value  = s.mo_local  || 0;
+      if(matIn) matIn.value = s.mat_local || 0;
+    } else if(s.id && s.id.startsWith('custom')){
+      // Subcontrato personalizado — agregar fila
+      agregarSubcPrellenado(s.nombre, s.mo_local, s.mat_local);
+    }
+  });
+});
+
+function agregarSubcPrellenado(nombre, mo, mat){
+  const n = customIdx++;
+  const div = document.createElement('div');
+  div.className = 'card mb-2 mt-2';
+  div.style.border = '2px dashed #dee2e6';
+  div.innerHTML = `
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" name="custom_${n}_nombre" class="form-control form-control-sm"
+                 value="${nombre || ''}" placeholder="Nombre del subcontrato" required>
+        </div>
+        <div class="col-md-3">
+          <input type="number" name="custom_${n}_mo" class="form-control form-control-sm"
+                 min="0" step="1000" value="${mo || 0}" placeholder="MO (${SIM})">
+        </div>
+        <div class="col-md-3">
+          <input type="number" name="custom_${n}_mat" class="form-control form-control-sm"
+                 min="0" step="1000" value="${mat || 0}" placeholder="Materiales (${SIM})">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-sm btn-outline-danger"
+                  onclick="this.closest('.card').remove()">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('customs-container').appendChild(div);
+}
+
+function toggleSubc(id){
+  const chk = document.getElementById('chk-' + id);
+  const fields = document.querySelector('.subc-fields-' + id);
+  fields.style.display = chk.checked ? '' : 'none';
+}
+
+function agregarSubc(){
+  const n = customIdx++;
+  const div = document.createElement('div');
+  div.className = 'card mb-2 border-dashed mt-2';
+  div.style.border = '2px dashed #dee2e6';
+  div.innerHTML = `
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" name="custom_${n}_nombre" class="form-control form-control-sm"
+                 placeholder="Nombre del subcontrato" required>
+        </div>
+        <div class="col-md-3">
+          <input type="number" name="custom_${n}_mo" class="form-control form-control-sm"
+                 min="0" step="1000" placeholder="MO (${SIM})">
+        </div>
+        <div class="col-md-3">
+          <input type="number" name="custom_${n}_mat" class="form-control form-control-sm"
+                 min="0" step="1000" placeholder="Materiales (${SIM})">
+        </div>
+        <div class="col-auto">
+          <button type="button" class="btn btn-sm btn-outline-danger"
+                  onclick="this.closest('.card').remove()">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('customs-container').appendChild(div);
+}
+</script>
+{% endblock %}

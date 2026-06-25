@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Admin — PresupuestoPRO{% endblock %}
+
+{% block content %}
+<h4 class="mb-4"><i class="bi bi-speedometer2"></i> Panel de administración</h4>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-3">
+    <div class="card text-white bg-primary">
+      <div class="card-body">
+        <div class="fs-2 fw-bold">{{ stats.total_users }}</div>
+        <div class="small">Usuarios totales</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card text-white bg-success">
+      <div class="card-body">
+        <div class="fs-2 fw-bold">{{ stats.activos }}</div>
+        <div class="small">Activos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card text-white bg-danger">
+      <div class="card-body">
+        <div class="fs-2 fw-bold">{{ stats.vencidos }}</div>
+        <div class="small">Suscripciones vencidas</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="card text-white bg-dark">
+      <div class="card-body">
+        <div class="fs-2 fw-bold">{{ stats.presupuestos }}</div>
+        <div class="small">Presupuestos totales</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header fw-bold">Próximos vencimientos</div>
+      <ul class="list-group list-group-flush">
+        {% for u in proximos %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-semibold">{{ u.nombre or u.email }}</div>
+            <small class="text-muted">{{ u.email }}</small>
+          </div>
+          <span class="badge bg-warning text-dark">{{ u.subscription_expires }}</span>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted text-center">Sin vencimientos próximos</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header fw-bold">Acceso rápido</div>
+      <div class="card-body d-grid gap-2">
+        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-primary">
+          <i class="bi bi-people"></i> Gestionar usuarios
+        </a>
+        <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn btn-outline-success">
+          <i class="bi bi-person-plus"></i> Nuevo usuario
+        </a>
+        <a href="{{ url_for('admin.precios') }}" class="btn btn-outline-secondary">
+          <i class="bi bi-tags"></i> Precios de materiales
+        </a>
+        <a href="{{ url_for('admin.tipos_cambio') }}" class="btn btn-outline-warning text-dark">
+          <i class="bi bi-currency-exchange"></i> Tipos de cambio
+        </a>
+        <a href="{{ url_for('admin.configuracion') }}" class="btn btn-outline-dark">
+          <i class="bi bi-sliders"></i> Configuración (GG%, Imp%)
+        </a>
+        <a href="{{ url_for('admin.rendimientos') }}" class="btn btn-outline-info">
+          <i class="bi bi-speedometer2"></i> Rendimientos HOF/HAY
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

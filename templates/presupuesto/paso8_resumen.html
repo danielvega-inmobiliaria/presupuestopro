@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Resumen — Paso 8{% endblock %}
+
+{% block content %}
+{% include 'presupuesto/_wizard_steps.html' with context %}
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header card-header-blue">
+        <i class="bi bi-check2-circle"></i> Paso 8 — Resumen del presupuesto
+      </div>
+      <div class="card-body">
+        <h6 class="text-muted">Cliente y obra</h6>
+        <table class="table table-sm table-borderless mb-3">
+          <tr><td class="text-muted" style="width:160px">Cliente</td><td><strong>{{ p.get('cliente_nombre') }}</strong></td></tr>
+          <tr><td class="text-muted">Obra</td><td>{{ p.get('obra_descripcion') }}</td></tr>
+          <tr><td class="text-muted">Dirección</td><td>{{ p.get('obra_direccion') }}</td></tr>
+          {% set fraw = p.get('fecha_presup','') %}
+          <tr><td class="text-muted">Fecha</td><td>{{ fraw[8:10] }}-{{ fraw[5:7] }}-{{ fraw[0:4] }}</td></tr>
+        </table>
+
+        <h6 class="text-muted">Totales</h6>
+        {% set tot  = p.get('totales', {}) %}
+        {% set modo = p.get('modo', 'mo_mat') %}
+        <table class="table table-sm mb-3">
+          {% if modo == 'solo_mo' %}
+          <tr>
+            <td>MO total ({{ p.get('n_oficiales',0) }} of. + {{ p.get('n_ayudantes',0) }} ay. · {{ "%.0f"|format(p.get('hh_total',0)) }} HH)</td>
+            <td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(p.get('total_mo',0)).replace(',','.') }}</td>
+          </tr>
+          {% else %}
+          <tr><td>Costo directo (rubros)</td><td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(tot.get('costo_directo',0)).replace(',','.') }}</td></tr>
+          {% endif %}
+          <tr><td>Subcontratos</td><td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(tot.get('total_subc',0)).replace(',','.') }}</td></tr>
+          <tr><td>Indirectos</td><td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(tot.get('total_ind',0)).replace(',','.') }}</td></tr>
+          <tr><td>GG / Beneficio ({{ p.get('pct_gg','20') }}%)</td><td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(tot.get('monto_gg',0)).replace(',','.') }}</td></tr>
+          <tr><td>Impuestos y seguros ({{ p.get('pct_imp','7') }}%)</td><td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(tot.get('monto_imp',0)).replace(',','.') }}</td></tr>
+          {% if modo == 'mo_mat' and p.get('total_materiales',0) > 0 %}
+          <tr><td class="text-muted small">Materiales incluidos (referencia)</td><td class="text-end text-muted small">{{ simbolo }} {{ "{:,.0f}".format(p.get('total_materiales',0)).replace(',','.') }}</td></tr>
+          {% endif %}
+          <tr class="table-dark fw-bold">
+            <td>TOTAL</td>
+            <td class="text-end text-warning">{{ simbolo }} {{ "{:,.0f}".format(tot.get('total_final',0)).replace(',','.') }}</td>
+          </tr>
+        </table>
+
+        <h6 class="text-muted">Descripcion de trabajos</h6>
+        <div class="mb-3">
+          <textarea id="desc-trabajos" class="form-control form-control-sm" rows="3"
+                    placeholder="Describe los trabajos incluidos...">{{ p.get('descripcion_trabajos', '') }}</textarea>
+          <div class="form-text">Podes editar antes de guardar. Este texto aparece en los PDFs.</div>
+        </div>
+
+        <h6 class="text-muted">Tiempo y equipo</h6>
+        <p class="mb-3">
+          {{ p.get('n_oficiales',0) }} oficiales + {{ p.get('n_ayudantes',0) }} ayudantes ·
+          <strong>{{ p.get('dias_obra',0) }} dias</strong> de obra
+        </p>
+
+        <h6 class="text-muted">Forma de pago</h6>
+        {% set cuadro = p.get('cuadro_pago', {}) %}
+        {% set nc     = p.get('n_cuotas', 0) %}
+        {% set freq   = p.get('frecuencia', 'mensual') %}
+        {% set flabel = {'semanal':'semanales','quincenal':'quincenales','mensual':'mensuales'}[freq] if freq in ['semanal','quincenal','mensual'] else freq %}
+        <table class="table table-sm mb-3" style="max-width:420px">
+          <tr style="background:#166534;color:#fff">
+            <td><i class="bi bi-play-circle-fill me-1"></i> Anticipo (al inicio)</td>
+            <td class="text-end fw-bold">{{ simbolo }} {{ "{:,.0f}".format(cuadro.get('anticipo',0)).replace(',','.') }}</td>
+          </tr>
+          <tr class="table-light">
+            <td>{{ nc }} cuota{{ 's' if nc != 1 }} {{ flabel }}</td>
+            <td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(cuadro.get('monto_cuota',0)).replace(',','.') }} c/u</td>
+          </tr>
+          <tr style="background:#ea580c;color:#fff">
+            <td><i class="bi bi-flag-fill me-1"></i> Saldo final (al terminar)</td>
+            <td class="text-end fw-bold">{{ simbolo }} {{ "{:,.0f}".format(cuadro.get('saldo_final',0)).replace(',','.') }}</td>
+          </tr>
+        </table>
+
+        {% set mats = p.get('materiales', []) %}
+        {% if mats and p.get('modo','mo_mat') == 'mo_mat' %}
+        <h6 class="text-muted">Materiales a comprar</h6>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-hover" style="font-size:0.82rem">
+            <thead class="table-secondary">
+              <tr>
+                <th>Material</th>
+                <th class="text-end">Cantidad</th>
+                <th class="text-center">Unidad</th>
+                <th class="text-end">P. Unit.</th>
+                <th class="text-end">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in mats %}
+              <tr>
+                <td>{{ m.get('nombre','') }}</td>
+                <td class="text-end">{{ m.get('cantidad','') }}</td>
+                <td class="text-center text-muted">{{ m.get('unidad','') }}</td>
+                <td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(m.get('precio_local',0)).replace(',','.') }}</td>
+                <td class="text-end fw-semibold">{{ simbolo }} {{ "{:,.0f}".format(m.get('subtotal',0)).replace(',','.') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="table-primary fw-bold">
+                <td colspan="4" class="text-end">TOTAL MATERIALES</td>
+                <td class="text-end">{{ simbolo }} {{ "{:,.0f}".format(p.get('total_materiales',0)).replace(',','.') }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% endif %}
+
+        <form method="post" id="formResumen">
+          <input type="hidden" name="descripcion_trabajos" id="desc-hidden">
+          <div class="d-flex justify-content-between">
+            <a href="{{ url_for('presupuesto.forma_pago') }}" class="btn btn-outline-secondary">
+              <i class="bi bi-arrow-left"></i> Anterior
+            </a>
+            <button type="submit" class="btn btn-success px-5 fw-bold">
+              <i class="bi bi-save"></i> Guardar presupuesto
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('formResumen').addEventListener('submit', function(){
+  document.getElementById('desc-hidden').value =
+    document.getElementById('desc-trabajos').value;
+});
+</script>
+{% endblock %}
