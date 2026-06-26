@@ -218,12 +218,14 @@
             <div class="phone-nav">
               <span style="color:var(--naranja);font-size:.65rem;font-weight:700;">Presupuesto<span style="color:#fff;">PRO</span></span>
               <div class="mt-1">
-                <span class="phone-tab">PDF</span>
-                <span class="phone-tab">Mi marca</span>
-                <span class="phone-tab active">Precios</span>
+                <span class="phone-tab" onclick="switchTab('pdf')" id="tab-pdf">PDF</span>
+                <span class="phone-tab" onclick="switchTab('marca')" id="tab-marca">Mi marca</span>
+                <span class="phone-tab active" onclick="switchTab('precios')" id="tab-precios">Precios</span>
               </div>
             </div>
-            <div class="phone-content">
+
+            <!-- SCREEN: Precios -->
+            <div class="phone-content" id="screen-precios">
               <div class="phone-badge">✓ Actualizado hoy</div>
               <div style="font-weight:700;font-size:.65rem;margin-bottom:6px;color:var(--azul);">Precios de materiales</div>
               <div class="phone-row"><span class="mat">Cemento Portland 25kg</span><span class="val">$6.500 bolsa</span></div>
@@ -234,9 +236,53 @@
               <div class="phone-row"><span class="mat">Telgopor 75Lts</span><span class="val">$6.500 bolsa</span></div>
               <div class="phone-note">Podés editar cualquier precio según tu zona o proveedor.</div>
             </div>
+
+            <!-- SCREEN: Mi marca -->
+            <div class="phone-content" id="screen-marca" style="display:none;">
+              <div style="font-weight:700;font-size:.65rem;margin-bottom:8px;color:var(--azul);">Tu marca en el PDF</div>
+              <div style="background:#f0f4f8;border-radius:8px;padding:8px;text-align:center;margin-bottom:8px;">
+                <div style="width:40px;height:40px;background:#dbeafe;border:2px dashed #7a9cbf;border-radius:6px;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:1rem;">🖼️</div>
+                <div style="font-size:.5rem;color:#6b7280;">Tu logo aquí</div>
+              </div>
+              <div style="font-size:.55rem;color:#374151;margin-bottom:4px;font-weight:600;">Empresa / Nombre</div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;font-size:.55rem;color:#6b7280;margin-bottom:6px;">Constructora García &amp; Hijos</div>
+              <div style="font-size:.55rem;color:#374151;margin-bottom:4px;font-weight:600;">CUIT</div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;font-size:.55rem;color:#6b7280;margin-bottom:6px;">20-28374651-3</div>
+              <div style="font-size:.55rem;color:#374151;margin-bottom:4px;font-weight:600;">Teléfono / WhatsApp</div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;font-size:.55rem;color:#6b7280;margin-bottom:6px;">11 5555-0000</div>
+              <div class="phone-note">Estos datos aparecen en cada PDF que generás.</div>
+            </div>
+
+            <!-- SCREEN: PDF -->
+            <div class="phone-content" id="screen-pdf" style="display:none;padding:8px;">
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font-size:.55rem;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:5px;border-bottom:1.5px solid #1E3A5F;margin-bottom:5px;">
+                  <div>
+                    <div style="font-weight:700;color:#1E3A5F;font-size:.65rem;">Constructora García</div>
+                    <div style="color:#6b7280;">CUIT 20-28374651-3</div>
+                    <div style="color:#6b7280;">11 5555-0000</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-weight:700;color:#1E3A5F;">PRESUP. #008</div>
+                    <div style="color:#6b7280;">26/06/2026</div>
+                  </div>
+                </div>
+                <div style="background:#f8fafc;border-left:2px solid #1E3A5F;padding:4px 5px;margin-bottom:5px;line-height:1.4;color:#374151;">
+                  <strong>Obra:</strong> Casa nueva 120m²<br>Mampostería, revoques, instalaciones.
+                </div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f0f3f8;padding:2px 0;"><span>Mampostería</span><span style="font-weight:600;color:#1E3A5F;">$8.147.000</span></div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f0f3f8;padding:2px 0;"><span>Revoques</span><span style="font-weight:600;color:#1E3A5F;">$5.282.000</span></div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f0f3f8;padding:2px 0;"><span>Hormigón</span><span style="font-weight:600;color:#1E3A5F;">$6.900.000</span></div>
+                <div style="display:flex;justify-content:space-between;background:#F97316;color:#fff;padding:3px 5px;border-radius:3px;margin-top:4px;font-weight:700;">
+                  <span>TOTAL</span><span>$38.750.000</span>
+                </div>
+                <div style="margin-top:5px;color:#9ca3af;text-align:center;font-size:.48rem;">PDF generado por PresupuestoPRO</div>
+              </div>
+            </div>
+
           </div>
         </div>
-        <p class="text-center text-muted mt-3" style="font-size:.82rem;">Tocá los tabs para ver PDF, marca y precios</p>
+        <p class="text-center text-muted mt-3" style="font-size:.82rem;">👆 Tocá los tabs para ver PDF, marca y precios</p>
       </div>
 
       <!-- Comentarios derecha -->
@@ -492,6 +538,49 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ── TABS DEL PHONE MOCKUP ── */
+var tabOrder = ['pdf','marca','precios'];
+var currentTab = 'precios';
+var autoRotate;
+
+function switchTab(name) {
+  // Ocultar todas las screens
+  tabOrder.forEach(function(t) {
+    var s = document.getElementById('screen-' + t);
+    var tb = document.getElementById('tab-' + t);
+    if (s) s.style.display = 'none';
+    if (tb) tb.classList.remove('active');
+  });
+  // Mostrar la seleccionada
+  var screen = document.getElementById('screen-' + name);
+  var tab = document.getElementById('tab-' + name);
+  if (screen) { screen.style.display = 'block'; screen.style.animation = 'fadeIn .25s ease'; }
+  if (tab) tab.classList.add('active');
+  currentTab = name;
+  // Reiniciar auto-rotate al hacer click
+  clearInterval(autoRotate);
+  startAutoRotate();
+}
+
+function startAutoRotate() {
+  autoRotate = setInterval(function() {
+    var idx = tabOrder.indexOf(currentTab);
+    var next = tabOrder[(idx + 1) % tabOrder.length];
+    switchTab(next);
+  }, 2800);
+}
+
+// Arrancar cuando carga la página
+document.addEventListener('DOMContentLoaded', function() {
+  startAutoRotate();
+});
+</script>
+<style>
+@keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.phone-tab { cursor:pointer; transition:background .2s; }
+.phone-tab:hover { background:rgba(255,255,255,.15); }
+</style>
 <script>
 function enviarInscripcion() {
   const nombre   = document.getElementById('inpNombre').value.trim();
