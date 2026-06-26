@@ -1,6 +1,5 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
+import resend
 from flask import Blueprint, render_template, g, request, jsonify
 from utils.auth import get_current_user
 from database import get_db
@@ -60,12 +59,11 @@ def inscripcion():
 
 def _enviar_notificacion(nombre, apellido, telefono, email, ciudad, provincia):
     """Envía email de notificación al administrador cuando hay un nuevo inscripto."""
-    smtp_user = os.environ.get('SMTP_USER')
-    smtp_pass = os.environ.get('SMTP_PASS')
+    api_key    = os.environ.get('RESEND_API_KEY')
     admin_email = os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')
 
-    if not smtp_user or not smtp_pass:
-        print(f"[inscripcion] Nuevo lead: {nombre} {apellido} | {telefono} | {email} | {ciudad}, {provincia}")
+    if not api_key:
+        print(f"[inscripcion] Sin RESEND_API_KEY — lead: {nombre} {apellido} | {telefono} | {email}")
         return
 
     cuerpo = f"""Nuevo inscripto en PresupuestoPRO 🎉
@@ -79,13 +77,12 @@ Entrá al panel admin para ver todos los leads:
 https://web-production-0c9c1.up.railway.app/admin/leads
 """
     try:
-        msg = MIMEText(cuerpo, 'plain', 'utf-8')
-        msg['Subject'] = f'🧱 Nuevo inscripto: {nombre} {apellido} — PresupuestoPRO'
-        msg['From']    = smtp_user
-        msg['To']      = admin_email
-
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=8) as s:
-            s.login(smtp_user, smtp_pass)
-            s.sendmail(smtp_user, [admin_email], msg.as_string())
+        resend.api_key = api_key
+        resend.Emails.send({
+            "from": "onboarding@resend.dev",
+            "to": [admin_email],
+            "subject": f"Nuevo inscripto: {nombre} {apellido} — PresupuestoPRO",
+            "text": cuerpo,
+        })
     except Exception as e:
         print(f"[inscripcion] Error enviando email: {e}")
