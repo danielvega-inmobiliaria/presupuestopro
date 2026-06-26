@@ -15,3 +15,13 @@ class Config:
 
     # En producción Railway setea PORT automáticamente; debug desactivado.
     DEBUG = os.environ.get('FLASK_DEBUG', '0') == '1'
+
+    # Mercado Pago — cargar en Railway como variables de entorno
+    MP_ACCESS_TOKEN = os.environ.get('MP_ACCESS_TOKEN', '')
+    MP_PUBLIC_KEY   = os.environ.get('MP_PUBLIC_KEY', '')
+    MP_APP_ID       = os.environ.get('MP_APP_ID', '')
+    # Precio de la suscripción mensual en ARS (ajustar según necesidad)
+    MP_PRECIO_ARS   = float(os.environ.get('MP_PRECIO_ARS', '15000'))
+    MP_PLAN_NOMBRE  = os.environ.get('MP_PLAN_NOMBRE', 'PresupuestoPRO — Plan Mensual')
+    # URL base de la app (para back_url del webhook)
+    APP_BASE_URL    = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')

@@ -342,6 +342,28 @@ def migrate_db():
             db.commit()
             print("[migrate_db] Columnas agregadas: {}".format(len(nuevas)))
 
+        # 0. Crear tabla suscripciones si no existe (DBs anteriores a MP)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS suscripciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                mp_preapproval_id TEXT UNIQUE,
+                plan_nombre TEXT DEFAULT 'mensual',
+                monto_ars REAL DEFAULT 0,
+                estado TEXT DEFAULT 'pending',
+                fecha_inicio DATE,
+                fecha_fin DATE,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Agregar columna mp_preapproval_id a users si no existe
+        cols_users = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+        if 'mp_preapproval_id' not in cols_users:
+            db.execute("ALTER TABLE users ADD COLUMN mp_preapproval_id TEXT DEFAULT ''")
+            db.commit()
+            print("[migrate_db] users.mp_preapproval_id agregado")
+
         # 1a-extra. Crear tabla empresa_perfil si no existe (para DBs antiguas)
         db.execute("""
             CREATE TABLE IF NOT EXISTS empresa_perfil (
@@ -885,6 +907,19 @@ def init_db():
         estado TEXT DEFAULT 'nuevo',
         notas TEXT DEFAULT '',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS suscripciones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
+        mp_preapproval_id TEXT UNIQUE,
+        plan_nombre TEXT DEFAULT 'mensual',
+        monto_ars REAL DEFAULT 0,
+        estado TEXT DEFAULT 'pending',
+        fecha_inicio DATE,
+        fecha_fin DATE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
