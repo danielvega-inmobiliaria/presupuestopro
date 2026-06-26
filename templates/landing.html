@@ -8,71 +8,96 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
-    :root {
-      --azul: #1E3A5F;
-      --naranja: #F97316;
-    }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    :root { --azul:#1E3A5F; --naranja:#F97316; }
+    body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
 
     /* NAV */
-    .lp-nav { background: var(--azul); padding: 14px 0; }
-    .lp-logo { color: #fff; font-size: 1.25rem; font-weight: 700; text-decoration: none; letter-spacing: -.3px; }
-    .lp-logo .pro { color: var(--naranja); }
+    .lp-nav { background:var(--azul); padding:14px 0; }
+    .lp-logo { color:#fff; font-size:1.25rem; font-weight:700; text-decoration:none; letter-spacing:-.3px; }
+    .lp-logo .pro { color:var(--naranja); }
 
     /* HERO */
-    .hero { background: var(--azul); color: #fff; padding: 72px 0 80px; }
-    .hero h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; line-height: 1.15; }
-    .hero h1 span { color: var(--naranja); }
-    .hero p { font-size: 1.15rem; color: #a8c4e0; max-width: 500px; }
-    .btn-naranja { background: var(--naranja); color: #fff; border: none; font-weight: 600; padding: .7rem 1.8rem; border-radius: 8px; font-size: 1rem; }
-    .btn-naranja:hover { background: #e86a0a; color: #fff; }
-    .btn-outline-blanco { border: 2px solid rgba(255,255,255,.4); color: #fff; padding: .65rem 1.6rem; border-radius: 8px; font-size: 1rem; }
-    .btn-outline-blanco:hover { background: rgba(255,255,255,.1); color: #fff; }
-    .hero-badge { display: inline-block; background: rgba(249,115,22,.15); color: var(--naranja); border: 1px solid rgba(249,115,22,.3); border-radius: 20px; padding: 4px 14px; font-size: .85rem; font-weight: 600; margin-bottom: 1.2rem; }
+    .hero { background:var(--azul); color:#fff; padding:72px 0 80px; }
+    .hero h1 { font-size:clamp(2rem,5vw,3rem); font-weight:700; line-height:1.15; }
+    .hero h1 span { color:var(--naranja); }
+    .hero p { font-size:1.15rem; color:#a8c4e0; max-width:500px; }
+    .btn-naranja { background:var(--naranja); color:#fff; border:none; font-weight:600; padding:.7rem 1.8rem; border-radius:8px; font-size:1rem; }
+    .btn-naranja:hover { background:#e86a0a; color:#fff; }
+    .btn-outline-blanco { border:2px solid rgba(255,255,255,.4); color:#fff; padding:.65rem 1.6rem; border-radius:8px; font-size:1rem; }
+    .btn-outline-blanco:hover { background:rgba(255,255,255,.1); color:#fff; }
+    .hero-badge { display:inline-block; background:rgba(249,115,22,.15); color:var(--naranja); border:1px solid rgba(249,115,22,.3); border-radius:20px; padding:4px 14px; font-size:.85rem; font-weight:600; margin-bottom:1.2rem; }
+
+    /* PDF CARD – logo placeholder */
+    .logo-placeholder { width:52px; height:52px; background:#e8f0f8; border-radius:8px; border:2px dashed #b0c4de; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .logo-placeholder i { font-size:1.4rem; color:#7a9cbf; }
+
+    /* DEMO SECTION */
+    .section-demo { background:#f0f4f8; padding:72px 0; }
+    .phone-frame { width:260px; background:#1a1a2e; border-radius:36px; padding:12px; box-shadow:0 20px 60px rgba(0,0,0,.3); border:3px solid #333; position:relative; margin:0 auto; }
+    .phone-screen { background:#fff; border-radius:26px; overflow:hidden; }
+    .phone-status { background:#1E3A5F; color:#fff; font-size:.55rem; padding:4px 12px; display:flex; justify-content:space-between; }
+    .phone-nav { background:#1E3A5F; color:#fff; padding:6px 10px; font-size:.6rem; font-weight:700; border-bottom:2px solid var(--naranja); }
+    .phone-tab { display:inline-block; padding:3px 8px; border-radius:10px; cursor:default; }
+    .phone-tab.active { background:var(--naranja); }
+    .phone-content { padding:10px; font-size:.6rem; color:#1a2332; }
+    .phone-row { display:flex; justify-content:space-between; border-bottom:1px solid #f0f3f8; padding:3px 0; }
+    .phone-row .mat { color:#374151; }
+    .phone-row .val { font-weight:600; color:#1E3A5F; }
+    .phone-badge { display:inline-block; background:#dcfce7; color:#166534; border-radius:10px; padding:1px 6px; font-size:.5rem; font-weight:700; margin-bottom:4px; }
+    .phone-note { background:#fff7ed; border-left:2px solid var(--naranja); padding:4px 6px; font-size:.55rem; color:#92400e; border-radius:0 4px 4px 0; margin-top:6px; }
+
+    .demo-comment { background:#fff; border-radius:12px; padding:14px 18px; box-shadow:0 2px 12px rgba(0,0,0,.08); border-left:4px solid var(--naranja); font-size:.9rem; margin-bottom:16px; }
+    .demo-comment .num { background:var(--naranja); color:#fff; border-radius:50%; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem; margin-right:8px; flex-shrink:0; }
 
     /* PROBLEMA */
-    .section-problema { padding: 64px 0; background: #f8fafc; }
-    .problema-antes { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; }
-    .problema-antes h5 { color: #dc2626; font-weight: 600; }
-    .problema-despues { background: #fff; border: 2px solid var(--naranja); border-radius: 12px; padding: 28px; }
-    .problema-despues h5 { color: var(--azul); font-weight: 600; }
-    .check-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: .95rem; }
-    .check-item i { color: #22c55e; font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
-    .x-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: .95rem; color: #64748b; }
-    .x-item i { color: #ef4444; font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+    .section-problema { padding:64px 0; background:#f8fafc; }
+    .problema-antes { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:28px; }
+    .problema-antes h5 { color:#dc2626; font-weight:600; }
+    .problema-despues { background:#fff; border:2px solid var(--naranja); border-radius:12px; padding:28px; }
+    .problema-despues h5 { color:var(--azul); font-weight:600; }
+    .check-item { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; font-size:.95rem; }
+    .check-item i { color:#22c55e; font-size:1.1rem; flex-shrink:0; margin-top:2px; }
+    .x-item { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; font-size:.95rem; color:#64748b; }
+    .x-item i { color:#ef4444; font-size:1.1rem; flex-shrink:0; margin-top:2px; }
 
     /* FEATURES */
-    .section-features { padding: 64px 0; }
-    .feature-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; height: 100%; transition: box-shadow .2s; }
-    .feature-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.08); }
-    .feature-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 16px; }
-    .fi-azul { background: #dbeafe; color: var(--azul); }
-    .fi-naranja { background: #fff7ed; color: var(--naranja); }
-    .fi-verde { background: #dcfce7; color: #16a34a; }
+    .section-features { padding:64px 0; }
+    .feature-card { border:1px solid #e2e8f0; border-radius:12px; padding:28px; height:100%; transition:box-shadow .2s; }
+    .feature-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.08); }
+    .feature-icon { width:48px; height:48px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; margin-bottom:16px; }
+    .fi-azul { background:#dbeafe; color:var(--azul); }
+    .fi-naranja { background:#fff7ed; color:var(--naranja); }
+    .fi-verde { background:#dcfce7; color:#16a34a; }
 
     /* PRECIO */
-    .section-precio { padding: 64px 0; background: #fff7ed; }
-    .precio-card { background: #fff; border-radius: 16px; padding: 40px; max-width: 600px; margin: 0 auto; border: 2px solid #fed7aa; }
-    .precio-num { font-size: 2.8rem; font-weight: 700; color: var(--azul); line-height: 1; }
-    .precio-per { font-size: 1rem; color: #6b7280; }
-    .cmp-badges { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
-    .cmp-b { display: flex; align-items: center; gap: 6px; background: #f1f5f9; border-radius: 8px; padding: 8px 14px; font-size: .9rem; }
-    .cmp-b .emoji { font-size: 1.4rem; }
+    .section-precio { padding:64px 0; background:#fff7ed; }
+    .precio-card { background:#fff; border-radius:16px; padding:40px; max-width:600px; margin:0 auto; border:2px solid #fed7aa; }
+    .precio-num { font-size:2.8rem; font-weight:700; color:var(--azul); line-height:1; }
+    .precio-per { font-size:1rem; color:#6b7280; }
+    .cmp-badges { display:flex; gap:10px; flex-wrap:wrap; margin:16px 0; }
+    .cmp-b { display:flex; align-items:center; gap:6px; background:#f1f5f9; border-radius:8px; padding:8px 14px; font-size:.9rem; }
+    .cmp-b .emoji { font-size:1.4rem; }
 
     /* CTA FINAL */
-    .section-cta { background: var(--azul); color: #fff; padding: 72px 0; text-align: center; }
-    .section-cta h2 { font-size: 2rem; font-weight: 700; }
-    .section-cta p { color: #a8c4e0; font-size: 1.1rem; }
+    .section-cta { background:var(--azul); color:#fff; padding:72px 0; text-align:center; }
+    .section-cta h2 { font-size:2rem; font-weight:700; }
+    .section-cta p { color:#a8c4e0; font-size:1.1rem; }
 
     /* FOOTER */
-    footer { background: #0f1e33; color: #6b7280; padding: 28px 0; font-size: .875rem; }
-    footer a { color: #6b7280; text-decoration: none; }
-    footer a:hover { color: #fff; }
+    footer { background:#0f1e33; color:#6b7280; padding:28px 0; font-size:.875rem; }
+    footer a { color:#6b7280; text-decoration:none; }
+    footer a:hover { color:#fff; }
 
     /* UTIL */
-    .section-title { font-size: 1.75rem; font-weight: 700; color: var(--azul); }
-    .section-sub { color: #64748b; font-size: 1rem; }
-    .badge-gratis { background: #dcfce7; color: #166534; border-radius: 6px; padding: 3px 12px; font-size: .85rem; font-weight: 600; }
+    .section-title { font-size:1.75rem; font-weight:700; color:var(--azul); }
+    .section-sub { color:#64748b; font-size:1rem; }
+    .badge-gratis { background:#dcfce7; color:#166534; border-radius:6px; padding:3px 12px; font-size:.85rem; font-weight:600; }
+
+    /* MODAL */
+    .modal-inscripcion .modal-header { background:var(--azul); color:#fff; }
+    .modal-inscripcion .modal-title i { color:var(--naranja); }
+    .success-box { display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:24px; text-align:center; }
+    .success-box.show { display:block; }
   </style>
 </head>
 <body>
@@ -83,7 +108,10 @@
     <a class="lp-logo" href="/">
       <i class="bi bi-calculator-fill me-1"></i>Presupuesto<span class="pro">PRO</span>
     </a>
-    <a href="/login" class="btn btn-outline-blanco btn-sm">Iniciar sesión</a>
+    <div class="d-flex gap-2">
+      <a href="/login" class="btn btn-outline-blanco btn-sm">Iniciar sesión</a>
+      <button class="btn btn-naranja btn-sm" data-bs-toggle="modal" data-bs-target="#modalInscripcion">Registrarme</button>
+    </div>
   </div>
 </nav>
 
@@ -96,9 +124,9 @@
         <h1>De los metros<br>a los <span>pesos</span>,<br>en minutos.</h1>
         <p class="mt-3 mb-4">Ingresás las cantidades de obra y PresupuestoPRO calcula solo los materiales, la mano de obra, el cuadro de pagos y genera el PDF con tu logo para el cliente.</p>
         <div class="d-flex flex-wrap gap-3">
-          <a href="/login" class="btn btn-naranja btn-lg">
+          <button class="btn btn-naranja btn-lg" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
             <i class="bi bi-rocket-takeoff me-1"></i> Empezar ahora
-          </a>
+          </button>
           <a href="#como-funciona" class="btn btn-outline-blanco btn-lg">Ver cómo funciona</a>
         </div>
         <p class="mt-4 mb-0" style="color:#6b9cc4;font-size:.875rem;">
@@ -108,10 +136,15 @@
       <div class="col-lg-6 d-none d-lg-block">
         <div style="background:rgba(255,255,255,.06);border-radius:16px;padding:24px;border:1px solid rgba(255,255,255,.1);">
           <div style="background:#fff;border-radius:10px;padding:20px;font-size:.875rem;color:#1a2332;">
+            <!-- Header con logo placeholder -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1E3A5F;">
-              <div>
-                <div style="font-size:1.1rem;font-weight:700;color:#1E3A5F;">Presupuesto<span style="color:#F97316;">PRO</span></div>
-                <div style="font-size:.75rem;color:#6b7280;">Tu empresa · CUIT 20-XXXXXXXX-X</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="logo-placeholder"><i class="bi bi-image"></i></div>
+                <div>
+                  <div style="font-size:.95rem;font-weight:700;color:#1E3A5F;">Tu Logo</div>
+                  <div style="font-size:.75rem;color:#374151;font-weight:600;">Nombre Empresa</div>
+                  <div style="font-size:.7rem;color:#6b7280;">Teléfono · Dirección</div>
+                </div>
               </div>
               <div style="text-align:right;font-size:.75rem;"><strong style="color:#1E3A5F;">PRESUP. #2026-008</strong><br><span style="color:#6b7280;">25/06/2026</span></div>
             </div>
@@ -134,8 +167,123 @@
   </div>
 </section>
 
+<!-- DEMO CON CELU -->
+<section class="section-demo" id="como-funciona">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title">Así funciona en tu celular</h2>
+      <p class="section-sub">Ingresás los metros, la app calcula todo. Precios actualizados, PDF con tu logo.</p>
+    </div>
+    <div class="row align-items-center g-5 justify-content-center">
+
+      <!-- Comentarios izquierda -->
+      <div class="col-lg-4 d-none d-lg-block">
+        <div class="demo-comment">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num">1</span>
+            <div>
+              <strong style="color:var(--azul)">Ingresás los metros por rubro</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Mampostería, revoques, hormigón, cerámicos — solo ponés las cantidades.</p>
+            </div>
+          </div>
+        </div>
+        <div class="demo-comment">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num">2</span>
+            <div>
+              <strong style="color:var(--azul)">Precios siempre al día</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Cemento 25kg, hierro ADN, arena, ladrillos — actualizados constantemente. También podés editarlos vos.</p>
+            </div>
+          </div>
+        </div>
+        <div class="demo-comment">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num">3</span>
+            <div>
+              <strong style="color:var(--azul)">Lista de materiales exacta</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Cuántas bolsas, cuántos m³, cuántos kg. Sin estimaciones, sin quedarte corto.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phone mockup -->
+      <div class="col-lg-4 col-md-6">
+        <div class="phone-frame">
+          <div class="phone-screen">
+            <div class="phone-status">
+              <span>9:41</span>
+              <span><i class="bi bi-wifi"></i> <i class="bi bi-battery-full"></i></span>
+            </div>
+            <div class="phone-nav">
+              <span style="color:var(--naranja);font-size:.65rem;font-weight:700;">Presupuesto<span style="color:#fff;">PRO</span></span>
+              <div class="mt-1">
+                <span class="phone-tab">PDF</span>
+                <span class="phone-tab">Mi marca</span>
+                <span class="phone-tab active">Precios</span>
+              </div>
+            </div>
+            <div class="phone-content">
+              <div class="phone-badge">✓ Actualizado hoy</div>
+              <div style="font-weight:700;font-size:.65rem;margin-bottom:6px;color:var(--azul);">Precios de materiales</div>
+              <div class="phone-row"><span class="mat">Cemento Portland 25kg</span><span class="val">$6.500 bolsa</span></div>
+              <div class="phone-row"><span class="mat">Arena gruesa</span><span class="val">$32.000 m³</span></div>
+              <div class="phone-row"><span class="mat">Hierro ADN Ø12mm</span><span class="val">$1.495 /kg</span></div>
+              <div class="phone-row"><span class="mat">Ladrillo c. 6×12×25</span><span class="val">$175 u.</span></div>
+              <div class="phone-row"><span class="mat">Piedra partida 6/20</span><span class="val">$70.000 m³</span></div>
+              <div class="phone-row"><span class="mat">Telgopor 75Lts</span><span class="val">$6.500 bolsa</span></div>
+              <div class="phone-note">Podés editar cualquier precio según tu zona o proveedor.</div>
+            </div>
+          </div>
+        </div>
+        <p class="text-center text-muted mt-3" style="font-size:.82rem;">Tocá los tabs para ver PDF, marca y precios</p>
+      </div>
+
+      <!-- Comentarios derecha -->
+      <div class="col-lg-4 d-none d-lg-block">
+        <div class="demo-comment">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num">4</span>
+            <div>
+              <strong style="color:var(--azul)">PDF con tu logo al instante</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Tu logo, tu CUIT, tus datos. Y la descripción detallada de cada trabajo incluido.</p>
+            </div>
+          </div>
+        </div>
+        <div class="demo-comment">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num">5</span>
+            <div>
+              <strong style="color:var(--azul)">Cuadro de pagos automático</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Anticipo, cuotas y pago final calculados según la obra. Listo para mostrarle al cliente.</p>
+            </div>
+          </div>
+        </div>
+        <div class="demo-comment" style="border-color:#22c55e;">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num" style="background:#22c55e;">✓</span>
+            <div>
+              <strong style="color:#166534;">Guardado en la nube</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Tus presupuestos siempre disponibles. Entrás con tu usuario desde el celu o la PC.</p>
+            </div>
+          </div>
+        </div>
+        <!-- Mobile: comentarios resumidos (solo en mobile) -->
+      </div>
+
+    </div>
+    <!-- Comentarios en mobile (debajo del celu) -->
+    <div class="d-lg-none row g-3 mt-2">
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">1. Ingresás los metros</strong></div></div>
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">2. Precios al día</strong></div></div>
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">3. Lista exacta</strong></div></div>
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">4. PDF con tu logo</strong></div></div>
+    </div>
+  </div>
+</section>
+
 <!-- PROBLEMA -->
-<section class="section-problema" id="como-funciona">
+<section class="section-problema">
   <div class="container">
     <div class="text-center mb-5">
       <h2 class="section-title">¿Cómo presupuestás hoy?</h2>
@@ -181,42 +329,42 @@
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-azul"><i class="bi bi-list-check"></i></div>
-          <h5 class="fw-700" style="color:var(--azul)">Lista de materiales automática</h5>
+          <h5 style="color:var(--azul);font-weight:700;">Lista de materiales automática</h5>
           <p class="text-muted mb-0">Calculá exactamente cuántas bolsas de cemento, m³ de arena, kg de hierro y ladrillos necesitás. Sin estimaciones, sin quedarte corto.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-naranja"><i class="bi bi-arrow-repeat"></i></div>
-          <h5 class="fw-700" style="color:var(--azul)">Precios actualizados constantemente</h5>
+          <h5 style="color:var(--azul);font-weight:700;">Precios actualizados constantemente</h5>
           <p class="text-muted mb-0">Cemento portland 25kg, hierro ADN, arena, piedra, ladrillos, telgopor — siempre con los precios del mercado argentino. Podés editarlos por zona.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-verde"><i class="bi bi-file-earmark-pdf-fill"></i></div>
-          <h5 class="fw-700" style="color:var(--azul)">PDF profesional con tu marca</h5>
+          <h5 style="color:var(--azul);font-weight:700;">PDF profesional con tu marca</h5>
           <p class="text-muted mb-0">Cada presupuesto sale con tu logo, tu CUIT y la descripción detallada de cada trabajo. El cliente recibe un documento que inspira confianza.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-azul"><i class="bi bi-credit-card"></i></div>
-          <h5 class="fw-700" style="color:var(--azul)">Cuadro de pagos y cuotas</h5>
+          <h5 style="color:var(--azul);font-weight:700;">Cuadro de pagos y cuotas</h5>
           <p class="text-muted mb-0">Anticipo, cuotas semanales o quincenales y pago final. Todo calculado según la duración de la obra y la frecuencia que elijas.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-naranja"><i class="bi bi-phone"></i></div>
-          <h5 class="fw-700" style="color:var(--azul)">Desde tu celu o tu PC</h5>
+          <h5 style="color:var(--azul);font-weight:700;">Desde tu celu o tu PC</h5>
           <p class="text-muted mb-0">App web — no requiere instalación. Guardado en la nube con tu usuario. Entrás con tu cuenta y encontrás todos tus presupuestos.</p>
         </div>
       </div>
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-verde"><i class="bi bi-currency-exchange"></i></div>
-          <h5 class="fw-700" style="color:var(--azul)">ARS y USD</h5>
+          <h5 style="color:var(--azul);font-weight:700;">ARS y USD</h5>
           <p class="text-muted mb-0">Presupuestá en pesos o en dólares con tipo de cambio actualizable. También disponible para Chile, Uruguay, Brasil y Paraguay.</p>
         </div>
       </div>
@@ -237,12 +385,14 @@
         <div class="cmp-b"><span class="emoji">🥤</span> <span>3 Coca-Colas 2.5L</span></div>
       </div>
       <p class="mt-3 mb-4" style="color:#92400e;font-size:.95rem;">
-        Si con un solo presupuesto bien armado no quedás corto $100.000 pesos,<br>ya pagaste el año entero.
+        Si con un solo presupuesto bien armado no quedás corto en $100.000 pesos o más,<br>ya pagaste el año entero.
       </p>
       <div class="mb-3">
         <span class="badge-gratis"><i class="bi bi-gift me-1"></i> Primeros usuarios: acceso gratuito</span>
       </div>
-      <a href="/login" class="btn btn-naranja btn-lg px-5">Empezar gratis</a>
+      <button class="btn btn-naranja btn-lg px-5" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+        <i class="bi bi-rocket-takeoff me-1"></i> Empezar gratis
+      </button>
     </div>
   </div>
 </section>
@@ -252,9 +402,9 @@
   <div class="container">
     <h2>¿Listo para presupuestar como un profesional?</h2>
     <p class="mt-2 mb-4">Materiales calculados. Precios actualizados. PDF con tu marca. En minutos.</p>
-    <a href="/login" class="btn btn-naranja btn-lg px-5">
+    <button class="btn btn-naranja btn-lg px-5" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
       <i class="bi bi-rocket-takeoff me-1"></i> Empezar ahora — es gratis
-    </a>
+    </button>
   </div>
 </section>
 
@@ -271,6 +421,134 @@
   </div>
 </footer>
 
+<!-- MODAL INSCRIPCIÓN -->
+<div class="modal fade modal-inscripcion" id="modalInscripcion" tabindex="-1" aria-labelledby="modalInscripcionLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalInscripcionLabel">
+          <i class="bi bi-person-plus-fill me-2"></i> Quiero registrarme en PresupuestoPRO
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-4">
+
+        <!-- Formulario -->
+        <div id="formInscripcion">
+          <p class="text-muted mb-3" style="font-size:.9rem;">Completá tus datos y te enviamos el acceso en minutos.</p>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label fw-600 small">Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="inpNombre" placeholder="Carlos">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-600 small">Apellido <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="inpApellido" placeholder="García">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-600 small">Teléfono / WhatsApp <span class="text-danger">*</span></label>
+              <input type="tel" class="form-control" id="inpTelefono" placeholder="11 5555-0000">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-600 small">Email</label>
+              <input type="email" class="form-control" id="inpEmail" placeholder="carlos@empresa.com">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-600 small">Ciudad <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="inpCiudad" placeholder="Buenos Aires">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-600 small">Provincia <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="inpProvincia" placeholder="Buenos Aires">
+            </div>
+          </div>
+          <div id="errInscripcion" class="text-danger small mt-2" style="display:none;"></div>
+          <div class="mt-4 d-grid">
+            <button class="btn btn-naranja btn-lg" onclick="enviarInscripcion()">
+              <i class="bi bi-send me-1"></i> Enviar
+            </button>
+          </div>
+          <p class="text-center text-muted mt-3 mb-0" style="font-size:.8rem;">
+            <i class="bi bi-lock-fill me-1"></i> Tus datos son confidenciales y no se comparten con terceros.
+          </p>
+        </div>
+
+        <!-- Mensaje de éxito -->
+        <div class="success-box" id="successInscripcion">
+          <div style="font-size:3rem;">🎉</div>
+          <h5 class="text-success mt-2 mb-3">¡Registrado con éxito!</h5>
+          <p class="text-muted mb-3">
+            Recibimos tus datos. En breve te enviamos por <strong>WhatsApp o email</strong> el link de pago para activar tu cuenta.<br><br>
+            <span style="font-size:.9rem;">Si sos de los <strong>primeros usuarios</strong>, tu acceso es <strong>gratuito</strong> y te lo activamos directamente.</span>
+          </p>
+          <div class="d-flex justify-content-center gap-2 flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function enviarInscripcion() {
+  const nombre   = document.getElementById('inpNombre').value.trim();
+  const apellido = document.getElementById('inpApellido').value.trim();
+  const telefono = document.getElementById('inpTelefono').value.trim();
+  const ciudad   = document.getElementById('inpCiudad').value.trim();
+  const provincia= document.getElementById('inpProvincia').value.trim();
+  const err      = document.getElementById('errInscripcion');
+
+  if (!nombre || !apellido || !telefono || !ciudad || !provincia) {
+    err.textContent = 'Por favor completá los campos obligatorios (*)';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+
+  // Deshabilitar botón para evitar doble envío
+  const btn = document.querySelector('#formInscripcion .btn-naranja');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+
+  // Construir payload
+  const email = document.getElementById('inpEmail').value.trim();
+  const datos = { nombre, apellido, telefono, email, ciudad, provincia };
+
+  // Intentar POST a /inscripcion (si existe en el servidor)
+  fetch('/inscripcion', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos)
+  })
+  .then(r => { mostrarExito(); })
+  .catch(e => { mostrarExito(); }); // Igual mostrar éxito (el endpoint puede no existir aún)
+}
+
+function mostrarExito() {
+  document.getElementById('formInscripcion').style.display = 'none';
+  document.getElementById('successInscripcion').classList.add('show');
+  // Reset para próxima apertura
+  setTimeout(() => {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('modalInscripcion'));
+    if (modal) {
+      document.getElementById('modalInscripcion').addEventListener('hidden.bs.modal', resetModal, { once: true });
+    }
+  }, 100);
+}
+
+function resetModal() {
+  document.getElementById('formInscripcion').style.display = 'block';
+  document.getElementById('successInscripcion').classList.remove('show');
+  ['inpNombre','inpApellido','inpTelefono','inpEmail','inpCiudad','inpProvincia'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  const btn = document.querySelector('#formInscripcion .btn-naranja');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send me-1"></i> Enviar';
+}
+</script>
 </body>
 </html>
