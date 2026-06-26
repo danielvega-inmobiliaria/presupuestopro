@@ -100,27 +100,33 @@ def usuario_editar(uid):
 def precios():
     db = get_db()
     mats = db.execute("SELECT * FROM materiales ORDER BY categoria, nombre").fetchall()
+    tasa = db.execute("SELECT tasa FROM tipos_cambio WHERE pais='AR'").fetchone()
+    tasa_ars = tasa['tasa'] if tasa else 1
     db.close()
-    return render_template('admin/precios.html', materiales=mats, user=g.user)
+    return render_template('admin/precios.html', materiales=mats, tasa_ars=tasa_ars, user=g.user)
 
 @bp.route('/precios/actualizar', methods=['POST'])
 @admin_required
 def precios_actualizar():
     db = get_db()
+    tasa = db.execute("SELECT tasa FROM tipos_cambio WHERE pais='AR'").fetchone()
+    tasa_ars = tasa['tasa'] if tasa else 1
     for key, val in request.form.items():
         if key.startswith('precio_'):
             mid = key.replace('precio_', '')
             try:
+                precio_ars = float(val)
+                precio_usd = round(precio_ars / tasa_ars, 6)
                 db.execute(
                     "UPDATE materiales SET precio_usd=?, updated_at=datetime('now', 'localtime') WHERE id=?",
-                    (float(val), int(mid))
+                    (precio_usd, int(mid))
                 )
             except:
                 pass
     db.commit()
     db.close()
     flash('Precios actualizados.', 'success')
-    return redirect(url_for('admin.dashboard'))
+    return redirect(url_for('admin.precios'))
 
 # ─── TIPOS DE CAMBIO ─────────────────────────────────────────────────────────
 @bp.route('/tipos-cambio', methods=['GET', 'POST'])

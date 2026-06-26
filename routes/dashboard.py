@@ -1,12 +1,15 @@
 from flask import Blueprint, render_template, g
-from utils.auth import login_required
+from utils.auth import login_required, get_current_user
 from database import get_db
 
 bp = Blueprint('dashboard', __name__)
 
 @bp.route('/')
-@login_required
 def index():
+    user = get_current_user()
+    if not user:
+        return render_template('landing.html')
+    g.user = user
     db = get_db()
     borradores = db.execute(
         "SELECT * FROM presupuestos WHERE user_id=? AND status='borrador' ORDER BY updated_at DESC",

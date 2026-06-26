@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PresupuestoPRO — Presupuestos de obra en minutos</title>
+  <meta name="description" content="Calculá materiales, mano de obra y cuotas de cualquier obra en minutos. PDF profesional con tu logo listo para el cliente.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --azul: #1E3A5F;
+      --naranja: #F97316;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* NAV */
+    .lp-nav { background: var(--azul); padding: 14px 0; }
+    .lp-logo { color: #fff; font-size: 1.25rem; font-weight: 700; text-decoration: none; letter-spacing: -.3px; }
+    .lp-logo .pro { color: var(--naranja); }
+
+    /* HERO */
+    .hero { background: var(--azul); color: #fff; padding: 72px 0 80px; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; line-height: 1.15; }
+    .hero h1 span { color: var(--naranja); }
+    .hero p { font-size: 1.15rem; color: #a8c4e0; max-width: 500px; }
+    .btn-naranja { background: var(--naranja); color: #fff; border: none; font-weight: 600; padding: .7rem 1.8rem; border-radius: 8px; font-size: 1rem; }
+    .btn-naranja:hover { background: #e86a0a; color: #fff; }
+    .btn-outline-blanco { border: 2px solid rgba(255,255,255,.4); color: #fff; padding: .65rem 1.6rem; border-radius: 8px; font-size: 1rem; }
+    .btn-outline-blanco:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .hero-badge { display: inline-block; background: rgba(249,115,22,.15); color: var(--naranja); border: 1px solid rgba(249,115,22,.3); border-radius: 20px; padding: 4px 14px; font-size: .85rem; font-weight: 600; margin-bottom: 1.2rem; }
+
+    /* PROBLEMA */
+    .section-problema { padding: 64px 0; background: #f8fafc; }
+    .problema-antes { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; }
+    .problema-antes h5 { color: #dc2626; font-weight: 600; }
+    .problema-despues { background: #fff; border: 2px solid var(--naranja); border-radius: 12px; padding: 28px; }
+    .problema-despues h5 { color: var(--azul); font-weight: 600; }
+    .check-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: .95rem; }
+    .check-item i { color: #22c55e; font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+    .x-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: .95rem; color: #64748b; }
+    .x-item i { color: #ef4444; font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+
+    /* FEATURES */
+    .section-features { padding: 64px 0; }
+    .feature-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; height: 100%; transition: box-shadow .2s; }
+    .feature-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.08); }
+    .feature-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 16px; }
+    .fi-azul { background: #dbeafe; color: var(--azul); }
+    .fi-naranja { background: #fff7ed; color: var(--naranja); }
+    .fi-verde { background: #dcfce7; color: #16a34a; }
+
+    /* PRECIO */
+    .section-precio { padding: 64px 0; background: #fff7ed; }
+    .precio-card { background: #fff; border-radius: 16px; padding: 40px; max-width: 600px; margin: 0 auto; border: 2px solid #fed7aa; }
+    .precio-num { font-size: 2.8rem; font-weight: 700; color: var(--azul); line-height: 1; }
+    .precio-per { font-size: 1rem; color: #6b7280; }
+    .cmp-badges { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+    .cmp-b { display: flex; align-items: center; gap: 6px; background: #f1f5f9; border-radius: 8px; padding: 8px 14px; font-size: .9rem; }
+    .cmp-b .emoji { font-size: 1.4rem; }
+
+    /* CTA FINAL */
+    .section-cta { background: var(--azul); color: #fff; padding: 72px 0; text-align: center; }
+    .section-cta h2 { font-size: 2rem; font-weight: 700; }
+    .section-cta p { color: #a8c4e0; font-size: 1.1rem; }
+
+    /* FOOTER */
+    footer { background: #0f1e33; color: #6b7280; padding: 28px 0; font-size: .875rem; }
+    footer a { color: #6b7280; text-decoration: none; }
+    footer a:hover { color: #fff; }
+
+    /* UTIL */
+    .section-title { font-size: 1.75rem; font-weight: 700; color: var(--azul); }
+    .section-sub { color: #64748b; font-size: 1rem; }
+    .badge-gratis { background: #dcfce7; color: #166534; border-radius: 6px; padding: 3px 12px; font-size: .85rem; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="lp-nav">
+  <div class="container d-flex justify-content-between align-items-center">
+    <a class="lp-logo" href="/">
+      <i class="bi bi-calculator-fill me-1"></i>Presupuesto<span class="pro">PRO</span>
+    </a>
+    <a href="/login" class="btn btn-outline-blanco btn-sm">Iniciar sesión</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="row align-items-center g-5">
+      <div class="col-lg-6">
+        <div class="hero-badge"><i class="bi bi-star-fill me-1"></i> Primeros usuarios: acceso gratuito</div>
+        <h1>De los metros<br>a los <span>pesos</span>,<br>en minutos.</h1>
+        <p class="mt-3 mb-4">Ingresás las cantidades de obra y PresupuestoPRO calcula solo los materiales, la mano de obra, el cuadro de pagos y genera el PDF con tu logo para el cliente.</p>
+        <div class="d-flex flex-wrap gap-3">
+          <a href="/login" class="btn btn-naranja btn-lg">
+            <i class="bi bi-rocket-takeoff me-1"></i> Empezar ahora
+          </a>
+          <a href="#como-funciona" class="btn btn-outline-blanco btn-lg">Ver cómo funciona</a>
+        </div>
+        <p class="mt-4 mb-0" style="color:#6b9cc4;font-size:.875rem;">
+          <i class="bi bi-cloud-check me-1"></i> Presupuestos guardados en la nube — entrás con tu usuario desde tu celu o tu PC.
+        </p>
+      </div>
+      <div class="col-lg-6 d-none d-lg-block">
+        <div style="background:rgba(255,255,255,.06);border-radius:16px;padding:24px;border:1px solid rgba(255,255,255,.1);">
+          <div style="background:#fff;border-radius:10px;padding:20px;font-size:.875rem;color:#1a2332;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #1E3A5F;">
+              <div>
+                <div style="font-size:1.1rem;font-weight:700;color:#1E3A5F;">Presupuesto<span style="color:#F97316;">PRO</span></div>
+                <div style="font-size:.75rem;color:#6b7280;">Tu empresa · CUIT 20-XXXXXXXX-X</div>
+              </div>
+              <div style="text-align:right;font-size:.75rem;"><strong style="color:#1E3A5F;">PRESUP. #2026-008</strong><br><span style="color:#6b7280;">25/06/2026</span></div>
+            </div>
+            <div style="font-size:.75rem;color:#374151;background:#f8fafc;padding:8px 10px;border-radius:6px;border-left:3px solid #1E3A5F;margin-bottom:12px;line-height:1.5;">
+              <strong>Obra:</strong> Casa nueva 120m² — Torres H.<br>
+              Construcción en planta baja, mampostería doble, revoques, instalaciones.
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+              <tr style="border-bottom:1px solid #f0f3f8;"><td style="padding:4px 0;">Mampostería</td><td style="text-align:right;color:#1E3A5F;font-weight:600;">$8.147.000</td></tr>
+              <tr style="border-bottom:1px solid #f0f3f8;"><td style="padding:4px 0;">Revoques</td><td style="text-align:right;color:#1E3A5F;font-weight:600;">$5.282.000</td></tr>
+              <tr style="border-bottom:1px solid #f0f3f8;"><td style="padding:4px 0;">Hormigón armado</td><td style="text-align:right;color:#1E3A5F;font-weight:600;">$6.900.000</td></tr>
+              <tr style="border-bottom:1px solid #f0f3f8;"><td style="padding:4px 0;color:#6b7280;">Gastos generales</td><td style="text-align:right;color:#6b7280;">$3.726.000</td></tr>
+              <tr style="background:#F97316;color:#fff;"><td style="padding:6px 8px;font-weight:700;border-radius:4px 0 0 4px;">TOTAL</td><td style="padding:6px 8px;text-align:right;font-weight:700;font-size:1rem;border-radius:0 4px 4px 0;">$38.750.000</td></tr>
+            </table>
+            <div style="margin-top:8px;font-size:.7rem;color:#9ca3af;text-align:center;">PDF generado por PresupuestoPRO en 3 minutos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEMA -->
+<section class="section-problema" id="como-funciona">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title">¿Cómo presupuestás hoy?</h2>
+      <p class="section-sub">La mayoría de constructores usa Excel artesanal o lo hace de memoria.<br>El resultado siempre es el mismo.</p>
+    </div>
+    <div class="row g-4 justify-content-center">
+      <div class="col-md-5">
+        <div class="problema-antes">
+          <h5><i class="bi bi-x-circle-fill me-2"></i>Sin PresupuestoPRO</h5>
+          <div class="mt-3">
+            <div class="x-item"><i class="bi bi-x-lg"></i><span>Fórmulas de Excel que se rompen</span></div>
+            <div class="x-item"><i class="bi bi-x-lg"></i><span>Precios desactualizados</span></div>
+            <div class="x-item"><i class="bi bi-x-lg"></i><span>"¿Cuántas bolsas de cemento necesito?"</span></div>
+            <div class="x-item"><i class="bi bi-x-lg"></i><span>Terminás la obra y quedaste corto</span></div>
+            <div class="x-item"><i class="bi bi-x-lg"></i><span>PDF improvisado o papel suelto</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="problema-despues">
+          <h5><i class="bi bi-check-circle-fill me-2" style="color:var(--naranja)"></i>Con PresupuestoPRO</h5>
+          <div class="mt-3">
+            <div class="check-item"><i class="bi bi-check-lg"></i><span>Ingresás los metros → calcula todo solo</span></div>
+            <div class="check-item"><i class="bi bi-check-lg"></i><span>Precios de materiales siempre actualizados</span></div>
+            <div class="check-item"><i class="bi bi-check-lg"></i><span>Lista de materiales exacta (bolsas, m³, kg)</span></div>
+            <div class="check-item"><i class="bi bi-check-lg"></i><span>Cuadro de pagos y cuotas automático</span></div>
+            <div class="check-item"><i class="bi bi-check-lg"></i><span>PDF con tu logo listo para el cliente</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section-features">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title">Todo lo que necesitás en 8 pasos</h2>
+      <p class="section-sub">Ingresás los datos de la obra y PresupuestoPRO hace el resto.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon fi-azul"><i class="bi bi-list-check"></i></div>
+          <h5 class="fw-700" style="color:var(--azul)">Lista de materiales automática</h5>
+          <p class="text-muted mb-0">Calculá exactamente cuántas bolsas de cemento, m³ de arena, kg de hierro y ladrillos necesitás. Sin estimaciones, sin quedarte corto.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon fi-naranja"><i class="bi bi-arrow-repeat"></i></div>
+          <h5 class="fw-700" style="color:var(--azul)">Precios actualizados constantemente</h5>
+          <p class="text-muted mb-0">Cemento portland 25kg, hierro ADN, arena, piedra, ladrillos, telgopor — siempre con los precios del mercado argentino. Podés editarlos por zona.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon fi-verde"><i class="bi bi-file-earmark-pdf-fill"></i></div>
+          <h5 class="fw-700" style="color:var(--azul)">PDF profesional con tu marca</h5>
+          <p class="text-muted mb-0">Cada presupuesto sale con tu logo, tu CUIT y la descripción detallada de cada trabajo. El cliente recibe un documento que inspira confianza.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon fi-azul"><i class="bi bi-credit-card"></i></div>
+          <h5 class="fw-700" style="color:var(--azul)">Cuadro de pagos y cuotas</h5>
+          <p class="text-muted mb-0">Anticipo, cuotas semanales o quincenales y pago final. Todo calculado según la duración de la obra y la frecuencia que elijas.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon fi-naranja"><i class="bi bi-phone"></i></div>
+          <h5 class="fw-700" style="color:var(--azul)">Desde tu celu o tu PC</h5>
+          <p class="text-muted mb-0">App web — no requiere instalación. Guardado en la nube con tu usuario. Entrás con tu cuenta y encontrás todos tus presupuestos.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card">
+          <div class="feature-icon fi-verde"><i class="bi bi-currency-exchange"></i></div>
+          <h5 class="fw-700" style="color:var(--azul)">ARS y USD</h5>
+          <p class="text-muted mb-0">Presupuestá en pesos o en dólares con tipo de cambio actualizable. También disponible para Chile, Uruguay, Brasil y Paraguay.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRECIO -->
+<section class="section-precio">
+  <div class="container">
+    <div class="precio-card text-center">
+      <div class="mb-2" style="font-size:.9rem;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Precio de lanzamiento</div>
+      <div class="precio-num">~$12.500</div>
+      <div class="precio-per">ARS por mes · (~$10 USD)</div>
+      <div class="cmp-badges justify-content-center mt-3">
+        <div class="cmp-b"><span class="emoji">🧱</span> <span>2 bolsas de cemento 25kg<br><small class="text-muted">$6.500 c/u</small></span></div>
+        <div class="cmp-b"><span class="emoji">🍺</span> <span>3–4 cervezas</span></div>
+        <div class="cmp-b"><span class="emoji">🥤</span> <span>3 Coca-Colas 2.5L</span></div>
+      </div>
+      <p class="mt-3 mb-4" style="color:#92400e;font-size:.95rem;">
+        Si con un solo presupuesto bien armado no quedás corto $100.000 pesos,<br>ya pagaste el año entero.
+      </p>
+      <div class="mb-3">
+        <span class="badge-gratis"><i class="bi bi-gift me-1"></i> Primeros usuarios: acceso gratuito</span>
+      </div>
+      <a href="/login" class="btn btn-naranja btn-lg px-5">Empezar gratis</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="section-cta">
+  <div class="container">
+    <h2>¿Listo para presupuestar como un profesional?</h2>
+    <p class="mt-2 mb-4">Materiales calculados. Precios actualizados. PDF con tu marca. En minutos.</p>
+    <a href="/login" class="btn btn-naranja btn-lg px-5">
+      <i class="bi bi-rocket-takeoff me-1"></i> Empezar ahora — es gratis
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <span style="color:#fff;font-weight:600;">Presupuesto<span style="color:var(--naranja)">PRO</span></span>
+      <span class="ms-3">Para constructores y contratistas en Argentina y LATAM.</span>
+    </div>
+    <div>
+      <a href="/login">Iniciar sesión</a>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

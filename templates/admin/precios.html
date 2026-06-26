@@ -2,7 +2,13 @@
 {% block title %}Precios materiales — Admin{% endblock %}
 
 {% block content %}
-<h4 class="mb-4"><i class="bi bi-tags"></i> Precios de materiales (en USD)</h4>
+<div class="d-flex align-items-center gap-3 mb-4">
+  <h4 class="mb-0"><i class="bi bi-tags"></i> Precios de materiales (en ARS)</h4>
+  <span class="badge bg-secondary">TC: ${{ "{:,.0f}".format(tasa_ars) }} ARS/USD</span>
+</div>
+<p class="text-muted small mb-3">
+  Ingresá los precios en <strong>pesos argentinos</strong>. La conversión a USD se calcula automáticamente con el tipo de cambio actual.
+</p>
 
 <div class="card">
   <div class="card-body p-0">
@@ -16,19 +22,20 @@
             <tr>
               <th>Material</th>
               <th class="text-center">Unidad</th>
-              <th style="width:180px">Precio USD</th>
+              <th style="width:200px">Precio ARS</th>
             </tr>
           </thead>
           <tbody>
             {% for m in materiales if m.categoria == cat %}
+            {% set precio_ars = (m.precio_usd * tasa_ars) | round | int %}
             <tr>
               <td>{{ m.nombre }}</td>
               <td class="text-center text-muted">{{ m.unidad }}</td>
               <td>
                 <div class="input-group input-group-sm">
-                  <span class="input-group-text">USD</span>
+                  <span class="input-group-text">$</span>
                   <input type="number" name="precio_{{ m.id }}" class="form-control"
-                         value="{{ m.precio_usd }}" step="0.01" min="0">
+                         value="{{ precio_ars }}" step="1" min="0">
                 </div>
               </td>
             </tr>
@@ -38,10 +45,11 @@
       </div>
       {% endfor %}
 
-      <div class="p-3 border-top">
+      <div class="p-3 border-top d-flex align-items-center gap-3">
         <button type="submit" class="btn btn-warning fw-bold">
           <i class="bi bi-save"></i> Guardar todos los precios
         </button>
+        <span class="text-muted small">Los precios se guardan en ARS y se convierten a USD con el TC del momento.</span>
       </div>
     </form>
   </div>

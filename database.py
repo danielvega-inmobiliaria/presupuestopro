@@ -1039,20 +1039,26 @@ def init_db():
         """, ITEMS)
 
     # ── Materiales base ────────────────────────────────────────────────────────
+    # Precios en USD = precio_ars / tasa_ars (tasa: 1495 — actualizado jun/2026)
+    # Precios ARS de referencia confirmados:
+    #   Cemento Portland 25kg $6.500 | Plasticor 25kg $8.300 | Arena gruesa m3 $32.000
+    #   Piedra 6/20 m3 $70.000 | Ladrillo común millar $175.000
+    #   Perlitas Telgopor 75Lts $6.500 | Ladrillo hueco 12x18x33 u $875
     materiales_base = [
-        ('Cementos y aglomerantes', 'Cemento portland',            'bolsa 50kg',  12.00),
+        ('Cementos y aglomerantes', 'Cemento portland',            'bolsa 25kg',   4.35),
+        ('Cementos y aglomerantes', 'Plasticor',                   'bolsa 25kg',   5.55),
         ('Cementos y aglomerantes', 'Cal aérea',                   'bolsa 30kg',  12.00),
         ('Cementos y aglomerantes', 'Cal hidráulica',              'bolsa 30kg',  12.00),
         ('Cementos y aglomerantes', 'Yeso',                        'bolsa 30kg',   8.00),
-        ('Áridos y gravas',         'Arena gruesa',                'm3',           1.20),
-        ('Áridos y gravas',         'Arena fina',                  'm3',           1.30),
-        ('Áridos y gravas',         'Piedra partida 6/20',         'm3',           1.10),
+        ('Áridos y gravas',         'Arena gruesa',                'm3',          21.40),
+        ('Áridos y gravas',         'Arena fina',                  'm3',          21.40),
+        ('Áridos y gravas',         'Piedra partida 6/20',         'm3',          46.82),
         ('Áridos y gravas',         'Cascotes',                    'm3',           0.80),
-        ('Áridos y gravas',         'Perlitas Telgopor (75 Lts)',  'bolsa',        5.00),
-        ('Ladrillos y bloques',     'Ladrillo común 18x9x5cm',    'millar',    1800.00),
-        ('Ladrillos y bloques',     'Ladrillo hueco 8x18x33cm',   'millar',    2200.00),
-        ('Ladrillos y bloques',     'Ladrillo hueco 12x18x33cm',  'millar',    2800.00),
-        ('Ladrillos y bloques',     'Ladrillo hueco 18x18x33cm',  'millar',    3200.00),
+        ('Áridos y gravas',         'Perlitas Telgopor (75 Lts)',  'bolsa',        4.35),
+        ('Ladrillos y bloques',     'Ladrillo común 18x9x5cm',    'millar',      117.06),
+        ('Ladrillos y bloques',     'Ladrillo hueco 8x18x33cm',   'u',            0.47),
+        ('Ladrillos y bloques',     'Ladrillo hueco 12x18x33cm',  'u',            0.585),
+        ('Ladrillos y bloques',     'Ladrillo hueco 18x18x33cm',  'u',            0.70),
         ('Ladrillos y bloques',     'Bloque portante 12x19x33cm', 'u',            3.50),
         ('Ladrillos y bloques',     'Bloque portante 18x19x33cm', 'u',            4.20),
         ('Acero y hierro',          'Hierro Ø 8mm (fy=420)',       'kg',           1.00),
