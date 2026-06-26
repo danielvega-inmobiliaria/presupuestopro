@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Inscriptos — Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <h4 class="mb-0"><i class="bi bi-person-lines-fill"></i> Inscriptos desde la landing</h4>
+  <span class="badge bg-warning text-dark">{{ leads | length }} total</span>
+  {% set nuevos = leads | selectattr('estado','equalto','nuevo') | list | length %}
+  {% if nuevos %}
+  <span class="badge bg-danger">{{ nuevos }} sin contactar</span>
+  {% endif %}
+</div>
+
+{% if not leads %}
+<div class="alert alert-secondary">Todavía no hay inscriptos. Cuando alguien llene el formulario de la landing aparece acá.</div>
+{% else %}
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Teléfono / WA</th>
+          <th>Email</th>
+          <th>Ciudad</th>
+          <th>Fecha</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in leads %}
+        <tr>
+          <td class="text-muted small">{{ l.id }}</td>
+          <td><strong>{{ l.nombre }} {{ l.apellido }}</strong></td>
+          <td>
+            <a href="https://wa.me/54{{ l.telefono | replace(' ','') | replace('-','') | replace('+','') }}" target="_blank" class="btn btn-sm btn-success py-0 px-2">
+              <i class="bi bi-whatsapp"></i> {{ l.telefono }}
+            </a>
+          </td>
+          <td>
+            {% if l.email %}
+            <a href="mailto:{{ l.email }}">{{ l.email }}</a>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td>{{ l.ciudad }}{% if l.provincia %}, {{ l.provincia }}{% endif %}</td>
+          <td class="text-muted small">{{ l.created_at[:16] }}</td>
+          <td>
+            {% if l.estado == 'nuevo' %}
+              <span class="badge bg-danger">Nuevo</span>
+            {% elif l.estado == 'contactado' %}
+              <span class="badge bg-warning text-dark">Contactado</span>
+            {% elif l.estado == 'activo' %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ l.estado }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-secondary" type="button"
+              data-bs-toggle="collapse" data-bs-target="#lead-{{ l.id }}">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </td>
+        </tr>
+        <!-- Fila colapsable para editar estado y notas -->
+        <tr class="collapse" id="lead-{{ l.id }}">
+          <td colspan="8" class="bg-light">
+            <form method="post" action="{{ url_for('admin.lead_estado', lid=l.id) }}" class="d-flex gap-3 align-items-end p-2">
+              <div>
+                <label class="form-label small mb-1">Estado</label>
+                <select name="estado" class="form-select form-select-sm">
+                  <option value="nuevo" {% if l.estado=='nuevo' %}selected{% endif %}>Nuevo</option>
+                  <option value="contactado" {% if l.estado=='contactado' %}selected{% endif %}>Contactado</option>
+                  <option value="activo" {% if l.estado=='activo' %}selected{% endif %}>Activo (pagó)</option>
+                  <option value="descartado" {% if l.estado=='descartado' %}selected{% endif %}>Descartado</option>
+                </select>
+              </div>
+              <div class="flex-grow-1">
+                <label class="form-label small mb-1">Notas</label>
+                <input type="text" name="notas" class="form-control form-control-sm"
+                  value="{{ l.notas or '' }}" placeholder="ej: Le mandé link MP el 26/06">
+              </div>
+              <button type="submit" class="btn btn-sm btn-warning fw-bold">Guardar</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

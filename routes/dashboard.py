@@ -1,8 +1,12 @@
-from flask import Blueprint, render_template, g
-from utils.auth import login_required, get_current_user
+import os
+import smtplib
+from email.mime.text import MIMEText
+from flask import Blueprint, render_template, g, request, jsonify
+from utils.auth import get_current_user
 from database import get_db
 
 bp = Blueprint('dashboard', __name__)
+
 
 @bp.route('/')
 def index():
@@ -24,3 +28,64 @@ def index():
                            presupuestos=presupuestos,
                            borradores=borradores,
                            user=g.user)
+
+
+@bp.route('/inscripcion', methods=['POST'])
+def inscripcion():
+    data = request.get_json(silent=True) or {}
+    nombre   = (data.get('nombre') or '').strip()
+    apellido = (data.get('apellido') or '').strip()
+    telefono = (data.get('telefono') or '').strip()
+    email    = (data.get('email') or '').strip()
+    ciudad   = (data.get('ciudad') or '').strip()
+    provincia= (data.get('provincia') or '').strip()
+
+    if not nombre or not apellido or not telefono:
+        return jsonify({'ok': False, 'error': 'Datos incompletos'}), 400
+
+    # Guardar en DB
+    db = get_db()
+    db.execute(
+        "INSERT INTO leads (nombre, apellido, telefono, email, ciudad, provincia) VALUES (?,?,?,?,?,?)",
+        (nombre, apellido, telefono, email, ciudad, provincia)
+    )
+    db.commit()
+    db.close()
+
+    # Notificar por email
+    _enviar_notificacion(nombre, apellido, telefono, email, ciudad, provincia)
+
+    return jsonify({'ok': True})
+
+
+def _enviar_notificacion(nombre, apellido, telefono, email, ciudad, provincia):
+    """Envía email de notificación al administrador cuando hay un nuevo inscripto."""
+    smtp_user = os.environ.get('SMTP_USER')
+    smtp_pass = os.environ.get('SMTP_PASS')
+    admin_email = os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')
+
+    if not smtp_user or not smtp_pass:
+        print(f"[inscripcion] Nuevo lead: {nombre} {apellido} | {telefono} | {email} | {ciudad}, {provincia}")
+        return
+
+    cuerpo = f"""Nuevo inscripto en PresupuestoPRO 🎉
+
+Nombre:    {nombre} {apellido}
+Teléfono:  {telefono}
+Email:     {email or '(no indicó)'}
+Ciudad:    {ciudad}, {provincia}
+
+Entrá al panel admin para ver todos los leads:
+https://web-production-0c9c1.up.railway.app/admin/leads
+"""
+    try:
+        msg = MIMEText(cuerpo, 'plain', 'utf-8')
+        msg['Subject'] = f'🧱 Nuevo inscripto: {nombre} {apellido} — PresupuestoPRO'
+        msg['From']    = smtp_user
+        msg['To']      = admin_email
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=8) as s:
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(smtp_user, [admin_email], msg.as_string())
+    except Exception as e:
+        print(f"[inscripcion] Error enviando email: {e}")

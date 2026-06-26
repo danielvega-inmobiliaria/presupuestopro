@@ -353,3 +353,25 @@ def configuracion():
     cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
     db.close()
     return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
+
+
+# ─── LEADS / INSCRIPTOS ──────────────────────────────────────────────────────
+@bp.route('/leads')
+@admin_required
+def leads():
+    db = get_db()
+    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
+    db.close()
+    return render_template('admin/leads.html', leads=todos, user=g.user)
+
+@bp.route('/leads/<int:lid>/estado', methods=['POST'])
+@admin_required
+def lead_estado(lid):
+    estado = request.form.get('estado', 'nuevo')
+    notas  = request.form.get('notas', '')
+    db = get_db()
+    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
+    db.commit()
+    db.close()
+    flash('Lead actualizado.', 'success')
+    return redirect(url_for('admin.leads'))

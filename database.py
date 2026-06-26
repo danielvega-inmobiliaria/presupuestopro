@@ -873,6 +873,19 @@ def init_db():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS leads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        apellido TEXT NOT NULL,
+        telefono TEXT NOT NULL,
+        email TEXT DEFAULT '',
+        ciudad TEXT DEFAULT '',
+        provincia TEXT DEFAULT '',
+        estado TEXT DEFAULT 'nuevo',
+        notas TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
     """)
 
     # Admin user
