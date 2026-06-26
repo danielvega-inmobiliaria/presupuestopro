@@ -206,9 +206,9 @@ def crear_suscripcion():
         logger.error(f"[MP] Error creando preapproval: {result}")
         return redirect(url_for('pagos.planes') + '?error=mp_error')
 
-    # En modo TEST usar sandbox_init_point, en producción usar init_point
-    is_test = current_app.config.get('MP_ACCESS_TOKEN', '').startswith('TEST-')
-    init_point = response.get("sandbox_init_point") if is_test else response.get("init_point")
+    # Para preapprovals (suscripciones), MP devuelve init_point incluso en TEST.
+    # sandbox_init_point solo existe en preferencias de pago único.
+    init_point = response.get("sandbox_init_point") or response.get("init_point")
     # Guardamos el preapproval_id en la sesión para verificar al retorno
     session['mp_preapproval_id'] = response.get("id")
     return redirect(init_point)
