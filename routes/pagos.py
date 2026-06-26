@@ -127,8 +127,8 @@ def planes():
 </head>
 <body>
 <div class="container py-5">
-  <h2 class="text-center mb-2">Elegí tu plan</h2>
-  <p class="text-center text-muted mb-5">Acceso completo a PresupuestoPRO</p>
+  <h2 class="text-center mb-2">Activá tu suscripción</h2>
+  <p class="text-center text-muted mb-5">Creá presupuestos profesionales y descargalos en PDF</p>
 
   {% if sub_activa %}
   <div class="alert alert-success text-center">
