@@ -195,7 +195,9 @@ def crear_suscripcion():
             "transaction_amount": current_app.config['MP_PRECIO_ARS'],
             "currency_id": "ARS",
         },
-        "payer_email": user['email'],
+        # payer_email omitido intencionalmente: en sandbox, enviarlo con un email
+        # real (no test) genera el error "una de las partes es de prueba".
+        # MP usa quien se loguea en el checkout como pagador.
         "back_url": f"{base_url}/pagos/retorno",
         "notification_url": f"{base_url}/pagos/webhook",
     }
