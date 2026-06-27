@@ -120,10 +120,12 @@ def contactos():
   <div class="card mb-3 {{ 'border-primary' if not m.leido else '' }}">
     <div class="card-body">
       <div class="d-flex justify-content-between mb-1">
-        <strong>{{ m.nombre }}</strong>
+        <strong>{{ m.nombre }} {{ m.apellido or '' }}</strong>
         <small class="text-muted">{{ m.created_at }}</small>
       </div>
-      <div class="text-muted small mb-2">{{ m.email }}</div>
+      <div class="text-muted small mb-1">
+        📧 {{ m.email or '—' }} &nbsp;|&nbsp; 📱 {{ m.telefono or '—' }} &nbsp;|&nbsp; 📍 {{ m.ciudad or '' }}{% if m.ciudad and m.provincia %}, {% endif %}{{ m.provincia or '' }}
+      </div>
       <p class="mb-0">{{ m.mensaje }}</p>
     </div>
   </div>

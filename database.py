@@ -369,12 +369,26 @@ def migrate_db():
             CREATE TABLE IF NOT EXISTS contactos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT,
+                apellido TEXT,
+                telefono TEXT,
                 email TEXT,
+                ciudad TEXT,
+                provincia TEXT,
                 mensaje TEXT,
                 leido INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Agregar columnas extra a contactos si ya existía sin ellas
+        cols_contactos = [r[1] for r in db.execute("PRAGMA table_info(contactos)").fetchall()]
+        for col, tipo in [('apellido','TEXT'), ('telefono','TEXT'), ('ciudad','TEXT'), ('provincia','TEXT')]:
+            if col not in cols_contactos:
+                db.execute(f"ALTER TABLE contactos ADD COLUMN {col} {tipo} DEFAULT ''")
+        # Agregar columnas a users para datos de perfil
+        cols_users2 = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+        for col, tipo in [('apellido','TEXT'), ('telefono','TEXT'), ('ciudad','TEXT'), ('provincia','TEXT')]:
+            if col not in cols_users2:
+                db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo} DEFAULT ''")
         db.commit()
 
         # 1a-extra. Crear tabla empresa_perfil si no existe (para DBs antiguas)
