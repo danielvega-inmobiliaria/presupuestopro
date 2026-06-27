@@ -1,12 +1,12 @@
 """
 Blueprint: pagos
-Integración Mercado Pago — Suscripciones (Preapproval)
+Integración Mercado Pago — Pago único (Preference)
 
 Rutas:
   GET  /pagos/planes              → página de planes/precios
-  POST /pagos/crear-suscripcion   → crea preapproval en MP y redirige al usuario
+  POST /pagos/crear-suscripcion   → crea preference en MP y redirige al usuario
   GET  /pagos/retorno             → landing tras pago (success / pending / failure)
-  POST /pagos/webhook             → notificaciones de MP (sin autenticación requerida)
+  POST /pagos/webhook             → notificaciones de MP
   GET  /pagos/estado              → estado de suscripción del usuario actual
 """
 
@@ -31,7 +31,6 @@ def _get_sdk():
 
 
 def _login_required(f):
-    """Decorador mínimo: redirige a /login si no hay sesión."""
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
@@ -47,10 +46,9 @@ def _get_user(user_id):
     return user
 
 
-def _activar_suscripcion(db, user_id, preapproval_id, meses=1):
-    """Activa o renueva la suscripción del usuario."""
+def _activar_suscripcion(db, user_id, payment_id, meses=1):
+    """Activa o renueva la suscripción del usuario por N meses."""
     hoy = date.today()
-    # Si ya tiene vigencia futura, sumamos desde ahí
     user = db.execute("SELECT subscription_expires FROM users WHERE id=?", (user_id,)).fetchone()
     if user and user['subscription_expires']:
         try:
@@ -64,7 +62,7 @@ def _activar_suscripcion(db, user_id, preapproval_id, meses=1):
 
     db.execute(
         "UPDATE users SET active=1, subscription_expires=?, mp_preapproval_id=? WHERE id=?",
-        (nueva_exp.isoformat(), preapproval_id, user_id)
+        (nueva_exp.isoformat(), payment_id, user_id)
     )
     db.execute("""
         INSERT INTO suscripciones (user_id, mp_preapproval_id, plan_nombre, monto_ars, estado, fecha_inicio, fecha_fin)
@@ -73,21 +71,11 @@ def _activar_suscripcion(db, user_id, preapproval_id, meses=1):
             estado='authorized',
             fecha_fin=excluded.fecha_fin,
             updated_at=CURRENT_TIMESTAMP
-    """, (user_id, preapproval_id,
+    """, (user_id, payment_id,
           current_app.config.get('MP_PRECIO_ARS', 15000),
           hoy.isoformat(), nueva_exp.isoformat()))
     db.commit()
     logger.info(f"[MP] Usuario {user_id} activado hasta {nueva_exp}")
-
-
-def _cancelar_suscripcion(db, preapproval_id):
-    """Marca la suscripción como cancelada (sin desactivar inmediatamente)."""
-    db.execute("""
-        UPDATE suscripciones SET estado='cancelled', updated_at=CURRENT_TIMESTAMP
-        WHERE mp_preapproval_id=?
-    """, (preapproval_id,))
-    db.commit()
-    logger.info(f"[MP] Suscripción {preapproval_id} cancelada")
 
 
 # ─── rutas ────────────────────────────────────────────────────────────────────
@@ -95,12 +83,10 @@ def _cancelar_suscripcion(db, preapproval_id):
 @bp.route('/planes')
 @_login_required
 def planes():
-    """Página de planes — muestra precio y botón de suscripción."""
     user = _get_user(session['user_id'])
     precio_ars = current_app.config.get('MP_PRECIO_ARS', 15000)
     public_key = current_app.config.get('MP_PUBLIC_KEY', '')
 
-    # Estado de suscripción actual
     sub_activa = False
     sub_expires = None
     if user and user['subscription_expires']:
@@ -110,7 +96,6 @@ def planes():
         except Exception:
             pass
 
-    # HTML inline (sin template file para no requerir archivos extra ahora)
     html = """
 <!DOCTYPE html>
 <html lang="es">
@@ -136,6 +121,10 @@ def planes():
   </div>
   {% endif %}
 
+  {% if error %}
+  <div class="alert alert-danger text-center">{{ error }}</div>
+  {% endif %}
+
   <div class="row justify-content-center">
     <div class="col-md-5">
       <div class="card plan-card p-4">
@@ -147,12 +136,12 @@ def planes():
             <li>✅ PDF profesional</li>
             <li>✅ Análisis de costos</li>
             <li>✅ Multi-moneda</li>
-            <li>🔄 Renovación automática mensual</li>
+            <li>💳 Pagá con cualquier billetera o tarjeta</li>
           </ul>
           {% if not sub_activa %}
           <form method="POST" action="/pagos/crear-suscripcion">
             <button type="submit" class="btn btn-primary btn-lg w-100">
-              Suscribirme con Mercado Pago
+              Pagar con Mercado Pago
             </button>
           </form>
           {% else %}
@@ -165,87 +154,93 @@ def planes():
 
   <p class="text-center mt-4 text-muted small">
     Pagos seguros procesados por Mercado Pago.<br>
-    Podés cancelar en cualquier momento desde tu cuenta de MP.
+    Podés pagar con cualquier tarjeta, billetera digital o efectivo.
   </p>
 </div>
 </body>
 </html>
 """
-    from flask import render_template_string
     return render_template_string(html,
         precio_ars=precio_ars,
         public_key=public_key,
         sub_activa=sub_activa,
-        sub_expires=sub_expires)
+        sub_expires=sub_expires,
+        error=request.args.get('error'))
 
 
 @bp.route('/crear-suscripcion', methods=['POST'])
 @_login_required
 def crear_suscripcion():
-    """Crea un preapproval en MP y redirige al init_point."""
+    """Crea una preference de pago único en MP y redirige al checkout."""
     user = _get_user(session['user_id'])
     sdk = _get_sdk()
     base_url = current_app.config['APP_BASE_URL']
+    precio = current_app.config['MP_PRECIO_ARS']
+    user_id = session['user_id']
 
-    # En sandbox usar MP_TEST_PAYER_EMAIL (email de la cuenta test comprador de MP).
-    # En producción se usa el email real del usuario registrado en la app.
-    payer_email = (current_app.config.get('MP_TEST_PAYER_EMAIL') or user['email'])
-
-    preapproval_data = {
-        "reason": current_app.config['MP_PLAN_NOMBRE'],
-        "auto_recurring": {
-            "frequency": 1,
-            "frequency_type": "months",
-            "transaction_amount": current_app.config['MP_PRECIO_ARS'],
-            "currency_id": "ARS",
+    preference_data = {
+        "items": [
+            {
+                "title": current_app.config['MP_PLAN_NOMBRE'],
+                "quantity": 1,
+                "unit_price": float(precio),
+                "currency_id": "ARS",
+            }
+        ],
+        "payer": {
+            "email": user['email'],
         },
-        "payer_email": payer_email,
-        "back_url": f"{base_url}/pagos/retorno",
-        "notification_url": f"{base_url}/pagos/webhook",
+        "back_urls": {
+            "success": f"{base_url}/pagos/retorno?status=approved",
+            "pending": f"{base_url}/pagos/retorno?status=pending",
+            "failure": f"{base_url}/pagos/retorno?status=failure",
+        },
+        "auto_return": "approved",
+        # Guardamos el user_id en metadata para recuperarlo en el webhook
+        "metadata": {
+            "user_id": user_id,
+            "app": "presupuestopro",
+        },
+        "statement_descriptor": "PRESUPUESTOPRO",
+        "expires": False,
     }
 
-    result = sdk.preapproval().create(preapproval_data)
+    result = sdk.preference().create(preference_data)
     response = result.get("response", {})
 
-    if result.get("status") not in (200, 201) or ("init_point" not in response and "sandbox_init_point" not in response):
-        logger.error(f"[MP] Error creando preapproval: {result}")
-        return redirect(url_for('pagos.planes') + '?error=mp_error')
+    if result.get("status") not in (200, 201) or "init_point" not in response:
+        logger.error(f"[MP] Error creando preference: {result}")
+        return redirect(url_for('pagos.planes') + '?error=Error+al+generar+el+link+de+pago')
 
-    # Para preapprovals (suscripciones), MP devuelve init_point incluso en TEST.
-    # sandbox_init_point solo existe en preferencias de pago único.
-    init_point = response.get("sandbox_init_point") or response.get("init_point")
-    preapproval_id = response.get("id")
+    # Guardar preference_id en sesión para recuperar en retorno
+    preference_id = response.get("id")
+    session['mp_preference_id'] = preference_id
+    logger.info(f"[MP] Preference {preference_id} creada para user {user_id}")
 
-    # Guardar preapproval_id en sesión Y en DB antes del redirect.
-    # Así el webhook puede hacer el lookup por mp_preapproval_id aunque el
-    # payer_email de MP no coincida con el email registrado en la app.
-    session['mp_preapproval_id'] = preapproval_id
-    if preapproval_id:
-        db = get_db()
-        db.execute("UPDATE users SET mp_preapproval_id=? WHERE id=?",
-                   (preapproval_id, session['user_id']))
-        db.commit()
-        db.close()
-        logger.info(f"[MP] Preapproval {preapproval_id} guardado para user {session['user_id']}")
-
+    init_point = response.get("init_point")
     return redirect(init_point)
 
 
 @bp.route('/retorno')
 @_login_required
 def retorno():
-    """Landing tras el flujo de MP. MP envía: preapproval_id, status."""
-    status = request.args.get('status', '')
-    preapproval_id = request.args.get('preapproval_id') or session.pop('mp_preapproval_id', None)
+    """
+    Landing post-pago. MP envía:
+      ?collection_id=...&collection_status=approved&payment_id=...&status=approved&preference_id=...
+    """
+    status          = request.args.get('status') or request.args.get('collection_status', '')
+    payment_id      = request.args.get('payment_id') or request.args.get('collection_id', '')
+    preference_id   = request.args.get('preference_id') or session.pop('mp_preference_id', None)
 
-    if status == 'authorized' and preapproval_id:
+    if status == 'approved' and payment_id:
+        # Activación inmediata desde la URL de retorno
         db = get_db()
-        _activar_suscripcion(db, session['user_id'], preapproval_id)
+        _activar_suscripcion(db, session['user_id'], payment_id)
         db.close()
-        mensaje = "✅ ¡Suscripción activada! Ya podés usar PresupuestoPRO."
+        mensaje = "✅ ¡Pago aprobado! Ya podés usar PresupuestoPRO."
         tipo = "success"
     elif status == 'pending':
-        mensaje = "⏳ Tu pago está pendiente. Te avisaremos cuando se acredite."
+        mensaje = "⏳ Tu pago está pendiente de acreditación. Te avisaremos cuando se confirme."
         tipo = "warning"
     else:
         mensaje = "❌ El pago no se completó. Podés intentarlo de nuevo."
@@ -255,11 +250,35 @@ def retorno():
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>PresupuestoPRO — Estado de pago</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="manifest" href="/static/manifest.json">
 </head><body><div class="container py-5 text-center">
 <div class="alert alert-{{ tipo }} fs-5">{{ mensaje }}</div>
-<a href="/dashboard" class="btn btn-primary mt-3">Ir al Dashboard</a>
-<a href="/pagos/planes" class="btn btn-outline-secondary mt-3 ms-2">Ver planes</a>
-</div></body></html>
+{% if tipo == 'success' %}
+<p class="text-muted">Guardá la app en tu celular para acceder siempre rápido.</p>
+<button id="btnInstalar" class="btn btn-outline-primary mb-3" style="display:none">
+  📲 Agregar al inicio del celular
+</button>
+{% endif %}
+<a href="/dashboard" class="btn btn-primary mt-2">Ir al Dashboard</a>
+<a href="/pagos/planes" class="btn btn-outline-secondary mt-2 ms-2">Ver planes</a>
+</div>
+<script>
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('btnInstalar');
+  if (btn) btn.style.display = 'inline-block';
+});
+document.getElementById('btnInstalar')?.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  }
+});
+</script>
+</body></html>
 """
     return render_template_string(html, mensaje=mensaje, tipo=tipo)
 
@@ -267,56 +286,58 @@ def retorno():
 @bp.route('/webhook', methods=['POST'])
 def webhook():
     """
-    Endpoint público para notificaciones IPN / Webhooks de Mercado Pago.
-    MP envía POST con JSON: { "type": "subscription_preapproval", "data": {"id": "..."} }
-    También puede enviar query params: ?topic=preapproval&id=...
+    Webhook de MP. Para pagos únicos (preference) llega:
+      { "type": "payment", "data": { "id": "PAYMENT_ID" } }
     """
-    # MP puede mandar el id por body JSON o por query param
-    data = request.get_json(silent=True) or {}
-    topic = data.get("type") or request.args.get("topic", "")
+    data      = request.get_json(silent=True) or {}
+    topic     = data.get("type") or request.args.get("topic", "")
     resource_id = (data.get("data", {}).get("id")
                    or request.args.get("id")
-                   or request.args.get("preapproval_id"))
+                   or request.args.get("payment_id"))
 
     logger.info(f"[MP Webhook] topic={topic} id={resource_id}")
 
     if not resource_id:
-        return jsonify({"ok": True}), 200  # ignorar pings sin id
+        return jsonify({"ok": True}), 200
 
-    # Solo procesamos eventos de suscripciones
-    if topic not in ("subscription_preapproval", "preapproval"):
+    # Procesar pagos aprobados
+    if topic not in ("payment", "merchant_order"):
         return jsonify({"ok": True}), 200
 
     try:
         sdk = _get_sdk()
-        result = sdk.preapproval().get(resource_id)
-        preapproval = result.get("response", {})
-        estado_mp = preapproval.get("status", "")
-        payer_email = preapproval.get("payer_email", "")
+        result = sdk.payment().get(resource_id)
+        payment = result.get("response", {})
 
-        logger.info(f"[MP Webhook] preapproval {resource_id} estado={estado_mp} email={payer_email}")
+        estado   = payment.get("status", "")
+        metadata = payment.get("metadata", {})
+        payer    = payment.get("payer", {})
+        payer_email = payer.get("email", "")
+        user_id_meta = metadata.get("user_id")
+
+        logger.info(f"[MP Webhook] payment {resource_id} estado={estado} email={payer_email} user_id_meta={user_id_meta}")
+
+        if estado != "approved":
+            return jsonify({"ok": True}), 200
 
         db = get_db()
-        # Buscar usuario por email o por preapproval_id ya guardado
-        user = (
-            db.execute("SELECT id FROM users WHERE mp_preapproval_id=?", (resource_id,)).fetchone()
-            or db.execute("SELECT id FROM users WHERE email=?", (payer_email,)).fetchone()
-        )
+        # Buscar usuario: primero por metadata user_id, luego por email
+        user = None
+        if user_id_meta:
+            user = db.execute("SELECT id FROM users WHERE id=?", (user_id_meta,)).fetchone()
+        if not user and payer_email:
+            user = db.execute("SELECT id FROM users WHERE email=?", (payer_email,)).fetchone()
 
         if user:
-            user_id = user['id']
-            if estado_mp == "authorized":
-                _activar_suscripcion(db, user_id, resource_id)
-            elif estado_mp in ("cancelled", "paused"):
-                _cancelar_suscripcion(db, resource_id)
+            _activar_suscripcion(db, user['id'], str(resource_id))
+            logger.info(f"[MP Webhook] Usuario {user['id']} activado por payment {resource_id}")
         else:
-            logger.warning(f"[MP Webhook] Usuario no encontrado: email={payer_email} id={resource_id}")
+            logger.warning(f"[MP Webhook] Usuario no encontrado: email={payer_email} meta_id={user_id_meta}")
 
         db.close()
+
     except Exception as e:
         logger.error(f"[MP Webhook] Error procesando {resource_id}: {e}")
-        # Siempre devolver 200 a MP para que no reintente indefinidamente
-        return jsonify({"ok": True, "error": str(e)}), 200
 
     return jsonify({"ok": True}), 200
 
@@ -324,7 +345,6 @@ def webhook():
 @bp.route('/estado')
 @_login_required
 def estado():
-    """API JSON con el estado de suscripción del usuario actual."""
     user = _get_user(session['user_id'])
     sub_activa = False
     dias_restantes = 0
