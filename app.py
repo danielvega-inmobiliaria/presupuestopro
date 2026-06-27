@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from config import Config
 from database import init_db, migrate_db
-from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos
+from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing
 
 
 def create_app():
@@ -16,6 +16,7 @@ def create_app():
     app.register_blueprint(pdf_routes.bp)
     app.register_blueprint(perfil.bp)
     app.register_blueprint(pagos.bp)
+    app.register_blueprint(landing.bp)
 
     with app.app_context():
         init_db()
