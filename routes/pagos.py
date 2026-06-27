@@ -197,6 +197,7 @@ def crear_suscripcion():
         },
         "payer_email": user['email'],
         "back_url": f"{base_url}/pagos/retorno",
+        "notification_url": f"{base_url}/pagos/webhook",
     }
 
     result = sdk.preapproval().create(preapproval_data)
@@ -209,8 +210,20 @@ def crear_suscripcion():
     # Para preapprovals (suscripciones), MP devuelve init_point incluso en TEST.
     # sandbox_init_point solo existe en preferencias de pago único.
     init_point = response.get("sandbox_init_point") or response.get("init_point")
-    # Guardamos el preapproval_id en la sesión para verificar al retorno
-    session['mp_preapproval_id'] = response.get("id")
+    preapproval_id = response.get("id")
+
+    # Guardar preapproval_id en sesión Y en DB antes del redirect.
+    # Así el webhook puede hacer el lookup por mp_preapproval_id aunque el
+    # payer_email de MP no coincida con el email registrado en la app.
+    session['mp_preapproval_id'] = preapproval_id
+    if preapproval_id:
+        db = get_db()
+        db.execute("UPDATE users SET mp_preapproval_id=? WHERE id=?",
+                   (preapproval_id, session['user_id']))
+        db.commit()
+        db.close()
+        logger.info(f"[MP] Preapproval {preapproval_id} guardado para user {session['user_id']}")
+
     return redirect(init_point)
 
 
