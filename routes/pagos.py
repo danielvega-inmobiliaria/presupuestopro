@@ -187,6 +187,10 @@ def crear_suscripcion():
     sdk = _get_sdk()
     base_url = current_app.config['APP_BASE_URL']
 
+    # En sandbox usar MP_TEST_PAYER_EMAIL (email de la cuenta test comprador de MP).
+    # En producción se usa el email real del usuario registrado en la app.
+    payer_email = (current_app.config.get('MP_TEST_PAYER_EMAIL') or user['email'])
+
     preapproval_data = {
         "reason": current_app.config['MP_PLAN_NOMBRE'],
         "auto_recurring": {
@@ -195,9 +199,7 @@ def crear_suscripcion():
             "transaction_amount": current_app.config['MP_PRECIO_ARS'],
             "currency_id": "ARS",
         },
-        # payer_email omitido intencionalmente: en sandbox, enviarlo con un email
-        # real (no test) genera el error "una de las partes es de prueba".
-        # MP usa quien se loguea en el checkout como pagador.
+        "payer_email": payer_email,
         "back_url": f"{base_url}/pagos/retorno",
         "notification_url": f"{base_url}/pagos/webhook",
     }

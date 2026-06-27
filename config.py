@@ -23,5 +23,8 @@ class Config:
     # Precio de la suscripción mensual en ARS (ajustar según necesidad)
     MP_PRECIO_ARS   = float(os.environ.get('MP_PRECIO_ARS', '15000'))
     MP_PLAN_NOMBRE  = os.environ.get('MP_PLAN_NOMBRE', 'PresupuestoPRO — Plan Mensual')
+    # Solo en sandbox: email de la cuenta test-comprador de MP (test_user_USERID@testuser.com).
+    # En producción dejar vacío o no setear.
+    MP_TEST_PAYER_EMAIL = os.environ.get('MP_TEST_PAYER_EMAIL', '')
     # URL base de la app (para back_url del webhook)
     APP_BASE_URL    = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
