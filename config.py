@@ -21,7 +21,7 @@ class Config:
     MP_PUBLIC_KEY   = os.environ.get('MP_PUBLIC_KEY', '')
     MP_APP_ID       = os.environ.get('MP_APP_ID', '')
     # Precio de la suscripción mensual en ARS (ajustar según necesidad)
-    MP_PRECIO_ARS   = float(os.environ.get('MP_PRECIO_ARS', '15000'))
+    MP_PRECIO_ARS   = float(os.environ.get('MP_PRECIO_ARS', '12500'))
     MP_PLAN_NOMBRE  = os.environ.get('MP_PLAN_NOMBRE', 'PresupuestoPRO — Plan Mensual')
     # Solo en sandbox: email de la cuenta test-comprador de MP (test_user_USERID@testuser.com).
     # En producción dejar vacío o no setear.
