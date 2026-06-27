@@ -1,7 +1,7 @@
 import json
 import urllib.request
 from datetime import date
-from flask import Blueprint, render_template, request, redirect, url_for, flash, g
+from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
 from database import get_db
@@ -17,6 +17,7 @@ def dashboard():
         'activos':       db.execute("SELECT COUNT(*) as c FROM users WHERE active=1 AND is_admin=0").fetchone()['c'],
         'vencidos':      db.execute("SELECT COUNT(*) as c FROM users WHERE subscription_expires < date('now') AND is_admin=0").fetchone()['c'],
         'presupuestos':  db.execute("SELECT COUNT(*) as c FROM presupuestos").fetchone()['c'],
+        'mensajes_nuevos': db.execute("SELECT COUNT(*) as c FROM contactos WHERE leido=0").fetchone()['c'],
     }
     proximos = db.execute(
         "SELECT * FROM users WHERE subscription_expires >= date('now') AND is_admin=0 ORDER BY subscription_expires LIMIT 5"
@@ -93,6 +94,42 @@ def usuario_editar(uid):
 
     db.close()
     return render_template('admin/usuario_form.html', u=u, user=g.user)
+
+# ─── CONTACTOS ───────────────────────────────────────────────────────────────
+@bp.route('/contactos')
+@admin_required
+def contactos():
+    db = get_db()
+    msgs = db.execute("SELECT * FROM contactos ORDER BY created_at DESC").fetchall()
+    # Marcar todos como leídos
+    db.execute("UPDATE contactos SET leido=1")
+    db.commit()
+    db.close()
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>Contactos — Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head><body>
+<div class="container py-4">
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">← Volver</a>
+  <h4 class="fw-bold mb-3">Mensajes de contacto <span class="badge bg-primary">{{ msgs|length }}</span></h4>
+  {% if not msgs %}
+  <p class="text-muted">No hay mensajes aún.</p>
+  {% endif %}
+  {% for m in msgs %}
+  <div class="card mb-3 {{ 'border-primary' if not m.leido else '' }}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between mb-1">
+        <strong>{{ m.nombre }}</strong>
+        <small class="text-muted">{{ m.created_at }}</small>
+      </div>
+      <div class="text-muted small mb-2">{{ m.email }}</div>
+      <p class="mb-0">{{ m.mensaje }}</p>
+    </div>
+  </div>
+  {% endfor %}
+</div></body></html>
+""", msgs=msgs, user=g.user)
 
 # ─── PRECIOS MATERIALES ───────────────────────────────────────────────────────
 @bp.route('/precios')

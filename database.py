@@ -364,6 +364,19 @@ def migrate_db():
             db.commit()
             print("[migrate_db] users.mp_preapproval_id agregado")
 
+        # Crear tabla contactos si no existe
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS contactos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT,
+                email TEXT,
+                mensaje TEXT,
+                leido INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
         # 1a-extra. Crear tabla empresa_perfil si no existe (para DBs antiguas)
         db.execute("""
             CREATE TABLE IF NOT EXISTS empresa_perfil (

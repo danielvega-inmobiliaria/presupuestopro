@@ -244,6 +244,34 @@ LANDING_HTML = """
   </div>
 </section>
 
+<!-- CONTACTO -->
+<section style="background:#fff;padding:48px 20px 60px">
+  <div style="max-width:420px;margin:0 auto">
+    <h3 style="font-weight:800;text-align:center;margin-bottom:6px">¿Tenés dudas?</h3>
+    <p style="text-align:center;color:#6b7280;font-size:.9rem;margin-bottom:24px">
+      Si tenés problemas para pagar o querés más información, dejanos un mensaje y te contactamos.
+    </p>
+
+    {% if contacto_ok %}
+    <div style="background:#d1fae5;color:#065f46;border-radius:10px;padding:12px 16px;text-align:center;margin-bottom:16px;font-weight:600">
+      ✅ ¡Mensaje enviado! Te contactamos pronto.
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/contacto">
+      <label class="form-label">Tu nombre</label>
+      <input type="text" name="nombre" class="form-control" placeholder="Nombre" required>
+      <label class="form-label">Email o teléfono</label>
+      <input type="text" name="email" class="form-control" placeholder="tu@email.com o WhatsApp" required>
+      <label class="form-label">Mensaje</label>
+      <textarea name="mensaje" class="form-control" rows="3" placeholder="¿En qué te podemos ayudar?" required style="border-radius:10px;padding:12px 14px;border:1.5px solid #d1d5db;font-size:.95rem;width:100%;margin-bottom:14px"></textarea>
+      <button type="submit" style="background:#1a56db;color:#fff;font-weight:700;font-size:1rem;border-radius:50px;padding:13px;border:none;width:100%">
+        Enviar mensaje
+      </button>
+    </form>
+  </div>
+</section>
+
 <footer>
   PresupuestoPRO · Herramienta para profesionales de la construcción
 </footer>
@@ -266,7 +294,8 @@ def landing():
 
     if request.method == 'GET':
         return render_template_string(LANDING_HTML, precio_ars=precio_ars,
-                                      error=None, nombre_prev=None, email_prev=None)
+                                      error=None, nombre_prev=None, email_prev=None,
+                                      contacto_ok=request.args.get('contacto_ok'))
 
     # POST — registrar usuario y redirigir a pago
     nombre   = request.form.get('nombre', '').strip()
@@ -277,11 +306,13 @@ def landing():
     if not nombre or not email or not password:
         return render_template_string(LANDING_HTML, precio_ars=precio_ars,
                                       error="Completá todos los campos.",
-                                      nombre_prev=nombre, email_prev=email)
+                                      nombre_prev=nombre, email_prev=email,
+                                      contacto_ok=None)
     if len(password) < 6:
         return render_template_string(LANDING_HTML, precio_ars=precio_ars,
                                       error="La contraseña debe tener al menos 6 caracteres.",
-                                      nombre_prev=nombre, email_prev=email)
+                                      nombre_prev=nombre, email_prev=email,
+                                      contacto_ok=None)
 
     db = get_db()
 
@@ -310,7 +341,31 @@ def landing():
         logger.error(f"[Landing] Error creando usuario {email}: {e}")
         return render_template_string(LANDING_HTML, precio_ars=precio_ars,
                                       error="Error al crear la cuenta. Intentá de nuevo.",
-                                      nombre_prev=nombre, email_prev=email)
+                                      nombre_prev=nombre, email_prev=email,
+                                      contacto_ok=None)
 
     login_user(user_id)
     return redirect(url_for('pagos.crear_suscripcion'), code=307)
+
+
+@bp.route('/contacto', methods=['POST'])
+def contacto():
+    """Guarda mensaje de contacto desde la landing."""
+    nombre  = request.form.get('nombre', '').strip()
+    email   = request.form.get('email', '').strip()
+    mensaje = request.form.get('mensaje', '').strip()
+
+    if nombre and email and mensaje:
+        try:
+            db = get_db()
+            db.execute(
+                "INSERT INTO contactos (nombre, email, mensaje) VALUES (?,?,?)",
+                (nombre, email, mensaje)
+            )
+            db.commit()
+            db.close()
+            logger.info(f"[Contacto] Nuevo mensaje de {email}")
+        except Exception as e:
+            logger.error(f"[Contacto] Error guardando mensaje: {e}")
+
+    return redirect('/landing?contacto_ok=1')

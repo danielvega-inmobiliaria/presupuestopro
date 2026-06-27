@@ -218,7 +218,59 @@ def crear_suscripcion():
     logger.info(f"[MP] Preference {preference_id} creada para user {user_id}")
 
     init_point = response.get("init_point")
-    return redirect(init_point)
+
+    # Página intermedia: mostrar link de pago compartible
+    html_link = """
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>PresupuestoPRO — Tu link de pago</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { background: #f0f5ff; }
+  .card { border-radius: 20px; box-shadow: 0 8px 32px rgba(26,86,219,.1); }
+  .link-box { background: #f8f9fa; border: 1.5px solid #d1d5db; border-radius: 10px;
+              padding: 12px 14px; font-size: .85rem; word-break: break-all;
+              color: #374151; font-family: monospace; }
+</style>
+</head>
+<body>
+<div class="container py-5">
+  <div class="card p-4 mx-auto" style="max-width:480px">
+    <h4 class="fw-bold mb-1 text-center">💳 Tu link de pago</h4>
+    <p class="text-muted text-center mb-4" style="font-size:.9rem">
+      Podés pagar vos directamente o enviar este link a otra persona para que pague por vos.
+      Una vez abonado, tu cuenta queda activa automáticamente.
+    </p>
+
+    <div class="link-box mb-3" id="linkPago">{{ init_point }}</div>
+
+    <button class="btn btn-outline-secondary w-100 mb-3" onclick="copiarLink()">
+      📋 Copiar link para compartir
+    </button>
+
+    <a href="{{ init_point }}" class="btn btn-primary btn-lg w-100">
+      Pagar ahora →
+    </a>
+
+    <p class="text-center text-muted mt-3" style="font-size:.78rem">
+      Aceptamos tarjetas, saldo Mercado Pago, transferencia bancaria y efectivo (Rapipago / Pagofácil)
+    </p>
+  </div>
+</div>
+<script>
+function copiarLink() {
+  const txt = document.getElementById('linkPago').innerText;
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ ¡Link copiado!';
+    setTimeout(() => { btn.textContent = '📋 Copiar link para compartir'; }, 2500);
+  });
+}
+</script>
+</body></html>
+"""
+    from flask import render_template_string as rts
+    return rts(html_link, init_point=init_point)
 
 
 @bp.route('/retorno')
