@@ -115,8 +115,8 @@ LANDING_HTML = """
 
 <!-- HERO -->
 <section class="hero">
-  <div class="badge-pill">⚡ Para profesionales de la construcción</div>
-  <h1>Presupuestos<br>profesionales<br>en minutos</h1>
+  <div class="badge-pill">⚡ Para Albañiles Profesionales</div>
+  <h1>Presupuestos profesionales<br>para albañiles<br>en minutos</h1>
   <p>Calculá costos, generá PDFs listos para el cliente y controlá tu negocio desde cualquier lugar.</p>
   <a href="#registro" class="btn-cta">Quiero probarlo →</a>
 </section>
@@ -221,6 +221,37 @@ LANDING_HTML = """
   </div>
 </section>
 
+<!-- COMPARATIVA -->
+<section style="background:#f3f4f6;padding:40px 20px;text-align:center">
+  <h2 style="font-weight:800;font-size:1.2rem;margin-bottom:6px">¿Caro? Mirá esto 👇</h2>
+  <p style="color:#6b7280;font-size:.9rem;margin-bottom:28px">
+    Por menos de lo que gastás en una semana, tenés una herramienta profesional todo el mes
+  </p>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;max-width:420px;margin:0 auto">
+    <div style="background:#fff;border-radius:16px;padding:20px 10px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+      <div style="font-size:2rem">🍺</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#1a56db;margin:6px 0">{{ cervezas }}</div>
+      <div style="font-size:.75rem;color:#6b7280;line-height:1.3">cervezas<br>artesanales</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px 10px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+      <div style="font-size:2rem">🚬</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#1a56db;margin:6px 0">{{ atados }}</div>
+      <div style="font-size:.75rem;color:#6b7280;line-height:1.3">atados de<br>cigarrillos</div>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:20px 10px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+      <div style="font-size:2rem">🥤</div>
+      <div style="font-size:1.5rem;font-weight:800;color:#1a56db;margin:6px 0">{{ cocas }}</div>
+      <div style="font-size:.75rem;color:#6b7280;line-height:1.3">Coca-Colas<br>2.25 litros</div>
+    </div>
+  </div>
+  <p style="margin-top:20px;font-size:.85rem;color:#374151;font-weight:600">
+    Eso cuesta PresupuestoPRO por mes. Y te genera presupuestos que valen miles.
+  </p>
+  <a href="#registro" style="display:inline-block;margin-top:10px;background:#1a56db;color:#fff;font-weight:700;border-radius:50px;padding:12px 32px;text-decoration:none;font-size:.95rem">
+    Empezar ahora →
+  </a>
+</section>
+
 <!-- FORMULARIO CONTACTO -->
 <section class="contacto-section" id="contacto">
   <div class="form-card">
@@ -295,6 +326,10 @@ document.getElementById('formRegistro').addEventListener('submit', function() {
 
 
 def _render(precio_ars, error=None, prev=None, contacto_ok=False):
+    # Precios de referencia en ARS (actualizar según inflación)
+    P_CERVEZA  = 3500   # cerveza artesanal / chopera
+    P_ATADO    = 4500   # atado de cigarrillos
+    P_COCA     = 3000   # Coca-Cola 2.25L
     return render_template_string(
         LANDING_HTML,
         precio_ars=precio_ars,
@@ -302,6 +337,9 @@ def _render(precio_ars, error=None, prev=None, contacto_ok=False):
         prev=prev or {},
         contacto_ok=contacto_ok,
         provincias=PROVINCIAS_AR,
+        cervezas=int(precio_ars // P_CERVEZA),
+        atados=int(precio_ars // P_ATADO),
+        cocas=int(precio_ars // P_COCA),
     )
 
 
