@@ -147,9 +147,9 @@ def contactos():
       <p class="mb-3 border rounded p-2 bg-white">{{ m.mensaje }}</p>
       <div class="d-flex gap-2 flex-wrap">
         {% if m.email %}
-        <a href="mailto:{{ m.email }}?subject=Re: Tu consulta en PresupuestoPRO&body=Hola {{ m.nombre }},%0A%0AGracias por tu mensaje.%0A%0A----%0ATu mensaje: {{ m.mensaje|urlencode }}"
-           class="btn btn-sm btn-outline-primary">
-          ✉️ Responder por email
+        <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ m.email }}&su=Re%3A%20Tu%20consulta%20en%20PresupuestoPRO&body=Hola%20{{ m.nombre | urlencode }}%2C%0A%0AGracias%20por%20tu%20mensaje.%0A%0A----%0ATu%20mensaje%3A%20{{ m.mensaje | urlencode }}"
+           target="_blank" class="btn btn-sm btn-outline-primary">
+          ✉️ Responder por Gmail
         </a>
         {% endif %}
         {% if m.telefono %}
