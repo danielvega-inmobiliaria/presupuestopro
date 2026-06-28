@@ -101,37 +101,86 @@ def usuario_editar(uid):
 def contactos():
     db = get_db()
     msgs = db.execute("SELECT * FROM contactos ORDER BY created_at DESC").fetchall()
-    # Marcar todos como leídos
-    db.execute("UPDATE contactos SET leido=1")
+    # Marcar no leídos DESPUÉS de capturar el estado (para mostrar badge "NUEVO")
+    db.execute("UPDATE contactos SET leido=1 WHERE leido=0")
     db.commit()
     db.close()
     return render_template_string("""
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>Contactos — Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mensajes — Admin</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head><body>
-<div class="container py-4">
+<style>
+  .card-nuevo  { border-left: 4px solid #0d6efd; }
+  .card-leido  { border-left: 4px solid #dee2e6; }
+  .card-contest{ border-left: 4px solid #198754; }
+</style>
+</head><body class="bg-light">
+<div class="container py-4" style="max-width:760px">
   <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">← Volver</a>
-  <h4 class="fw-bold mb-3">Mensajes de contacto <span class="badge bg-primary">{{ msgs|length }}</span></h4>
+  <h4 class="fw-bold mb-1">Mensajes de contacto</h4>
+  <p class="text-muted small mb-3">
+    <span class="badge bg-primary">{{ msgs|length }} total</span>
+    <span class="badge bg-success ms-1">{{ msgs|selectattr('contestado','equalto',1)|list|length }} contestados</span>
+    <span class="badge bg-warning text-dark ms-1">{{ msgs|selectattr('leido','equalto',0)|list|length }} nuevos</span>
+  </p>
   {% if not msgs %}
   <p class="text-muted">No hay mensajes aún.</p>
   {% endif %}
   {% for m in msgs %}
-  <div class="card mb-3 {{ 'border-primary' if not m.leido else '' }}">
+  {% set card_class = 'card-contest' if m.contestado else ('card-nuevo' if not m.leido else 'card-leido') %}
+  <div class="card mb-3 shadow-sm {{ card_class }}">
     <div class="card-body">
-      <div class="d-flex justify-content-between mb-1">
-        <strong>{{ m.nombre }} {{ m.apellido or '' }}</strong>
-        <small class="text-muted">{{ m.created_at }}</small>
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <div>
+          <strong>{{ m.nombre }} {{ m.apellido or '' }}</strong>
+          {% if not m.leido %}<span class="badge bg-primary ms-2">NUEVO</span>{% endif %}
+          {% if m.contestado %}<span class="badge bg-success ms-2">✓ Contestado</span>{% endif %}
+        </div>
+        <small class="text-muted text-nowrap ms-2">{{ m.created_at[:16] }}</small>
       </div>
-      <div class="text-muted small mb-1">
-        📧 {{ m.email or '—' }} &nbsp;|&nbsp; 📱 {{ m.telefono or '—' }} &nbsp;|&nbsp; 📍 {{ m.ciudad or '' }}{% if m.ciudad and m.provincia %}, {% endif %}{{ m.provincia or '' }}
+      <div class="text-muted small mb-2">
+        {% if m.email %}📧 <a href="mailto:{{ m.email }}">{{ m.email }}</a>&nbsp;{% endif %}
+        {% if m.telefono %}📱 {{ m.telefono }}&nbsp;{% endif %}
+        {% if m.ciudad or m.provincia %}📍 {{ m.ciudad or '' }}{% if m.ciudad and m.provincia %}, {% endif %}{{ m.provincia or '' }}{% endif %}
       </div>
-      <p class="mb-0">{{ m.mensaje }}</p>
+      <p class="mb-3 border rounded p-2 bg-white">{{ m.mensaje }}</p>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if m.email %}
+        <a href="mailto:{{ m.email }}?subject=Re: Tu consulta en PresupuestoPRO&body=Hola {{ m.nombre }},%0A%0AGracias por tu mensaje.%0A%0A----%0ATu mensaje: {{ m.mensaje|urlencode }}"
+           class="btn btn-sm btn-outline-primary">
+          ✉️ Responder por email
+        </a>
+        {% endif %}
+        {% if m.telefono %}
+        <a href="https://wa.me/{{ m.telefono | replace(' ','') | replace('-','') | replace('+','') | replace('(','') | replace(')','') }}?text=Hola%20{{ m.nombre | urlencode }}%2C%20te%20contactamos%20desde%20PresupuestoPRO%20en%20relaci%C3%B3n%20a%20tu%20consulta."
+           target="_blank" class="btn btn-sm btn-outline-success">
+          💬 WhatsApp
+        </a>
+        {% endif %}
+        <form method="POST" action="/admin/contactos/{{ m.id }}/contestado" style="display:inline">
+          <button type="submit" class="btn btn-sm {{ 'btn-success' if m.contestado else 'btn-outline-success' }}">
+            {% if m.contestado %}✓ Contestado{% else %}Marcar contestado{% endif %}
+          </button>
+        </form>
+      </div>
     </div>
   </div>
   {% endfor %}
 </div></body></html>
 """, msgs=msgs, user=g.user)
+
+@bp.route('/contactos/<int:mid>/contestado', methods=['POST'])
+@admin_required
+def contacto_contestado(mid):
+    db = get_db()
+    row = db.execute("SELECT contestado FROM contactos WHERE id=?", (mid,)).fetchone()
+    if row:
+        nuevo = 0 if row['contestado'] else 1
+        db.execute("UPDATE contactos SET contestado=? WHERE id=?", (nuevo, mid))
+        db.commit()
+    db.close()
+    return redirect(url_for('admin.contactos'))
 
 # ─── PRECIOS MATERIALES ───────────────────────────────────────────────────────
 @bp.route('/precios')

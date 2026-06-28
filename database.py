@@ -384,6 +384,8 @@ def migrate_db():
         for col, tipo in [('apellido','TEXT'), ('telefono','TEXT'), ('ciudad','TEXT'), ('provincia','TEXT')]:
             if col not in cols_contactos:
                 db.execute(f"ALTER TABLE contactos ADD COLUMN {col} {tipo} DEFAULT ''")
+        if 'contestado' not in cols_contactos:
+            db.execute("ALTER TABLE contactos ADD COLUMN contestado INTEGER DEFAULT 0")
         # Agregar columnas a users para datos de perfil
         cols_users2 = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
         for col, tipo in [('apellido','TEXT'), ('telefono','TEXT'), ('ciudad','TEXT'), ('provincia','TEXT')]:
