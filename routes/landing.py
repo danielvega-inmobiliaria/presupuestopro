@@ -5,6 +5,8 @@ Rutas: GET/POST /landing  |  POST /contacto
 """
 
 import logging
+import os
+import resend
 from werkzeug.security import generate_password_hash
 from flask import Blueprint, current_app, redirect, render_template_string, request, session, url_for
 
@@ -426,5 +428,29 @@ def contacto():
             logger.info(f"[Contacto] Mensaje de {nombre} {apellido} / {email}")
         except Exception as e:
             logger.error(f"[Contacto] Error: {e}")
+
+        # Notificación email al admin
+        try:
+            api_key = os.environ.get('RESEND_API_KEY')
+            admin_email = os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')
+            if api_key:
+                resend.api_key = api_key
+                resend.Emails.send({
+                    "from": "onboarding@resend.dev",
+                    "to": [admin_email],
+                    "subject": f"💬 Nuevo mensaje de contacto: {nombre} {apellido}",
+                    "text": (
+                        f"Nuevo mensaje de contacto en PresupuestoPRO\n\n"
+                        f"Nombre:    {nombre} {apellido}\n"
+                        f"Teléfono:  {telefono or '(no indicó)'}\n"
+                        f"Email:     {email or '(no indicó)'}\n"
+                        f"Ciudad:    {ciudad or '-'}, {provincia or '-'}\n\n"
+                        f"Mensaje:\n{mensaje}\n\n"
+                        f"Ver todos los mensajes:\n"
+                        f"https://web-production-0c9c1.up.railway.app/admin/contactos"
+                    ),
+                })
+        except Exception as e:
+            logger.error(f"[Contacto] Error enviando email: {e}")
 
     return redirect('/landing?contacto_ok=1#contacto')

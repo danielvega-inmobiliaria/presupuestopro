@@ -62,6 +62,12 @@
     <div class="card">
       <div class="card-header fw-bold">Acceso rápido</div>
       <div class="card-body d-grid gap-2">
+        <a href="{{ url_for('admin.contactos') }}" class="btn btn-primary fw-bold">
+          <i class="bi bi-chat-left-text"></i> 💬 Mensajes de contacto
+          {% if stats.mensajes_nuevos > 0 %}
+          <span class="badge bg-warning text-dark ms-1">{{ stats.mensajes_nuevos }} nuevo{% if stats.mensajes_nuevos > 1 %}s{% endif %}</span>
+          {% endif %}
+        </a>
         <a href="{{ url_for('admin.leads') }}" class="btn btn-danger fw-bold">
           <i class="bi bi-person-lines-fill"></i> 🔔 Inscriptos (ver y contactar)
         </a>
