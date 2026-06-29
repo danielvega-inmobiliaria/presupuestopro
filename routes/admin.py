@@ -26,7 +26,7 @@ def dashboard():
     db.close()
     return render_template('admin/dashboard.html', stats=stats, proximos=proximos, user=g.user)
 
-# ─── USUARIOS ────────────────────────────────────────────────────────────────
+# USUARIOS
 @bp.route('/usuarios')
 @admin_required
 def usuarios():
@@ -85,7 +85,6 @@ def usuario_editar(uid):
                 "UPDATE users SET nombre=?, pais=?, active=?, subscription_expires=? WHERE id=?",
                 (nombre, pais, active, vence or None, uid)
             )
-        # Si se desactiva, invalidar sesión
         if not active:
             db.execute("UPDATE users SET session_token=NULL WHERE id=?", (uid,))
         db.commit()
@@ -99,7 +98,6 @@ def usuario_editar(uid):
 @bp.route('/usuarios/<int:uid>/enviar-activacion', methods=['POST'])
 @admin_required
 def usuario_enviar_activacion(uid):
-    """Envía (o reenvía) el email de bienvenida/activación a un usuario."""
     db = get_db()
     u = db.execute("SELECT email, nombre, subscription_expires FROM users WHERE id=?", (uid,)).fetchone()
     db.close()
@@ -108,8 +106,7 @@ def usuario_enviar_activacion(uid):
         return redirect(url_for('admin.usuarios'))
 
     from routes.pagos import _enviar_email_activacion
-    exp = u['subscription_expires'] or '—'
-    # Formatear fecha si existe
+    exp = u['subscription_expires'] or '-'
     try:
         from datetime import datetime
         exp = datetime.strptime(exp, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -122,26 +119,25 @@ def usuario_enviar_activacion(uid):
         fecha_vencimiento=exp,
     )
     if ok:
-        flash(f'Email de activación enviado a {u["email"]}.', 'success')
+        flash(f'Email de activacion enviado a {u["email"]}.', 'success')
     else:
-        flash(f'No se pudo enviar el email (revisar RESEND_API_KEY).', 'error')
+        flash('No se pudo enviar el email (revisar RESEND_API_KEY).', 'error')
     return redirect(url_for('admin.usuarios'))
 
 
-# ─── CONTACTOS ───────────────────────────────────────────────────────────────
+# CONTACTOS
 @bp.route('/contactos')
 @admin_required
 def contactos():
     db = get_db()
     msgs = db.execute("SELECT * FROM contactos ORDER BY created_at DESC").fetchall()
-    # Marcar no leídos DESPUÉS de capturar el estado (para mostrar badge "NUEVO")
     db.execute("UPDATE contactos SET leido=1 WHERE leido=0")
     db.commit()
     db.close()
     return render_template_string("""
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mensajes — Admin</title>
+<title>Mensajes - Admin</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
   .card-nuevo  { border-left: 4px solid #0d6efd; }
@@ -150,16 +146,14 @@ def contactos():
 </style>
 </head><body class="bg-light">
 <div class="container py-4" style="max-width:760px">
-  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">← Volver</a>
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">Volver</a>
   <h4 class="fw-bold mb-1">Mensajes de contacto</h4>
   <p class="text-muted small mb-3">
     <span class="badge bg-primary">{{ msgs|length }} total</span>
     <span class="badge bg-success ms-1">{{ msgs|selectattr('contestado','equalto',1)|list|length }} contestados</span>
     <span class="badge bg-warning text-dark ms-1">{{ msgs|selectattr('leido','equalto',0)|list|length }} nuevos</span>
   </p>
-  {% if not msgs %}
-  <p class="text-muted">No hay mensajes aún.</p>
-  {% endif %}
+  {% if not msgs %}<p class="text-muted">No hay mensajes aun.</p>{% endif %}
   {% for m in msgs %}
   {% set card_class = 'card-contest' if m.contestado else ('card-nuevo' if not m.leido else 'card-leido') %}
   <div class="card mb-3 shadow-sm {{ card_class }}">
@@ -168,32 +162,23 @@ def contactos():
         <div>
           <strong>{{ m.nombre }} {{ m.apellido or '' }}</strong>
           {% if not m.leido %}<span class="badge bg-primary ms-2">NUEVO</span>{% endif %}
-          {% if m.contestado %}<span class="badge bg-success ms-2">✓ Contestado</span>{% endif %}
+          {% if m.contestado %}<span class="badge bg-success ms-2">Contestado</span>{% endif %}
         </div>
         <small class="text-muted text-nowrap ms-2">{{ m.created_at[:16] }}</small>
       </div>
       <div class="text-muted small mb-2">
-        {% if m.email %}📧 <a href="mailto:{{ m.email }}">{{ m.email }}</a>&nbsp;{% endif %}
-        {% if m.telefono %}📱 {{ m.telefono }}&nbsp;{% endif %}
-        {% if m.ciudad or m.provincia %}📍 {{ m.ciudad or '' }}{% if m.ciudad and m.provincia %}, {% endif %}{{ m.provincia or '' }}{% endif %}
+        {% if m.email %}<a href="mailto:{{ m.email }}">{{ m.email }}</a>&nbsp;{% endif %}
+        {% if m.telefono %}{{ m.telefono }}&nbsp;{% endif %}
+        {% if m.ciudad or m.provincia %}{{ m.ciudad or '' }}{% if m.ciudad and m.provincia %}, {% endif %}{{ m.provincia or '' }}{% endif %}
       </div>
       <p class="mb-3 border rounded p-2 bg-white">{{ m.mensaje }}</p>
       <div class="d-flex gap-2 flex-wrap">
         {% if m.email %}
-        <a href="googlegmail://co?to={{ m.email }}&subject=Re%3A%20Tu%20consulta%20en%20PresupuestoPRO&body=Hola%20{{ m.nombre | urlencode }}%2C%0A%0AGracias%20por%20tu%20mensaje.%0A%0A----%0ATu%20mensaje%3A%20{{ m.mensaje | urlencode }}"
-           class="btn btn-sm btn-outline-primary">
-          ✉️ Responder por Gmail
-        </a>
-        {% endif %}
-        {% if m.telefono %}
-        <a href="https://wa.me/{{ m.telefono | replace(' ','') | replace('-','') | replace('+','') | replace('(','') | replace(')','') }}?text=Hola%20{{ m.nombre | urlencode }}%2C%20te%20contactamos%20desde%20PresupuestoPRO%20en%20relaci%C3%B3n%20a%20tu%20consulta."
-           target="_blank" class="btn btn-sm btn-outline-success">
-          💬 WhatsApp
-        </a>
+        <a href="mailto:{{ m.email }}" class="btn btn-sm btn-outline-primary">Responder</a>
         {% endif %}
         <form method="POST" action="/admin/contactos/{{ m.id }}/contestado" style="display:inline">
           <button type="submit" class="btn btn-sm {{ 'btn-success' if m.contestado else 'btn-outline-success' }}">
-            {% if m.contestado %}✓ Contestado{% else %}Marcar contestado{% endif %}
+            {% if m.contestado %}Contestado{% else %}Marcar contestado{% endif %}
           </button>
         </form>
       </div>
@@ -215,66 +200,65 @@ def contacto_contestado(mid):
     db.close()
     return redirect(url_for('admin.contactos'))
 
-# ─── PRECIOS MATERIALES ───────────────────────────────────────────────────────
-# Lista ordenada de materiales del Excel V3, agrupados por sector
+# PRECIOS MATERIALES
 _LISTA_PRECIOS = [
-    ('CORRALÓN - Áridos y Cemento', [
-        'Cemento portland bolsas', 'Cemento Albañilería', 'Cal Hidráulica',
-        'Cal aérea Milagro', 'Hidrófugo', 'Arena común', 'Tierra Colorada',
-        'Piedra Granítica', 'Granza', 'Hormigon elaborado colado',
+    ('CORRELON - Aridos y Cemento', [
+        'Cemento portland bolsas', 'Cemento Albanileria', 'Cal Hidraulica',
+        'Cal aerea Milagro', 'Hidrofugo', 'Arena comun', 'Tierra Colorada',
+        'Piedra Granitica', 'Granza', 'Hormigon elaborado colado',
         'Perlitas Telgopor (75 Lts)',
     ]),
-    ('CORRALÓN - Ladrillos y Mampostería', [
+    ('CORRELON - Ladrillos y Mamposteria', [
         'Ladrillos comunes', 'Ladrillos vista',
         'Ladrillo hueco 8x18x33cm', 'Ladrillo hueco 12X18X33cm',
         'Ladrillo hueco 18X18X33cm', 'Ladrillo hueco Portante 12x18x33cm',
         'Ladrillo hueco Portante 18x18x33cm',
     ]),
-    ('CORRALÓN - Hierros y Ferretería', [
+    ('CORRELON - Hierros y Ferreteria', [
         'Hierro redondo d=10mm', 'Alambre negro',
         'Clavos 2"', 'Clavos 2" 1/2', 'Clavos 3"', 'Clavos 4"',
     ]),
-    ('CORRALÓN - Viguetas', [
+    ('CORRELON - Viguetas', [
         'Viga Vipret 4m.', 'Ladrillo Telgopor 12*38*1m',
     ]),
     ('Maderera', [
         'Palito 1"x1"', 'Metal desplegado', 'Saligna   1"x2"', 'Saligna 1"x4"',
         'Saligna 3"x3"', 'Pino encofrado 1"', 'Tirantes 2x6', 'Pino tabla machimbre',
         'Escurridores 1/2 x 2', 'Issolant', 'Clavadores 2 x 2', 'Chapas Techo',
-        'Tornillo c/arand goma', 'Chapas Cerco', 'Zócalo de madera', 'Tarugo 6',
+        'Tornillo c/arand goma', 'Chapas Cerco', 'Zocalo de madera', 'Tarugo 6',
         'Tornillo',
     ]),
-    ('Instalaciones - Eléctricas', [
-        'Caño Corrugado 1"', 'Caño Corrugado 3/4"', 'Cajas Metalicas',
+    ('Instalaciones - Electricas', [
+        'Cano Corrugado 1"', 'Cano Corrugado 3/4"', 'Cajas Metalicas',
         'Cable 2,5 mm', 'Cable 1,5 mm',
     ]),
     ('Instalaciones - Sanitarias', [
-        'Caño Awaduct 110', 'Caño Awaduct 63', 'Caño Awaduct 50',
-        'Caño Awaduct 40', 'Accesorios Desagues',
+        'Cano Awaduct 110', 'Cano Awaduct 63', 'Cano Awaduct 50',
+        'Cano Awaduct 40', 'Accesorios Desagues',
     ]),
     ('Instalaciones - Agua F/C', [
-        'Caño TF 25', 'Caño TF 20', 'Accesorios TF', 'Llaves de Paso Agua',
+        'Cano TF 25', 'Cano TF 20', 'Accesorios TF', 'Llaves de Paso Agua',
     ]),
     ('Instalaciones - Gas', [
-        'Caño Epoxi 3/4', 'Caño epoxi 1/2', 'Accesorios Gas', 'Llaves de Paso Gas',
+        'Cano Epoxi 3/4', 'Cano epoxi 1/2', 'Accesorios Gas', 'Llaves de Paso Gas',
     ]),
     ('Revestimientos y Pisos', [
         'Klaukol', 'Pastina',
-        'Rvto.cerámico 1', 'Rvto.cerámico 2', 'Rvto.cerámico 3 (porcellanato)',
-        'Piso cerámico 1', 'Piso cerámico 2', 'Piso cerámico 3 (porcellanato)',
-        'Mosaico calcáreo', 'Loseta cemento 60x40cm', 'Baldosa cerámica azotea',
-        'Zócalo cerámico 1', 'Zócalo cerámico 2', 'Zócalo cerámico 3 (Porcellanato)',
+        'Rvto.ceramico 1', 'Rvto.ceramico 2', 'Rvto.ceramico 3 (porcellanato)',
+        'Piso ceramico 1', 'Piso ceramico 2', 'Piso ceramico 3 (porcellanato)',
+        'Mosaico calcareo', 'Loseta cemento 60x40cm', 'Baldosa ceramica azotea',
+        'Zocalo ceramico 1', 'Zocalo ceramico 2', 'Zocalo ceramico 3 (Porcellanato)',
     ]),
     ('Pinturas y Terminaciones', [
-        'Pintura látex exterior', 'Pintura látex interior', 'Pintura látex cielos',
+        'Pintura latex exterior', 'Pintura latex interior', 'Pintura latex cielos',
         'Esmalte albalux', 'Pintura especial 1', 'Pintura especial 2',
-        'Pintura satinol', 'Color pintura cal', 'Enduido sintético',
+        'Pintura satinol', 'Color pintura cal', 'Enduido sintetico',
     ]),
     ('Materiales Especiales', [
         'Super Iggam', 'Salpicrete', 'Rev Text.', 'Fondo Base',
     ]),
     ('Servicios y Varios', [
-        'Transporte material suelto', 'Martillo neumático',
+        'Transporte material suelto', 'Martillo neumatico',
     ]),
 ]
 
@@ -289,8 +273,6 @@ def precios():
     db.close()
     precios_dict = {r['sub_nombre']: r['precio_ars'] for r in rows}
 
-    # Mapa keyword → (factor, unidad_comercial)
-    # factor = kg/unidad (o m/unidad, etc.) — para convertir precio_comercial → precio_calculo
     COMERCIAL = {
         'cemento port': (25,   'bolsa 25kg'),
         'cemento alb':  (25,   'bolsa 25kg'),
@@ -311,7 +293,7 @@ def precios():
         for kw, (factor, unidad) in COMERCIAL.items():
             if kw in n:
                 return factor, unidad
-        return 1, ''   # sin conversión: precio_comercial = precio_calculo
+        return 1, ''
 
     sectores = []
     for sector, nombres in _LISTA_PRECIOS:
@@ -336,7 +318,6 @@ def precios():
 def precios_actualizar():
     db = get_db()
     actualizados = 0
-    # El form envía precio_NOMBRE (precio de cálculo ya convertido por JS)
     for key, val in request.form.items():
         if key.startswith('calc_'):
             sub_nombre = key[5:]
@@ -355,7 +336,7 @@ def precios_actualizar():
     flash(f'Precios actualizados ({actualizados} materiales).', 'success')
     return redirect(url_for('admin.precios'))
 
-# ─── TIPOS DE CAMBIO ─────────────────────────────────────────────────────────
+# TIPOS DE CAMBIO
 @bp.route('/tipos-cambio', methods=['GET', 'POST'])
 @admin_required
 def tipos_cambio():
@@ -383,12 +364,10 @@ def tipos_cambio():
 @bp.route('/tipos-cambio/fetch-web')
 @admin_required
 def tipos_cambio_fetch():
-    """Obtiene cotizaciones desde dolarapi.com (AR oficial) y exchangerate-api (resto)."""
     db = get_db()
     errores = []
     actualizados = []
 
-    # Dólar oficial Argentina
     try:
         req = urllib.request.Request(
             'https://dolarapi.com/v1/dolares/oficial',
@@ -404,7 +383,6 @@ def tipos_cambio_fetch():
     except Exception as e:
         errores.append(f"ARS: {e}")
 
-    # Otras monedas LATAM (exchangerate-api free, base USD)
     try:
         req2 = urllib.request.Request(
             'https://open.er-api.com/v6/latest/USD',
@@ -429,21 +407,19 @@ def tipos_cambio_fetch():
     db.close()
 
     if actualizados:
-        flash(f"Cotizaciones actualizadas desde la web: {', '.join(actualizados)}", 'success')
+        flash(f"Cotizaciones actualizadas: {', '.join(actualizados)}", 'success')
     if errores:
-        flash(f"Algunos errores: {'; '.join(errores)}", 'error')
+        flash(f"Errores: {'; '.join(errores)}", 'error')
 
     return redirect(url_for('admin.tipos_cambio'))
 
 
-# ─── RENDIMIENTOS ITEMS OBRA (HOF / HAY) ─────────────────────────────────────
+# RENDIMIENTOS
 @bp.route('/rendimientos')
 @admin_required
 def rendimientos():
     db = get_db()
-    items = db.execute(
-        "SELECT * FROM items_obra ORDER BY rubro_num, id"
-    ).fetchall()
+    items = db.execute("SELECT * FROM items_obra ORDER BY rubro_num, id").fetchall()
     db.close()
     from utils.calculations import RUBROS_DEFAULT
     return render_template('admin/rendimientos.html', items=items,
@@ -469,14 +445,11 @@ def rendimientos_actualizar():
     return redirect(url_for('admin.rendimientos'))
 
 
-# ─── FIX DB: aplica correcciones pendientes ──────────────────────────────────
+# FIX DB
 @bp.route('/fix-db')
 def fix_db():
-    """Aplica todas las correcciones pendientes a la DB. Sin auth requerida (uso interno)."""
     db = get_db()
     log = []
-
-    # 1. Eliminar items_obra
     items_borrar = [
         'Ayuda gremios y varios',
         'Rvto. marmol',
@@ -489,11 +462,9 @@ def fix_db():
         if r.rowcount:
             log.append(f"DEL items_obra: {nombre}")
 
-    # 2. MO Pintura
     r = db.execute("UPDATE items_obra SET precio_mo_ars=5000 WHERE id IN (97,98,99,100,101)")
     log.append(f"UPD pintura MO x{r.rowcount}")
 
-    # 3. MO Ceramicos
     ceramicos = {82:11550, 83:11550, 84:21800, 87:4050, 88:4050, 92:14650, 93:14650}
     for iid, mo in ceramicos.items():
         db.execute("UPDATE items_obra SET precio_mo_ars=? WHERE id=?", (mo, iid))
@@ -517,4 +488,35 @@ def configuracion():
             val = request.form.get(clave)
             if val:
                 db.execute(
-   
+                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
+                    (clave, val)
+                )
+        db.commit()
+        db.close()
+        flash('Configuracion guardada.', 'success')
+        return redirect(url_for('admin.dashboard'))
+    cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
+    db.close()
+    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
+
+
+# LEADS
+@bp.route('/leads')
+@admin_required
+def leads():
+    db = get_db()
+    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
+    db.close()
+    return render_template('admin/leads.html', leads=todos, user=g.user)
+
+@bp.route('/leads/<int:lid>/estado', methods=['POST'])
+@admin_required
+def lead_estado(lid):
+    estado = request.form.get('estado', 'nuevo')
+    notas  = request.form.get('notas', '')
+    db = get_db()
+    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
+    db.commit()
+    db.close()
+    flash('Lead actualizado.', 'success')
+    return redirect(url_for('admin.leads'))
