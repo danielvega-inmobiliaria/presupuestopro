@@ -952,19 +952,6 @@ def init_db():
     );
     """)
 
-    # Tabla de tokens para reset de contraseña (migración idempotente)
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS password_reset_tokens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            token TEXT UNIQUE NOT NULL,
-            expires_at DATETIME NOT NULL,
-            used INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    db.commit()
-
     # Admin user
     admin_exists = db.execute("SELECT 1 FROM users WHERE email='admin@presupuestopro.com'").fetchone()
     if not admin_exists:
