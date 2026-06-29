@@ -49,10 +49,10 @@ def _get_user(user_id):
 
 
 def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
-    """Envía email de bienvenida/activación al usuario."""
+    """Envia email de bienvenida/activacion al usuario."""
     api_key = os.environ.get('RESEND_API_KEY')
     if not api_key:
-        logger.warning("[Email] RESEND_API_KEY no configurada, no se envió email de activación")
+        logger.warning("[Email] RESEND_API_KEY no configurada, no se envio email de activacion")
         return False
     try:
         resend.api_key = api_key
@@ -61,46 +61,46 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
         resend.Emails.send({
             "from": "PresupuestoPRO <onboarding@resend.dev>",
             "to": [user_email],
-            "subject": "✅ Tu cuenta de PresupuestoPRO está activa",
+            "subject": "Tu cuenta de PresupuestoPRO esta activa",
             "html": f"""
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222">
-  <h2 style="color:#1a56db;margin-bottom:4px">¡Tu cuenta está activa! 🎉</h2>
+  <h2 style="color:#1a56db;margin-bottom:4px">Tu cuenta esta activa!</h2>
   <p style="color:#555;margin-top:4px">Hola <strong>{nombre_display}</strong>,</p>
-  <p>Tu suscripción a <strong>PresupuestoPRO</strong> fue activada correctamente.</p>
+  <p>Tu suscripcion a <strong>PresupuestoPRO</strong> fue activada correctamente.</p>
 
   <div style="background:#f0f5ff;border-radius:10px;padding:16px;margin:20px 0">
-    <p style="margin:0 0 8px 0">📧 <strong>Email:</strong> {user_email}</p>
-    <p style="margin:0 0 8px 0">📅 <strong>Activa hasta:</strong> {fecha_vencimiento}</p>
+    <p style="margin:0 0 8px 0">Email: <strong>{user_email}</strong></p>
+    <p style="margin:0 0 8px 0">Activa hasta: <strong>{fecha_vencimiento}</strong></p>
   </div>
 
-  <p>Usá el email y la contraseña que elegiste al registrarte para ingresar:</p>
+  <p>Usa el email y la contrasena que elegiste al registrarte para ingresar:</p>
 
   <div style="text-align:center;margin:24px 0">
     <a href="{app_url}/auth/login"
        style="background:#1a56db;color:#fff;padding:12px 28px;border-radius:8px;
               text-decoration:none;font-weight:bold;font-size:16px">
-      Ingresar a la app →
+      Ingresar a la app
     </a>
   </div>
 
   <p style="color:#888;font-size:.85rem">
-    Si olvidaste tu contraseña, podés restablecerla desde la pantalla de login.<br>
-    Ante cualquier consulta respondé este email o escribinos por WhatsApp.
+    Si olvidaste tu contrasena, podes restablecerla desde la pantalla de login.<br>
+    Ante cualquier consulta respondenos este email.
   </p>
   <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
-  <p style="color:#aaa;font-size:.78rem;text-align:center">PresupuestoPRO · Argentina</p>
+  <p style="color:#aaa;font-size:.78rem;text-align:center">PresupuestoPRO - Argentina</p>
 </div>
 """,
         })
-        logger.info(f"[Email] Email de activación enviado a {user_email}")
+        logger.info(f"[Email] Email de activacion enviado a {user_email}")
         return True
     except Exception as e:
-        logger.error(f"[Email] Error enviando activación a {user_email}: {e}")
+        logger.error(f"[Email] Error enviando activacion a {user_email}: {e}")
         return False
 
 
 def _activar_suscripcion(db, user_id, payment_id, meses=1):
-    """Activa o renueva la suscripción del usuario por N meses."""
+    """Activa o renueva la suscripcion del usuario por N meses."""
     hoy = date.today()
     user = db.execute("SELECT email, nombre, subscription_expires FROM users WHERE id=?", (user_id,)).fetchone()
     if user and user['subscription_expires']:
@@ -130,7 +130,7 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
     db.commit()
     logger.info(f"[MP] Usuario {user_id} activado hasta {nueva_exp}")
 
-    # Enviar notificación al usuario
+    # Enviar notificacion al usuario
     if user:
         _enviar_email_activacion(
             user_email=user['email'],
@@ -162,7 +162,7 @@ def planes():
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>PresupuestoPRO — Planes</title>
+<title>PresupuestoPRO - Planes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
@@ -173,12 +173,12 @@ def planes():
 </head>
 <body>
 <div class="container py-5">
-  <h2 class="text-center mb-2">Activá tu suscripción</h2>
-  <p class="text-center text-muted mb-5">Creá presupuestos profesionales y descargalos en PDF</p>
+  <h2 class="text-center mb-2">Activa tu suscripcion</h2>
+  <p class="text-center text-muted mb-5">Crea presupuestos profesionales y descargalos en PDF</p>
 
   {% if sub_activa %}
   <div class="alert alert-success text-center">
-    ✅ Tu suscripción está activa hasta el <strong>{{ sub_expires }}</strong>
+    Tu suscripcion esta activa hasta el <strong>{{ sub_expires }}</strong>
   </div>
   {% endif %}
 
@@ -193,11 +193,11 @@ def planes():
           <h4 class="mb-1">Plan Mensual</h4>
           <div class="price my-3">$ {{ '{:,.0f}'.format(precio_ars) }} <small class="fs-6 text-muted">ARS/mes</small></div>
           <ul class="list-unstyled text-start mb-4">
-            <li>✅ Presupuestos ilimitados</li>
-            <li>✅ PDF profesional</li>
-            <li>✅ Análisis de costos</li>
-            <li>✅ Multi-moneda</li>
-            <li>💳 Pagá con cualquier billetera o tarjeta</li>
+            <li>Presupuestos ilimitados</li>
+            <li>PDF profesional</li>
+            <li>Analisis de costos</li>
+            <li>Multi-moneda</li>
+            <li>Paga con cualquier billetera o tarjeta</li>
           </ul>
           {% if not sub_activa %}
           <form method="POST" action="/pagos/crear-suscripcion">
@@ -206,7 +206,7 @@ def planes():
             </button>
           </form>
           {% else %}
-          <a href="/dashboard" class="btn btn-success btn-lg w-100">Ir al Dashboard →</a>
+          <a href="/dashboard" class="btn btn-success btn-lg w-100">Ir al Dashboard</a>
           {% endif %}
         </div>
       </div>
@@ -215,7 +215,7 @@ def planes():
 
   <p class="text-center mt-4 text-muted small">
     Pagos seguros procesados por Mercado Pago.<br>
-    Podés pagar con cualquier tarjeta, billetera digital o efectivo.
+    Podes pagar con cualquier tarjeta, billetera digital o efectivo.
   </p>
 </div>
 </body>
@@ -232,7 +232,7 @@ def planes():
 @bp.route('/crear-suscripcion', methods=['POST'])
 @_login_required
 def crear_suscripcion():
-    """Crea una preference de pago único en MP y redirige al checkout."""
+    """Crea una preference de pago unico en MP y redirige al checkout."""
     user = _get_user(session['user_id'])
     sdk = _get_sdk()
     base_url = current_app.config['APP_BASE_URL']
@@ -257,7 +257,6 @@ def crear_suscripcion():
             "failure": f"{base_url}/pagos/retorno?status=failure",
         },
         "auto_return": "approved",
-        # Guardamos el user_id en metadata para recuperarlo en el webhook
         "metadata": {
             "user_id": user_id,
             "app": "presupuestopro",
@@ -273,17 +272,15 @@ def crear_suscripcion():
         logger.error(f"[MP] Error creando preference: {result}")
         return redirect(url_for('pagos.planes') + '?error=Error+al+generar+el+link+de+pago')
 
-    # Guardar preference_id en sesión para recuperar en retorno
     preference_id = response.get("id")
     session['mp_preference_id'] = preference_id
     logger.info(f"[MP] Preference {preference_id} creada para user {user_id}")
 
     init_point = response.get("init_point")
 
-    # Página intermedia: mostrar link de pago compartible
     html_link = """
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>PresupuestoPRO — Tu link de pago</title>
+<title>PresupuestoPRO - Tu link de pago</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
@@ -297,24 +294,24 @@ def crear_suscripcion():
 <body>
 <div class="container py-5">
   <div class="card p-4 mx-auto" style="max-width:480px">
-    <h4 class="fw-bold mb-1 text-center">💳 Tu link de pago</h4>
+    <h4 class="fw-bold mb-1 text-center">Tu link de pago</h4>
     <p class="text-muted text-center mb-4" style="font-size:.9rem">
-      Podés pagar vos directamente o enviar este link a otra persona para que pague por vos.
-      Una vez abonado, tu cuenta queda activa automáticamente.
+      Podes pagar vos directamente o enviar este link a otra persona para que pague por vos.
+      Una vez abonado, tu cuenta queda activa automaticamente.
     </p>
 
     <div class="link-box mb-3" id="linkPago">{{ init_point }}</div>
 
     <button class="btn btn-outline-secondary w-100 mb-3" onclick="copiarLink()">
-      📋 Copiar link para compartir
+      Copiar link para compartir
     </button>
 
     <a href="{{ init_point }}" class="btn btn-primary btn-lg w-100">
-      Pagar ahora →
+      Pagar ahora
     </a>
 
     <p class="text-center text-muted mt-3" style="font-size:.78rem">
-      Aceptamos tarjetas, saldo Mercado Pago, transferencia bancaria y efectivo (Rapipago / Pagofácil)
+      Aceptamos tarjetas, saldo Mercado Pago, transferencia bancaria y efectivo (Rapipago / Pagofacil)
     </p>
   </div>
 </div>
@@ -323,8 +320,8 @@ function copiarLink() {
   const txt = document.getElementById('linkPago').innerText;
   navigator.clipboard.writeText(txt).then(() => {
     const btn = event.target;
-    btn.textContent = '✅ ¡Link copiado!';
-    setTimeout(() => { btn.textContent = '📋 Copiar link para compartir'; }, 2500);
+    btn.textContent = 'Link copiado!';
+    setTimeout(() => { btn.textContent = 'Copiar link para compartir'; }, 2500);
   });
 }
 </script>
@@ -337,39 +334,35 @@ function copiarLink() {
 @bp.route('/retorno')
 @_login_required
 def retorno():
-    """
-    Landing post-pago. MP envía:
-      ?collection_id=...&collection_status=approved&payment_id=...&status=approved&preference_id=...
-    """
+    """Landing post-pago."""
     status          = request.args.get('status') or request.args.get('collection_status', '')
     payment_id      = request.args.get('payment_id') or request.args.get('collection_id', '')
     preference_id   = request.args.get('preference_id') or session.pop('mp_preference_id', None)
 
     if status == 'approved' and payment_id:
-        # Activación inmediata desde la URL de retorno
         db = get_db()
         _activar_suscripcion(db, session['user_id'], payment_id)
         db.close()
-        mensaje = "✅ ¡Pago aprobado! Ya podés usar PresupuestoPRO."
+        mensaje = "Pago aprobado! Ya podes usar PresupuestoPRO."
         tipo = "success"
     elif status == 'pending':
-        mensaje = "⏳ Tu pago está pendiente de acreditación. Te avisaremos cuando se confirme."
+        mensaje = "Tu pago esta pendiente de acreditacion. Te avisaremos cuando se confirme."
         tipo = "warning"
     else:
-        mensaje = "❌ El pago no se completó. Podés intentarlo de nuevo."
+        mensaje = "El pago no se completo. Podes intentarlo de nuevo."
         tipo = "danger"
 
     html = """
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<title>PresupuestoPRO — Estado de pago</title>
+<title>PresupuestoPRO - Estado de pago</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="manifest" href="/static/manifest.json">
 </head><body><div class="container py-5 text-center">
 <div class="alert alert-{{ tipo }} fs-5">{{ mensaje }}</div>
 {% if tipo == 'success' %}
-<p class="text-muted">Guardá la app en tu celular para acceder siempre rápido.</p>
+<p class="text-muted">Guarda la app en tu celular para acceder siempre rapido.</p>
 <button id="btnInstalar" class="btn btn-outline-primary mb-3" style="display:none">
-  📲 Agregar al inicio del celular
+  Agregar al inicio del celular
 </button>
 {% endif %}
 <a href="/dashboard" class="btn btn-primary mt-2">Ir al Dashboard</a>
@@ -399,6 +392,80 @@ document.getElementById('btnInstalar')?.addEventListener('click', async () => {
 @bp.route('/webhook', methods=['POST'])
 def webhook():
     """
-    Webhook de MP. Para pagos únicos (preference) llega:
+    Webhook de MP. Para pagos unicos (preference) llega:
       { "type": "payment", "data": { "id": "PAYMENT_ID" } }
-   
+    """
+    data      = request.get_json(silent=True) or {}
+    topic     = data.get("type") or request.args.get("topic", "")
+    resource_id = (data.get("data", {}).get("id")
+                   or request.args.get("id")
+                   or request.args.get("payment_id"))
+
+    logger.info(f"[MP Webhook] topic={topic} id={resource_id}")
+
+    if not resource_id:
+        return jsonify({"ok": True}), 200
+
+    if topic not in ("payment", "merchant_order"):
+        return jsonify({"ok": True}), 200
+
+    try:
+        sdk = _get_sdk()
+        result = sdk.payment().get(resource_id)
+        payment = result.get("response", {})
+
+        estado   = payment.get("status", "")
+        metadata = payment.get("metadata", {})
+        payer    = payment.get("payer", {})
+        payer_email = payer.get("email", "")
+        user_id_meta = metadata.get("user_id")
+
+        logger.info(f"[MP Webhook] payment {resource_id} estado={estado} email={payer_email} user_id_meta={user_id_meta}")
+
+        if estado != "approved":
+            return jsonify({"ok": True}), 200
+
+        db = get_db()
+        user = None
+        if user_id_meta:
+            user = db.execute("SELECT id FROM users WHERE id=?", (user_id_meta,)).fetchone()
+        if not user and payer_email:
+            user = db.execute("SELECT id FROM users WHERE email=?", (payer_email,)).fetchone()
+
+        if user:
+            _activar_suscripcion(db, user['id'], str(resource_id))
+            logger.info(f"[MP Webhook] Usuario {user['id']} activado por payment {resource_id}")
+        else:
+            logger.warning(f"[MP Webhook] Usuario no encontrado: email={payer_email} meta_id={user_id_meta}")
+
+        db.close()
+
+    except Exception as e:
+        logger.error(f"[MP Webhook] Error procesando {resource_id}: {e}")
+
+    return jsonify({"ok": True}), 200
+
+
+@bp.route('/estado')
+@_login_required
+def estado():
+    user = _get_user(session['user_id'])
+    sub_activa = False
+    dias_restantes = 0
+    expires = None
+
+    if user and user['subscription_expires']:
+        try:
+            exp = datetime.strptime(user['subscription_expires'], '%Y-%m-%d').date()
+            expires = exp.isoformat()
+            dias_restantes = (exp - date.today()).days
+            sub_activa = dias_restantes >= 0 and bool(user['active'])
+        except Exception:
+            pass
+
+    return jsonify({
+        "activa": sub_activa,
+        "expires": expires,
+        "dias_restantes": dias_restantes,
+        "email": user['email'] if user else None,
+    })
