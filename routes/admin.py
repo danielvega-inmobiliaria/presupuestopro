@@ -183,37 +183,108 @@ def contacto_contestado(mid):
     return redirect(url_for('admin.contactos'))
 
 # ─── PRECIOS MATERIALES ───────────────────────────────────────────────────────
+# Lista ordenada de materiales del Excel V3, agrupados por sector
+_LISTA_PRECIOS = [
+    ('CORRALÓN - Áridos y Cemento', [
+        'Cemento portland bolsas', 'Cemento Albañilería', 'Cal Hidráulica',
+        'Cal aérea Milagro', 'Hidrófugo', 'Arena común', 'Tierra Colorada',
+        'Piedra Granítica', 'Granza', 'Hormigon elaborado colado',
+        'Perlitas Telgopor (75 Lts)',
+    ]),
+    ('CORRALÓN - Ladrillos y Mampostería', [
+        'Ladrillos comunes', 'Ladrillos vista',
+        'Ladrillo hueco 8x18x33cm', 'Ladrillo hueco 12X18X33cm',
+        'Ladrillo hueco 18X18X33cm', 'Ladrillo hueco Portante 12x18x33cm',
+        'Ladrillo hueco Portante 18x18x33cm',
+    ]),
+    ('CORRALÓN - Hierros y Ferretería', [
+        'Hierro redondo d=10mm', 'Alambre negro',
+        'Clavos 2"', 'Clavos 2" 1/2', 'Clavos 3"', 'Clavos 4"',
+    ]),
+    ('CORRALÓN - Viguetas', [
+        'Viga Vipret 4m.', 'Ladrillo Telgopor 12*38*1m',
+    ]),
+    ('Maderera', [
+        'Palito 1"x1"', 'Metal desplegado', 'Saligna   1"x2"', 'Saligna 1"x4"',
+        'Saligna 3"x3"', 'Pino encofrado 1"', 'Tirantes 2x6', 'Pino tabla machimbre',
+        'Escurridores 1/2 x 2', 'Issolant', 'Clavadores 2 x 2', 'Chapas Techo',
+        'Tornillo c/arand goma', 'Chapas Cerco', 'Zócalo de madera', 'Tarugo 6',
+        'Tornillo',
+    ]),
+    ('Instalaciones - Eléctricas', [
+        'Caño Corrugado 1"', 'Caño Corrugado 3/4"', 'Cajas Metalicas',
+        'Cable 2,5 mm', 'Cable 1,5 mm',
+    ]),
+    ('Instalaciones - Sanitarias', [
+        'Caño Awaduct 110', 'Caño Awaduct 63', 'Caño Awaduct 50',
+        'Caño Awaduct 40', 'Accesorios Desagues',
+    ]),
+    ('Instalaciones - Agua F/C', [
+        'Caño TF 25', 'Caño TF 20', 'Accesorios TF', 'Llaves de Paso Agua',
+    ]),
+    ('Instalaciones - Gas', [
+        'Caño Epoxi 3/4', 'Caño epoxi 1/2', 'Accesorios Gas', 'Llaves de Paso Gas',
+    ]),
+    ('Revestimientos y Pisos', [
+        'Klaukol', 'Pastina',
+        'Rvto.cerámico 1', 'Rvto.cerámico 2', 'Rvto.cerámico 3 (porcellanato)',
+        'Piso cerámico 1', 'Piso cerámico 2', 'Piso cerámico 3 (porcellanato)',
+        'Mosaico calcáreo', 'Loseta cemento 60x40cm', 'Baldosa cerámica azotea',
+        'Zócalo cerámico 1', 'Zócalo cerámico 2', 'Zócalo cerámico 3 (Porcellanato)',
+    ]),
+    ('Pinturas y Terminaciones', [
+        'Pintura látex exterior', 'Pintura látex interior', 'Pintura látex cielos',
+        'Esmalte albalux', 'Pintura especial 1', 'Pintura especial 2',
+        'Pintura satinol', 'Color pintura cal', 'Enduido sintético',
+    ]),
+    ('Materiales Especiales', [
+        'Super Iggam', 'Salpicrete', 'Rev Text.', 'Fondo Base',
+    ]),
+    ('Servicios y Varios', [
+        'Transporte material suelto', 'Martillo neumático',
+    ]),
+]
+
 @bp.route('/precios')
 @admin_required
 def precios():
     db = get_db()
-    mats = db.execute("SELECT * FROM materiales ORDER BY categoria, nombre").fetchall()
-    tasa = db.execute("SELECT tasa FROM tipos_cambio WHERE pais='AR'").fetchone()
-    tasa_ars = tasa['tasa'] if tasa else 1
+    # Leer precios reales de analisis_sub (precio por unidad de cálculo)
+    rows = db.execute(
+        "SELECT sub_nombre, MAX(precio_ars) as precio_ars "
+        "FROM analisis_sub WHERE es_material=1 GROUP BY sub_nombre"
+    ).fetchall()
     db.close()
-    return render_template('admin/precios.html', materiales=mats, tasa_ars=tasa_ars, user=g.user)
+    precios_dict = {r['sub_nombre']: r['precio_ars'] for r in rows}
+
+    # Armar lista por sector con precio actual
+    sectores = []
+    for sector, nombres in _LISTA_PRECIOS:
+        items = [{'nombre': n, 'precio': precios_dict.get(n, 0)} for n in nombres]
+        sectores.append({'sector': sector, 'items': items})
+
+    return render_template('admin/precios.html', sectores=sectores, user=g.user)
 
 @bp.route('/precios/actualizar', methods=['POST'])
 @admin_required
 def precios_actualizar():
     db = get_db()
-    tasa = db.execute("SELECT tasa FROM tipos_cambio WHERE pais='AR'").fetchone()
-    tasa_ars = tasa['tasa'] if tasa else 1
+    actualizados = 0
     for key, val in request.form.items():
         if key.startswith('precio_'):
-            mid = key.replace('precio_', '')
+            sub_nombre = key[7:]  # quitar 'precio_'
             try:
                 precio_ars = float(val)
-                precio_usd = round(precio_ars / tasa_ars, 6)
                 db.execute(
-                    "UPDATE materiales SET precio_usd=?, updated_at=datetime('now', 'localtime') WHERE id=?",
-                    (precio_usd, int(mid))
+                    "UPDATE analisis_sub SET precio_ars=? WHERE sub_nombre=?",
+                    (precio_ars, sub_nombre)
                 )
+                actualizados += 1
             except:
                 pass
     db.commit()
     db.close()
-    flash('Precios actualizados.', 'success')
+    flash(f'Precios actualizados ({actualizados} materiales).', 'success')
     return redirect(url_for('admin.precios'))
 
 # ─── TIPOS DE CAMBIO ─────────────────────────────────────────────────────────

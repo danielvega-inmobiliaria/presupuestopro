@@ -2,56 +2,53 @@
 {% block title %}Precios materiales — Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-4">
-  <h4 class="mb-0"><i class="bi bi-tags"></i> Precios de materiales (en ARS)</h4>
-  <span class="badge bg-secondary">TC: ${{ "{:,.0f}".format(tasa_ars) }} ARS/USD</span>
+<div class="d-flex align-items-center gap-3 mb-3">
+  <h4 class="mb-0"><i class="bi bi-tags"></i> Precios de materiales (ARS)</h4>
 </div>
 <p class="text-muted small mb-3">
-  Ingresá los precios en <strong>pesos argentinos</strong>. La conversión a USD se calcula automáticamente con el tipo de cambio actual.
+  Precio por <strong>unidad de cálculo</strong> (kg, m, m², u). Al guardar se actualiza en todos los presupuestos nuevos.
 </p>
 
-<div class="card">
-  <div class="card-body p-0">
-    <form method="post" action="{{ url_for('admin.precios_actualizar') }}">
-      {% set categorias = materiales | map(attribute='categoria') | unique | list %}
-      {% for cat in categorias %}
-      <div class="px-3 py-2 bg-secondary text-white small fw-bold">{{ cat }}</div>
-      <div class="table-responsive">
-        <table class="table table-sm mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Material</th>
-              <th class="text-center">Unidad</th>
-              <th style="width:200px">Precio ARS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for m in materiales if m.categoria == cat %}
-            {% set precio_ars = (m.precio_usd * tasa_ars) | round | int %}
-            <tr>
-              <td>{{ m.nombre }}</td>
-              <td class="text-center text-muted">{{ m.unidad }}</td>
-              <td>
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text">$</span>
-                  <input type="number" name="precio_{{ m.id }}" class="form-control"
-                         value="{{ precio_ars }}" step="1" min="0">
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% endfor %}
-
-      <div class="p-3 border-top d-flex align-items-center gap-3">
-        <button type="submit" class="btn btn-warning fw-bold">
-          <i class="bi bi-save"></i> Guardar todos los precios
-        </button>
-        <span class="text-muted small">Los precios se guardan en ARS y se convierten a USD con el TC del momento.</span>
-      </div>
-    </form>
+<form method="post" action="{{ url_for('admin.precios_actualizar') }}">
+  {% for s in sectores %}
+  <div class="card mb-3">
+    <div class="card-header py-2 px-3 fw-bold small text-uppercase" style="background:#2c3e50;color:#fff;letter-spacing:.5px">
+      {{ s.sector }}
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Material</th>
+            <th style="width:180px">Precio ARS / un.cálculo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in s.items %}
+          <tr>
+            <td class="align-middle">{{ item.nombre }}</td>
+            <td>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input type="number" name="precio_{{ item.nombre }}"
+                       class="form-control"
+                       value="{{ item.precio | round | int }}"
+                       step="1" min="0">
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</div>
+  {% endfor %}
+
+  <div class="sticky-bottom bg-white border-top py-3 px-1 d-flex gap-3 align-items-center">
+    <button type="submit" class="btn btn-warning fw-bold">
+      <i class="bi bi-save"></i> Guardar todos los precios
+    </button>
+    <span class="text-muted small">Los precios se aplican a los presupuestos nuevos desde este momento.</span>
+  </div>
+</form>
 {% endblock %}
