@@ -1204,6 +1204,121 @@ def init_db():
     # ── precio_mo_ars: fallback hof/hay si no hay Excel ────────────────
     _actualizar_mo_analisis(db)
 
+    # ── Actualización de precios v1 (Jun-2026) ───────────────────────────
+    _migrar_precios_v1(db)
+
     db.commit()
     db.close()
     print("Base de datos inicializada OK")
+
+
+def _migrar_precios_v1(db):
+    """Actualiza precio_ars en analisis_sub con precios reales del corralón (Jun-2026).
+    Es idempotente: usa config 'precios_v1_ok' para no re-ejecutar si ya se aplicó."""
+    ya_aplicado = db.execute(
+        "SELECT valor FROM config WHERE clave='precios_v1_ok'"
+    ).fetchone()
+    if ya_aplicado:
+        return
+
+    PRECIOS = [
+        ('Accesorios Desagues',                  8500),
+        ('Accesorios Gas',                       3500),
+        ('Accesorios TF',                        3000),
+        ('Alambre negro',                        7000),
+        ('Arena común',                         31000),
+        ('Baldosa cerámica azotea',             33000),
+        ('Cable 1,5 mm',                          510),
+        ('Cable 2,5 mm',                          850),
+        ('Cajas Metalicas',                       850),
+        ('Cal Hidráulica',                        332),
+        ('Cal aérea Milagro',                     372),
+        ('Caño Awaduct 110',                     8125),
+        ('Caño Awaduct 40',                      2900),
+        ('Caño Awaduct 50',                      5300),
+        ('Caño Awaduct 63',                      6250),
+        ('Caño Corrugado 1"',                     376),
+        ('Caño Corrugado 3/4"',                   260),
+        ('Caño Epoxi 3/4',                    12890.63),
+        ('Caño TF 20',                           2625),
+        ('Caño TF 25',                           5000),
+        ('Caño epoxi 1/2',                    6406.25),
+        ('Cemento Albañilería',                   296),
+        ('Cemento portland bolsas',               332),
+        ('Chapas Cerco',                        14800),
+        ('Chapas Techo',                        14800),
+        ('Clavadores 2 x 2',                  1007.59),
+        ('Clavos 2"',                            5600),
+        ('Clavos 2" 1/2',                        5600),
+        ('Clavos 3"',                            7200),
+        ('Clavos 4"',                            7200),
+        ('Color pintura cal',                   20000),
+        ('Enduido sintético',                    7500),
+        ('Escurridores 1/2 x 2',              459.46),
+        ('Esmalte albalux',                     23175),
+        ('Fondo Base',                           3800),
+        ('Granza',                              36000),
+        ('Hidrófugo',                            2900),
+        ('Hierro redondo d=10mm',            2553.76),
+        ('Hormigon elaborado colado',          190000),
+        ('Issolant',                             4950),
+        ('Klaukol',                               720),
+        ('Ladrillo Telgopor 12*38*1m',           6200),
+        ('Ladrillo hueco 12X18X33cm',             830),
+        ('Ladrillo hueco 18X18X33cm',            1160),
+        ('Ladrillo hueco 8x18x33cm',              720),
+        ('Ladrillo hueco Portante 12x18x33cm',   1160),
+        ('Ladrillo hueco Portante 18x18x33cm',   1400),
+        ('Ladrillos comunes',                     230),
+        ('Ladrillos vista',                       390),
+        ('Llaves de Paso Agua',                 25000),
+        ('Llaves de Paso Gas',                  25000),
+        ('Loseta cemento 60x40cm',               5000),
+        ('Martillo neumático',                  25000),
+        ('Metal desplegado',                  3333.33),
+        ('Mosaico calcáreo',                    25000),
+        ('Palito 1"x1"',                          500),
+        ('Pastina',                              5500),
+        ('Perlitas Telgopor (75 Lts)',         106.67),
+        ('Piedra Granítica',                    93000),
+        ('Pino encofrado 1"',                8860.76),
+        ('Pino tabla machimbre',                11600),
+        ('Pintura especial 1',                  21250),
+        ('Pintura especial 2',                  22500),
+        ('Pintura látex cielos',                 7200),
+        ('Pintura látex exterior',               7250),
+        ('Pintura látex interior',               4750),
+        ('Pintura satinol',                     22500),
+        ('Piso cerámico 1',                     15000),
+        ('Piso cerámico 2',                     25000),
+        ('Piso cerámico 3 (porcellanato)',       35000),
+        ('Rev Text.',                         4166.67),
+        ('Rvto.cerámico 1',                     15000),
+        ('Rvto.cerámico 2',                     25000),
+        ('Rvto.cerámico 3 (porcellanato)',       35000),
+        ('Saligna   1"x2"',                   1037.97),
+        ('Saligna 1"x4"',                      886.08),
+        ('Saligna 3"x3"',                    1766.67),
+        ('Salpicrete',                        2666.67),
+        ('Super Iggam',                        833.33),
+        ('Tarugo 6',                               62),
+        ('Tierra Colorada',                     20000),
+        ('Tirantes 2x6',                     27166.67),
+        ('Tornillo',                               45),
+        ('Tornillo c/arand goma',                 118),
+        ('Transporte material suelto',          19000),
+        ('Viga Vipret 4m.',                    3862.5),
+        ('Zócalo cerámico 1',                   1250),
+        ('Zócalo cerámico 2',                2083.33),
+        ('Zócalo cerámico 3 (Porcellanato)',  2916.67),
+        ('Zócalo de madera',                    3500),
+    ]
+
+    for sub_nombre, precio in PRECIOS:
+        db.execute(
+            "UPDATE analisis_sub SET precio_ars=? WHERE sub_nombre=?",
+            (precio, sub_nombre)
+        )
+
+    db.execute("INSERT INTO config (clave, valor) VALUES ('precios_v1_ok', '2026-06-28')")
+    print(f"[migrar_precios_v1] {len(PRECIOS)} materiales actualizados")
