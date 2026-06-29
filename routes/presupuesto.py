@@ -238,6 +238,7 @@ def _calcular_materiales_desde_rubros(p):
             'salpicrete':   (30, 'Bolsas'),          # Salpicrete: bolsa 30 kg
             'iggam':        (30, 'Bolsas'),          # Super Iggam: bolsa 30 kg
             'klaukol':      (25, 'Bolsas'),          # Klaukol: bolsa 25 kg
+            'hierro':       (7.44, 'Barras'),        # Hierro 10mm: barra 12m = 7.44 kg
         }
 
         result = []
