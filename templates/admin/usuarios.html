@@ -83,12 +83,19 @@
 </div>
 
 <script>
-const APP_URL = 'https://web-production-0c9c1.up.railway.app/auth/login';
+const APP_URL = 'https://web-production-0c9c1.up.railway.app/login';
 
 function waActivacion(tel, nombre) {
-  const num = tel.replace(/[^0-9]/g, '');
+  let num = tel.replace(/[^0-9+]/g, '');
+  // Si ya tiene código de país, usar tal cual; si no, asumir Argentina (+549)
+  if (!num.startsWith('+') && !num.startsWith('54')) {
+    num = '549' + num;  // Argentina: +549 + número local (sin 0)
+  } else if (num.startsWith('54') && !num.startsWith('549')) {
+    num = '549' + num.slice(2);  // corregir 54XXX → 549XXX
+  }
+  num = num.replace(/^\+/, '');
   const msg = `Hola ${nombre || ''}, tu cuenta de PresupuestoPRO esta lista. Ingresa en: ${APP_URL}`;
-  window.open('https://wa.me/54' + num + '?text=' + encodeURIComponent(msg), '_blank');
+  window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
 }
 function waActivacionSinNumero(nombre) {
   const msg = `Hola ${nombre || ''}, tu cuenta de PresupuestoPRO esta lista. Ingresa en: ${APP_URL}`;

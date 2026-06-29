@@ -71,7 +71,7 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
   </div>
   <p>Usa el email y la contrasena que elegiste al registrarte para ingresar:</p>
   <div style="text-align:center;margin:24px 0">
-    <a href="{app_url}/auth/login"
+    <a href="{app_url}/login"
        style="background:#1a56db;color:#fff;padding:12px 28px;border-radius:8px;
               text-decoration:none;font-weight:bold;font-size:16px">
       Ingresar a la app
@@ -103,7 +103,7 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
                     "from": "onboarding@resend.dev",
                     "to": [admin_email],
                     "subject": f"[PresupuestoPRO] Activar manualmente a {user_email}",
-                    "text": f"No se pudo enviar email al usuario.\n\nDatos para notificar por WhatsApp:\n\nUsuario: {nombre_display}\nEmail: {user_email}\nVence: {fecha_vencimiento}\nLink: {app_url}/auth/login\n\nError original: {e_user}",
+                    "text": f"No se pudo enviar email al usuario.\n\nDatos para notificar por WhatsApp:\n\nUsuario: {nombre_display}\nEmail: {user_email}\nVence: {fecha_vencimiento}\nLink: {app_url}/login\n\nError original: {e_user}",
                 })
                 logger.info(f"[Email] Notificacion de activacion enviada al admin para {user_email}")
                 return False  # retorna False para que el flash muestre aviso
