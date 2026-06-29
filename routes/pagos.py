@@ -88,7 +88,7 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
         # enviar al admin como notificación para que avise manualmente.
         try:
             resend.Emails.send({
-                "from": "onboarding@resend.dev",
+                "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
                 "to": [user_email],
                 "subject": "Tu cuenta de PresupuestoPRO esta activa",
                 "html": html_body,
@@ -100,7 +100,7 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
             # Fallback: notificar al admin con los datos para que avise por WA
             try:
                 resend.Emails.send({
-                    "from": "onboarding@resend.dev",
+                    "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
                     "to": [admin_email],
                     "subject": f"[PresupuestoPRO] Activar manualmente a {user_email}",
                     "text": f"No se pudo enviar email al usuario.\n\nDatos para notificar por WhatsApp:\n\nUsuario: {nombre_display}\nEmail: {user_email}\nVence: {fecha_vencimiento}\nLink: {app_url}/login\n\nError original: {e_user}",

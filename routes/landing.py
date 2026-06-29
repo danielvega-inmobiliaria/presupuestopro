@@ -436,7 +436,7 @@ def contacto():
             if api_key:
                 resend.api_key = api_key
                 resend.Emails.send({
-                    "from": "onboarding@resend.dev",
+                    "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
                     "to": [admin_email],
                     "subject": f"💬 Nuevo mensaje de contacto: {nombre} {apellido}",
                     "text": (

@@ -75,7 +75,7 @@ def recuperar():
                 try:
                     resend.api_key = api_key
                     resend.Emails.send({
-                        "from": "PresupuestoPRO <onboarding@resend.dev>",
+                        "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
                         "to": [email],
                         "subject": "Restablecer contrasena - PresupuestoPRO",
                         "html": (

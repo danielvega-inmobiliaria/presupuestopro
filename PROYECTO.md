@@ -23,11 +23,12 @@ El bash (FUSE mount) ve versiones **stale** de archivos Windows.
 | `ADMIN_EMAIL` | ⚠️ No confirmada (default: `danve61@gmail.com`) |
 | `APP_BASE_URL` | ⚠️ Verificar si está |
 
-## Problema conocido: Email a usuarios
-- Resend con `onboarding@resend.dev` solo entrega al email del dueño de la cuenta Resend
-- Los emails de activación a usuarios externos (hotmail, etc.) fallan
-- **Workaround actual**: si falla envío al usuario, manda notificación al admin para que avise por WA
-- **Solución definitiva**: verificar dominio propio en resend.com → Domains
+## Email — Estado actual ✅
+- Dominio `presupuestopro.com.ar` verificado en Resend (29/06/2026 19:07 ART)
+- Todos los emails salen como `PresupuestoPRO <noreply@presupuestopro.com.ar>`
+- DNS en Cloudflare: MX, DKIM, SPF y DMARC configurados y verificados
+- Emails a usuarios externos (hotmail, gmail, etc.) ahora funcionan correctamente
+- Fallback admin sigue activo en `pagos.py` por si hay error inesperado
 
 ## Schema DB — tabla `users` (columnas relevantes)
 ```
@@ -47,9 +48,16 @@ apellido, telefono, ciudad, provincia  ← agregadas por migrate_db()
 - [x] `templates/admin/usuario_form.html`: campos telefono, ciudad, provincia
 
 ## Pendientes / Ideas
-- [ ] Verificar dominio en Resend para emails a usuarios externos
 - [ ] Confirmar variable `APP_BASE_URL` en Railway
-- [ ] Test completo del flujo pago MP → activación → email
+- [ ] Test completo del flujo pago MP → activación → email (con dominio propio)
+- [ ] Apuntar presupuestopro.com.ar a Railway (registro A/CNAME en Cloudflare)
+
+## Estado al cerrar sesión (29/06/2026 ~20:00)
+- WhatsApp funciona ✅
+- URL login en `/login` ✅
+- Dominio verificado en Resend ✅ — emails salen desde `noreply@presupuestopro.com.ar`
+- DNS Cloudflare: MX, DKIM, SPF, DMARC todos activos ✅
+- Próximo paso: test end-to-end del flujo de pago + email de activación
 
 ## Cómo commitear desde Git Bash (usuario)
 ```bash

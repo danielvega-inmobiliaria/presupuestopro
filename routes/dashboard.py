@@ -79,7 +79,7 @@ https://web-production-0c9c1.up.railway.app/admin/leads
     try:
         resend.api_key = api_key
         resend.Emails.send({
-            "from": "onboarding@resend.dev",
+            "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
             "to": [admin_email],
             "subject": f"Nuevo inscripto: {nombre} {apellido} — PresupuestoPRO",
             "text": cuerpo,
