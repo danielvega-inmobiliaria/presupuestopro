@@ -249,7 +249,6 @@ _LISTA_PRECIOS = [
 @admin_required
 def precios():
     db = get_db()
-    # Leer precios reales de analisis_sub (precio por unidad de cálculo)
     rows = db.execute(
         "SELECT sub_nombre, MAX(precio_ars) as precio_ars "
         "FROM analisis_sub WHERE es_material=1 GROUP BY sub_nombre"
@@ -257,10 +256,44 @@ def precios():
     db.close()
     precios_dict = {r['sub_nombre']: r['precio_ars'] for r in rows}
 
-    # Armar lista por sector con precio actual
+    # Mapa keyword → (factor, unidad_comercial)
+    # factor = kg/unidad (o m/unidad, etc.) — para convertir precio_comercial → precio_calculo
+    COMERCIAL = {
+        'cemento port': (25,   'bolsa 25kg'),
+        'cemento alb':  (25,   'bolsa 25kg'),
+        'cal hidr':     (25,   'bolsa 25kg'),
+        'cal a':        (25,   'bolsa 25kg'),
+        'cal viv':      (25,   'bolsa 25kg'),
+        'perlitas':     (75,   'bolsa 75Lt'),
+        'revear':       (30,   'balde 30kg'),
+        'salpicrete':   (30,   'bolsa 30kg'),
+        'iggam':        (30,   'bolsa 30kg'),
+        'klaukol':      (25,   'bolsa 25kg'),
+        'hierro':       (7.44, 'barra 12m'),
+        'pastina':      (5,    'bolsa 5kg'),
+    }
+
+    def _info_comercial(nombre):
+        n = nombre.lower()
+        for kw, (factor, unidad) in COMERCIAL.items():
+            if kw in n:
+                return factor, unidad
+        return 1, ''   # sin conversión: precio_comercial = precio_calculo
+
     sectores = []
     for sector, nombres in _LISTA_PRECIOS:
-        items = [{'nombre': n, 'precio': precios_dict.get(n, 0)} for n in nombres]
+        items = []
+        for n in nombres:
+            precio_calc = precios_dict.get(n, 0)
+            factor, unidad_com = _info_comercial(n)
+            precio_com = round(precio_calc * factor) if factor != 1 else precio_calc
+            items.append({
+                'nombre':      n,
+                'precio':      precio_calc,
+                'precio_com':  precio_com,
+                'factor':      factor,
+                'unidad_com':  unidad_com,
+            })
         sectores.append({'sector': sector, 'items': items})
 
     return render_template('admin/precios.html', sectores=sectores, user=g.user)
@@ -270,16 +303,18 @@ def precios():
 def precios_actualizar():
     db = get_db()
     actualizados = 0
+    # El form envía precio_NOMBRE (precio de cálculo ya convertido por JS)
     for key, val in request.form.items():
-        if key.startswith('precio_'):
-            sub_nombre = key[7:]  # quitar 'precio_'
+        if key.startswith('calc_'):
+            sub_nombre = key[5:]
             try:
                 precio_ars = float(val)
-                db.execute(
-                    "UPDATE analisis_sub SET precio_ars=? WHERE sub_nombre=?",
-                    (precio_ars, sub_nombre)
-                )
-                actualizados += 1
+                if precio_ars >= 0:
+                    db.execute(
+                        "UPDATE analisis_sub SET precio_ars=? WHERE sub_nombre=?",
+                        (precio_ars, sub_nombre)
+                    )
+                    actualizados += 1
             except:
                 pass
     db.commit()

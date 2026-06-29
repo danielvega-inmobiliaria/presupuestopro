@@ -2,17 +2,19 @@
 {% block title %}Precios materiales — Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center gap-3 mb-3">
+<div class="d-flex align-items-center gap-3 mb-2">
   <h4 class="mb-0"><i class="bi bi-tags"></i> Precios de materiales (ARS)</h4>
 </div>
 <p class="text-muted small mb-3">
-  Precio por <strong>unidad de cálculo</strong> (kg, m, m², u). Al guardar se actualiza en todos los presupuestos nuevos.
+  Ingresá el <strong>precio comercial</strong> (lo que dice la lista del corralón/proveedor).
+  El precio de cálculo se convierte automáticamente y se guarda al hacer click en Guardar.
 </p>
 
-<form method="post" action="{{ url_for('admin.precios_actualizar') }}">
+<form method="post" action="{{ url_for('admin.precios_actualizar') }}" id="formPrecios">
   {% for s in sectores %}
   <div class="card mb-3">
-    <div class="card-header py-2 px-3 fw-bold small text-uppercase" style="background:#2c3e50;color:#fff;letter-spacing:.5px">
+    <div class="card-header py-2 px-3 fw-bold small text-uppercase"
+         style="background:#2c3e50;color:#fff;letter-spacing:.5px">
       {{ s.sector }}
     </div>
     <div class="table-responsive">
@@ -20,21 +22,52 @@
         <thead class="table-light">
           <tr>
             <th>Material</th>
-            <th style="width:180px">Precio ARS / un.cálculo</th>
+            <th class="text-center" style="width:140px">Precio comercial</th>
+            <th class="text-muted text-center" style="width:115px;font-weight:normal;font-size:.78rem">por unidad</th>
+            <th class="text-center" style="width:140px">Precio cálculo</th>
+            <th class="text-muted text-center" style="width:80px;font-weight:normal;font-size:.78rem">por unidad calc.</th>
           </tr>
         </thead>
         <tbody>
           {% for item in s['items'] %}
           <tr>
-            <td class="align-middle">{{ item.nombre }}</td>
+            <td class="align-middle small">{{ item.nombre }}</td>
             <td>
               <div class="input-group input-group-sm">
                 <span class="input-group-text">$</span>
-                <input type="number" name="precio_{{ item.nombre }}"
-                       class="form-control"
-                       value="{{ item.precio | round | int }}"
-                       step="1" min="0">
+                <input type="number"
+                       class="form-control text-end com-input"
+                       data-factor="{{ item.factor }}"
+                       data-nombre="{{ item.nombre }}"
+                       value="{{ item.precio_com | round | int }}"
+                       step="1" min="0"
+                       oninput="convertir(this)">
               </div>
+            </td>
+            <td class="text-center align-middle text-muted small">
+              {% if item.unidad_com %}{{ item.unidad_com }}{% else %}—{% endif %}
+            </td>
+            <td>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text text-muted">$</span>
+                <input type="number"
+                       class="form-control text-end calc-display bg-light"
+                       value="{{ item.precio | round(2) }}"
+                       step="0.01" min="0" readonly
+                       tabindex="-1">
+                {# campo oculto que se envía al servidor #}
+                <input type="hidden"
+                       name="calc_{{ item.nombre }}"
+                       class="calc-hidden"
+                       value="{{ item.precio }}">
+              </div>
+            </td>
+            <td class="text-center align-middle text-muted small">
+              {% if item.unidad_com %}
+                /{{ item.factor }} = $/un
+              {% else %}
+                $/un
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -45,10 +78,26 @@
   {% endfor %}
 
   <div class="sticky-bottom bg-white border-top py-3 px-1 d-flex gap-3 align-items-center">
-    <button type="submit" class="btn btn-warning fw-bold">
+    <button type="submit" class="btn btn-warning fw-bold px-4">
       <i class="bi bi-save"></i> Guardar todos los precios
     </button>
-    <span class="text-muted small">Los precios se aplican a los presupuestos nuevos desde este momento.</span>
+    <span class="text-muted small">Los precios se aplican a presupuestos nuevos desde este momento.</span>
   </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function convertir(inp) {
+    const factor  = parseFloat(inp.dataset.factor) || 1;
+    const precCom = parseFloat(inp.value) || 0;
+    const precCalc = factor === 1 ? precCom : precCom / factor;
+
+    const row   = inp.closest('tr');
+    const disp  = row.querySelector('.calc-display');
+    const hid   = row.querySelector('.calc-hidden');
+    if (disp) disp.value = precCalc.toFixed(2);
+    if (hid)  hid.value  = precCalc.toFixed(4);
+}
+</script>
 {% endblock %}
