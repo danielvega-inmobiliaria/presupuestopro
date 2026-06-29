@@ -1,4 +1,5 @@
 import json
+import os
 import urllib.request
 from datetime import date
 from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g
@@ -94,6 +95,38 @@ def usuario_editar(uid):
 
     db.close()
     return render_template('admin/usuario_form.html', u=u, user=g.user)
+
+@bp.route('/usuarios/<int:uid>/enviar-activacion', methods=['POST'])
+@admin_required
+def usuario_enviar_activacion(uid):
+    """Envía (o reenvía) el email de bienvenida/activación a un usuario."""
+    db = get_db()
+    u = db.execute("SELECT email, nombre, subscription_expires FROM users WHERE id=?", (uid,)).fetchone()
+    db.close()
+    if not u:
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('admin.usuarios'))
+
+    from routes.pagos import _enviar_email_activacion
+    exp = u['subscription_expires'] or '—'
+    # Formatear fecha si existe
+    try:
+        from datetime import datetime
+        exp = datetime.strptime(exp, '%Y-%m-%d').strftime('%d/%m/%Y')
+    except Exception:
+        pass
+
+    ok = _enviar_email_activacion(
+        user_email=u['email'],
+        user_nombre=u['nombre'],
+        fecha_vencimiento=exp,
+    )
+    if ok:
+        flash(f'Email de activación enviado a {u["email"]}.', 'success')
+    else:
+        flash(f'No se pudo enviar el email (revisar RESEND_API_KEY).', 'error')
+    return redirect(url_for('admin.usuarios'))
+
 
 # ─── CONTACTOS ───────────────────────────────────────────────────────────────
 @bp.route('/contactos')
@@ -484,35 +517,4 @@ def configuracion():
             val = request.form.get(clave)
             if val:
                 db.execute(
-                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
-                    (clave, val)
-                )
-        db.commit()
-        db.close()
-        flash('Configuracion guardada.', 'success')
-        return redirect(url_for('admin.dashboard'))
-    cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
-    db.close()
-    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
-
-
-# LEADS
-@bp.route('/leads')
-@admin_required
-def leads():
-    db = get_db()
-    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
-    db.close()
-    return render_template('admin/leads.html', leads=todos, user=g.user)
-
-@bp.route('/leads/<int:lid>/estado', methods=['POST'])
-@admin_required
-def lead_estado(lid):
-    estado = request.form.get('estado', 'nuevo')
-    notas  = request.form.get('notas', '')
-    db = get_db()
-    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
-    db.commit()
-    db.close()
-    flash('Lead actualizado.', 'success')
-    return redirect(url_for('admin.leads'))
+   

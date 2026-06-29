@@ -39,9 +39,19 @@
           <td class="text-muted small">{{ u.subscription_expires or '∞' }}</td>
           <td class="text-muted small">{{ u.created_at[:10] if u.created_at else '' }}</td>
           <td class="text-center">
-            <a href="{{ url_for('admin.usuario_editar', uid=u.id) }}" class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-pencil"></i>
-            </a>
+            <div class="d-flex gap-1 justify-content-center">
+              <a href="{{ url_for('admin.usuario_editar', uid=u.id) }}"
+                 class="btn btn-sm btn-outline-primary" title="Editar">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST"
+                    action="{{ url_for('admin.usuario_enviar_activacion', uid=u.id) }}"
+                    onsubmit="return confirm('Enviar email de activación a {{ u.email }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-success" title="Enviar email de activación">
+                  <i class="bi bi-envelope-check"></i>
+                </button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}

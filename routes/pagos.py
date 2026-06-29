@@ -12,10 +12,12 @@ Rutas:
 
 import json
 import logging
+import os
 from datetime import datetime, date, timedelta
 from functools import wraps
 
 import mercadopago
+import resend
 from flask import (Blueprint, current_app, g, jsonify, redirect,
                    render_template_string, request, session, url_for)
 
@@ -46,10 +48,61 @@ def _get_user(user_id):
     return user
 
 
+def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
+    """Envía email de bienvenida/activación al usuario."""
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        logger.warning("[Email] RESEND_API_KEY no configurada, no se envió email de activación")
+        return False
+    try:
+        resend.api_key = api_key
+        nombre_display = user_nombre or user_email.split('@')[0]
+        app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
+        resend.Emails.send({
+            "from": "PresupuestoPRO <onboarding@resend.dev>",
+            "to": [user_email],
+            "subject": "✅ Tu cuenta de PresupuestoPRO está activa",
+            "html": f"""
+<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222">
+  <h2 style="color:#1a56db;margin-bottom:4px">¡Tu cuenta está activa! 🎉</h2>
+  <p style="color:#555;margin-top:4px">Hola <strong>{nombre_display}</strong>,</p>
+  <p>Tu suscripción a <strong>PresupuestoPRO</strong> fue activada correctamente.</p>
+
+  <div style="background:#f0f5ff;border-radius:10px;padding:16px;margin:20px 0">
+    <p style="margin:0 0 8px 0">📧 <strong>Email:</strong> {user_email}</p>
+    <p style="margin:0 0 8px 0">📅 <strong>Activa hasta:</strong> {fecha_vencimiento}</p>
+  </div>
+
+  <p>Usá el email y la contraseña que elegiste al registrarte para ingresar:</p>
+
+  <div style="text-align:center;margin:24px 0">
+    <a href="{app_url}/auth/login"
+       style="background:#1a56db;color:#fff;padding:12px 28px;border-radius:8px;
+              text-decoration:none;font-weight:bold;font-size:16px">
+      Ingresar a la app →
+    </a>
+  </div>
+
+  <p style="color:#888;font-size:.85rem">
+    Si olvidaste tu contraseña, podés restablecerla desde la pantalla de login.<br>
+    Ante cualquier consulta respondé este email o escribinos por WhatsApp.
+  </p>
+  <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
+  <p style="color:#aaa;font-size:.78rem;text-align:center">PresupuestoPRO · Argentina</p>
+</div>
+""",
+        })
+        logger.info(f"[Email] Email de activación enviado a {user_email}")
+        return True
+    except Exception as e:
+        logger.error(f"[Email] Error enviando activación a {user_email}: {e}")
+        return False
+
+
 def _activar_suscripcion(db, user_id, payment_id, meses=1):
     """Activa o renueva la suscripción del usuario por N meses."""
     hoy = date.today()
-    user = db.execute("SELECT subscription_expires FROM users WHERE id=?", (user_id,)).fetchone()
+    user = db.execute("SELECT email, nombre, subscription_expires FROM users WHERE id=?", (user_id,)).fetchone()
     if user and user['subscription_expires']:
         try:
             base = datetime.strptime(user['subscription_expires'], '%Y-%m-%d').date()
@@ -76,6 +129,14 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
           hoy.isoformat(), nueva_exp.isoformat()))
     db.commit()
     logger.info(f"[MP] Usuario {user_id} activado hasta {nueva_exp}")
+
+    # Enviar notificación al usuario
+    if user:
+        _enviar_email_activacion(
+            user_email=user['email'],
+            user_nombre=user['nombre'],
+            fecha_vencimiento=nueva_exp.strftime('%d/%m/%Y'),
+        )
 
 
 # ─── rutas ────────────────────────────────────────────────────────────────────
@@ -340,80 +401,4 @@ def webhook():
     """
     Webhook de MP. Para pagos únicos (preference) llega:
       { "type": "payment", "data": { "id": "PAYMENT_ID" } }
-    """
-    data      = request.get_json(silent=True) or {}
-    topic     = data.get("type") or request.args.get("topic", "")
-    resource_id = (data.get("data", {}).get("id")
-                   or request.args.get("id")
-                   or request.args.get("payment_id"))
-
-    logger.info(f"[MP Webhook] topic={topic} id={resource_id}")
-
-    if not resource_id:
-        return jsonify({"ok": True}), 200
-
-    # Procesar pagos aprobados
-    if topic not in ("payment", "merchant_order"):
-        return jsonify({"ok": True}), 200
-
-    try:
-        sdk = _get_sdk()
-        result = sdk.payment().get(resource_id)
-        payment = result.get("response", {})
-
-        estado   = payment.get("status", "")
-        metadata = payment.get("metadata", {})
-        payer    = payment.get("payer", {})
-        payer_email = payer.get("email", "")
-        user_id_meta = metadata.get("user_id")
-
-        logger.info(f"[MP Webhook] payment {resource_id} estado={estado} email={payer_email} user_id_meta={user_id_meta}")
-
-        if estado != "approved":
-            return jsonify({"ok": True}), 200
-
-        db = get_db()
-        # Buscar usuario: primero por metadata user_id, luego por email
-        user = None
-        if user_id_meta:
-            user = db.execute("SELECT id FROM users WHERE id=?", (user_id_meta,)).fetchone()
-        if not user and payer_email:
-            user = db.execute("SELECT id FROM users WHERE email=?", (payer_email,)).fetchone()
-
-        if user:
-            _activar_suscripcion(db, user['id'], str(resource_id))
-            logger.info(f"[MP Webhook] Usuario {user['id']} activado por payment {resource_id}")
-        else:
-            logger.warning(f"[MP Webhook] Usuario no encontrado: email={payer_email} meta_id={user_id_meta}")
-
-        db.close()
-
-    except Exception as e:
-        logger.error(f"[MP Webhook] Error procesando {resource_id}: {e}")
-
-    return jsonify({"ok": True}), 200
-
-
-@bp.route('/estado')
-@_login_required
-def estado():
-    user = _get_user(session['user_id'])
-    sub_activa = False
-    dias_restantes = 0
-    expires = None
-
-    if user and user['subscription_expires']:
-        try:
-            exp = datetime.strptime(user['subscription_expires'], '%Y-%m-%d').date()
-            expires = exp.isoformat()
-            dias_restantes = (exp - date.today()).days
-            sub_activa = dias_restantes >= 0 and bool(user['active'])
-        except Exception:
-            pass
-
-    return jsonify({
-        "activa": sub_activa,
-        "expires": expires,
-        "dias_restantes": dias_restantes,
-        "email": user['email'] if user else None,
-    })
+   
