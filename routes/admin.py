@@ -421,6 +421,147 @@ def fix_db():
         if r.rowcount:
             log.append(f"DEL items_obra: {nombre}")
 
+    # 2. MO Pintura
+    r = db.execute("UPDATE items_obra SET precio_mo_ars=5000 WHERE id IN (97,98,99,100,101)")
+    log.append(f"UPD pintura MO x{r.rowcount}")
+
+    # 3. MO Ceramicos
+    ceramicos = {82:11550, 83:11550, 84:21800, 87:4050, 88:4050, 92:14650, 93:14650}
+    for iid, mo in ceramicos.items():
+        db.execute("UPDATE items_obra SET precio_mo_ars=? WHERE id=?", (mo, iid))
+    log.append(f"UPD ceramicos MO x{len(ceramicos)}")
+
+    db.commit()
+    cnt = db.execute("SELECT COUNT(*) FROM items_obra").fetchone()[0]
+    db.close()
+    log.append(f"VERIFY items_obra:{cnt}")
+    from flask import jsonify
+    return jsonify({'ok': True, 'cambios': log})
+
+
+# CONFIGURACION
+@bp.route('/configuracion', methods=['GET', 'POST'])
+@admin_required
+def configuracion():
+    db = get_db()
+    if request.method == 'POST':
+        for clave in ('pct_gg', 'pct_impuestos'):
+            val = request.form.get(clave)
+            if val:
+                db.execute(
+                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
+                    (clave, val)
+                )
+        db.commit()
+        db.close()
+        flash('Configuracion guardada.', 'success')
+        return redirect(url_for('admin.dashboard'))
+    cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
+    db.close()
+    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
+
+
+# LEADS
+@bp.route('/leads')
+@admin_required
+def leads():
+    db = get_db()
+    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
+    db.close()
+    return render_template('admin/leads.html', leads=todos, user=g.user)
+
+@bp.route('/leads/<int:lid>/estado', methods=['POST'])
+@admin_required
+def lead_estado(lid):
+    estado = request.form.get('estado', 'nuevo')
+    notas  = request.form.get('notas', '')
+    db = get_db()
+    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
+    db.commit()
+    db.close()
+    flash('Lead actualizado.', 'success')
+    return redirect(url_for('admin.leads'))
+ 'Instalacion Desagues',  'Accesorios Desagues'),
+        ('Accesorios', 'Instalación Agua F/C',  'Accesorios TF'),
+        ('Accesorios', 'Instalacion Agua F/C',  'Accesorios TF'),
+        ('Accesorios', 'Instalación Gas',        'Accesorios Gas'),
+        ('Accesorios', 'Instalacion Gas',        'Accesorios Gas'),
+        ('Llaves de Paso', 'Instalación Agua F/C', 'Llaves de Paso Agua'),
+        ('Llaves de Paso', 'Instalacion Agua F/C', 'Llaves de Paso Agua'),
+        ('Llaves de Paso', 'Instalación Gas',       'Llaves de Paso Gas'),
+        ('Llaves de Paso', 'Instalacion Gas',       'Llaves de Paso Gas'),
+    ]
+    for sub_old, item_nombre, sub_new in renames_sub:
+        r = db.execute(
+            "UPDATE analisis_sub SET sub_nombre=? WHERE sub_nombre=? AND item_nombre=?",
+            (sub_new, sub_old, item_nombre)
+        )
+        if r.rowcount:
+            log.append(f"RENAME analisis_sub [{item_nombre}]: {sub_old} → {sub_new}")
+
+    db.commit()
+
+    # Verificación
+    cnt = db.execute("SELECT COUNT(*) FROM items_obra").fetchone()[0]
+    sal = db.execute("SELECT precio_ars FROM analisis_sub WHERE sub_nombre='Salpicrete'").fetchone()
+    ayuda = db.execute("SELECT COUNT(*) FROM items_obra WHERE nombre='Ayuda gremios y varios'").fetchone()[0]
+    db.close()
+
+    log.append(f"VERIFY → items_obra:{cnt}, Salpicrete:{sal[0] if sal else 'N/A'}, Ayuda:{ayuda}")
+    from flask import jsonify
+    return jsonify({'ok': True, 'cambios': log})
+
+
+# ─── CONFIGURACIÓN (% GG, Imp) ───────────────────────────────────────────────
+@bp.route('/configuracion', methods=['GET', 'POST'])
+@admin_required
+def configuracion():
+    db = get_db()
+    if request.method == 'POST':
+        for clave in ('pct_gg', 'pct_impuestos'):
+            val = request.form.get(clave)
+            if val:
+                db.execute(
+                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
+                    (clave, val)
+                )
+        db.commit()
+        db.close()
+        flash('Configuración guardada.', 'success')
+        return redirect(url_for('admin.dashboard'))
+    cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
+    db.close()
+    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
+
+
+# ─── LEADS / INSCRIPTOS ──────────────────────────────────────────────────────
+@bp.route('/leads')
+@admin_required
+def leads():
+    db = get_db()
+    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
+    db.close()
+    return render_template('admin/leads.html', leads=todos, user=g.user)
+
+@bp.route('/leads/<int:lid>/estado', methods=['POST'])
+@admin_required
+def lead_estado(lid):
+    estado = request.form.get('estado', 'nuevo')
+    notas  = request.form.get('notas', '')
+    db = get_db()
+    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
+    db.commit()
+    db.close()
+    flash('Lead actualizado.', 'success')
+    return redirect(url_for('admin.leads'))
+lab. tanque (90-13)',
+        'Cemento: revoque tanque',
+    ]
+    for nombre in items_borrar:
+        r = db.execute("DELETE FROM items_obra WHERE nombre=?", (nombre,))
+        if r.rowcount:
+            log.append(f"DEL items_obra: {nombre}")
+
     # 2. MO Pintura (ids 97-101): $7681 → $5000
     r = db.execute("UPDATE items_obra SET precio_mo_ars=5000 WHERE id IN (97,98,99,100,101)")
     log.append(f"UPD pintura MO ×{r.rowcount}")
