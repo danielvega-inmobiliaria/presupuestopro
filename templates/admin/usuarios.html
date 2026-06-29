@@ -15,7 +15,7 @@
       <thead class="table-dark">
         <tr>
           <th>Nombre</th>
-          <th>Email</th>
+          <th>Email / Teléfono</th>
           <th>País</th>
           <th>Estado</th>
           <th>Vence</th>
@@ -27,7 +27,15 @@
         {% for u in users %}
         <tr>
           <td>{{ u.nombre or '—' }}</td>
-          <td class="text-muted">{{ u.email }}</td>
+          <td>
+            <div class="text-muted">{{ u.email }}</div>
+            {% if u.telefono %}
+            <div class="small text-success"><i class="bi bi-whatsapp"></i> {{ u.telefono }}</div>
+            {% endif %}
+            {% if u.ciudad or u.provincia %}
+            <div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ u.ciudad or '' }}{% if u.ciudad and u.provincia %}, {% endif %}{{ u.provincia or '' }}</div>
+            {% endif %}
+          </td>
           <td><span class="badge bg-secondary badge-pais">{{ u.pais }}</span></td>
           <td>
             {% if u.active %}
@@ -51,6 +59,18 @@
                   <i class="bi bi-envelope-check"></i>
                 </button>
               </form>
+              {% if u.telefono %}
+              <a href="#" onclick="waActivacion('{{ u.telefono|e }}', '{{ u.nombre|e }}')"
+                 class="btn btn-sm btn-success" title="Enviar WhatsApp de activación">
+                <i class="bi bi-whatsapp"></i>
+              </a>
+              {% else %}
+              <a href="#" onclick="waActivacionSinNumero('{{ u.nombre|e }}')"
+                 class="btn btn-sm btn-outline-success" title="WhatsApp (sin número guardado)"
+                 style="opacity:.5">
+                <i class="bi bi-whatsapp"></i>
+              </a>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -61,4 +81,18 @@
     </table>
   </div>
 </div>
+
+<script>
+const APP_URL = 'https://web-production-0c9c1.up.railway.app/auth/login';
+
+function waActivacion(tel, nombre) {
+  const num = tel.replace(/[^0-9]/g, '');
+  const msg = `Hola ${nombre || ''}, tu cuenta de PresupuestoPRO esta lista. Ingresa en: ${APP_URL}`;
+  window.open('https://wa.me/54' + num + '?text=' + encodeURIComponent(msg), '_blank');
+}
+function waActivacionSinNumero(nombre) {
+  const msg = `Hola ${nombre || ''}, tu cuenta de PresupuestoPRO esta lista. Ingresa en: ${APP_URL}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+}
+</script>
 {% endblock %}

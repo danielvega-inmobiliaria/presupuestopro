@@ -21,6 +21,23 @@
                  value="{{ u.nombre if u else '' }}">
         </div>
         <div class="mb-3">
+          <label class="form-label">Teléfono / WhatsApp</label>
+          <input type="tel" name="telefono" class="form-control" placeholder="Ej: 1134567890"
+                 value="{{ u.telefono if u else '' }}">
+        </div>
+        <div class="row mb-3">
+          <div class="col">
+            <label class="form-label">Ciudad</label>
+            <input type="text" name="ciudad" class="form-control" placeholder="Ej: Buenos Aires"
+                   value="{{ u.ciudad if u else '' }}">
+          </div>
+          <div class="col">
+            <label class="form-label">Provincia / Zona</label>
+            <input type="text" name="provincia" class="form-control" placeholder="Ej: CABA"
+                   value="{{ u.provincia if u else '' }}">
+          </div>
+        </div>
+        <div class="mb-3">
           <label class="form-label">País</label>
           <select name="pais" class="form-select">
             {% for cod, info in [('AR','Argentina'),('CL','Chile'),('UY','Uruguay'),('BR','Brasil'),('PY','Paraguay')] %}

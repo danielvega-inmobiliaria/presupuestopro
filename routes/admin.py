@@ -41,16 +41,19 @@ def usuarios():
 @admin_required
 def usuario_nuevo():
     if request.method == 'POST':
-        email    = request.form.get('email', '').strip().lower()
-        nombre   = request.form.get('nombre', '')
-        password = request.form.get('password', '')
-        pais     = request.form.get('pais', 'AR')
-        vence    = request.form.get('subscription_expires', '')
+        email     = request.form.get('email', '').strip().lower()
+        nombre    = request.form.get('nombre', '')
+        telefono  = request.form.get('telefono', '').strip()
+        ciudad    = request.form.get('ciudad', '').strip()
+        provincia = request.form.get('provincia', '').strip()
+        password  = request.form.get('password', '')
+        pais      = request.form.get('pais', 'AR')
+        vence     = request.form.get('subscription_expires', '')
         db = get_db()
         try:
             db.execute(
-                "INSERT INTO users (email, password_hash, nombre, pais, active, subscription_expires) VALUES (?,?,?,?,1,?)",
-                (email, generate_password_hash(password), nombre, pais, vence or None)
+                "INSERT INTO users (email, password_hash, nombre, telefono, ciudad, provincia, pais, active, subscription_expires) VALUES (?,?,?,?,?,?,?,1,?)",
+                (email, generate_password_hash(password), nombre, telefono, ciudad, provincia, pais, vence or None)
             )
             db.commit()
             flash(f'Usuario {email} creado.', 'success')
@@ -70,20 +73,23 @@ def usuario_editar(uid):
         db.close(); return redirect(url_for('admin.usuarios'))
 
     if request.method == 'POST':
-        nombre  = request.form.get('nombre', '')
-        pais    = request.form.get('pais', 'AR')
-        active  = 1 if request.form.get('active') else 0
-        vence   = request.form.get('subscription_expires', '')
-        new_pw  = request.form.get('password', '').strip()
+        nombre    = request.form.get('nombre', '')
+        telefono  = request.form.get('telefono', '').strip()
+        ciudad    = request.form.get('ciudad', '').strip()
+        provincia = request.form.get('provincia', '').strip()
+        pais      = request.form.get('pais', 'AR')
+        active    = 1 if request.form.get('active') else 0
+        vence     = request.form.get('subscription_expires', '')
+        new_pw    = request.form.get('password', '').strip()
         if new_pw:
             db.execute(
-                "UPDATE users SET nombre=?, pais=?, active=?, subscription_expires=?, password_hash=? WHERE id=?",
-                (nombre, pais, active, vence or None, generate_password_hash(new_pw), uid)
+                "UPDATE users SET nombre=?, telefono=?, ciudad=?, provincia=?, pais=?, active=?, subscription_expires=?, password_hash=? WHERE id=?",
+                (nombre, telefono, ciudad, provincia, pais, active, vence or None, generate_password_hash(new_pw), uid)
             )
         else:
             db.execute(
-                "UPDATE users SET nombre=?, pais=?, active=?, subscription_expires=? WHERE id=?",
-                (nombre, pais, active, vence or None, uid)
+                "UPDATE users SET nombre=?, telefono=?, ciudad=?, provincia=?, pais=?, active=?, subscription_expires=? WHERE id=?",
+                (nombre, telefono, ciudad, provincia, pais, active, vence or None, uid)
             )
         if not active:
             db.execute("UPDATE users SET session_token=NULL WHERE id=?", (uid,))
