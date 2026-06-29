@@ -58,23 +58,18 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
         resend.api_key = api_key
         nombre_display = user_nombre or user_email.split('@')[0]
         app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
-        resend.Emails.send({
-            "from": "PresupuestoPRO <onboarding@resend.dev>",
-            "to": [user_email],
-            "subject": "Tu cuenta de PresupuestoPRO esta activa",
-            "html": f"""
+        admin_email = os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')
+
+        html_body = f"""
 <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#222">
   <h2 style="color:#1a56db;margin-bottom:4px">Tu cuenta esta activa!</h2>
   <p style="color:#555;margin-top:4px">Hola <strong>{nombre_display}</strong>,</p>
   <p>Tu suscripcion a <strong>PresupuestoPRO</strong> fue activada correctamente.</p>
-
   <div style="background:#f0f5ff;border-radius:10px;padding:16px;margin:20px 0">
     <p style="margin:0 0 8px 0">Email: <strong>{user_email}</strong></p>
     <p style="margin:0 0 8px 0">Activa hasta: <strong>{fecha_vencimiento}</strong></p>
   </div>
-
   <p>Usa el email y la contrasena que elegiste al registrarte para ingresar:</p>
-
   <div style="text-align:center;margin:24px 0">
     <a href="{app_url}/auth/login"
        style="background:#1a56db;color:#fff;padding:12px 28px;border-radius:8px;
@@ -82,20 +77,41 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
       Ingresar a la app
     </a>
   </div>
-
   <p style="color:#888;font-size:.85rem">
-    Si olvidaste tu contrasena, podes restablecerla desde la pantalla de login.<br>
-    Ante cualquier consulta respondenos este email.
+    Si olvidaste tu contrasena, podes restablecerla desde la pantalla de login.
   </p>
   <hr style="border:none;border-top:1px solid #eee;margin:20px 0">
   <p style="color:#aaa;font-size:.78rem;text-align:center">PresupuestoPRO - Argentina</p>
-</div>
-""",
-        })
-        logger.info(f"[Email] Email de activacion enviado a {user_email}")
-        return True
+</div>"""
+
+        # Intentar enviar al usuario; si falla (ej: restricción dominio Resend),
+        # enviar al admin como notificación para que avise manualmente.
+        try:
+            resend.Emails.send({
+                "from": "onboarding@resend.dev",
+                "to": [user_email],
+                "subject": "Tu cuenta de PresupuestoPRO esta activa",
+                "html": html_body,
+            })
+            logger.info(f"[Email] Activacion enviada a usuario: {user_email}")
+            return True
+        except Exception as e_user:
+            logger.warning(f"[Email] No se pudo enviar al usuario {user_email}: {type(e_user).__name__}: {e_user}")
+            # Fallback: notificar al admin con los datos para que avise por WA
+            try:
+                resend.Emails.send({
+                    "from": "onboarding@resend.dev",
+                    "to": [admin_email],
+                    "subject": f"[PresupuestoPRO] Activar manualmente a {user_email}",
+                    "text": f"No se pudo enviar email al usuario.\n\nDatos para notificar por WhatsApp:\n\nUsuario: {nombre_display}\nEmail: {user_email}\nVence: {fecha_vencimiento}\nLink: {app_url}/auth/login\n\nError original: {e_user}",
+                })
+                logger.info(f"[Email] Notificacion de activacion enviada al admin para {user_email}")
+                return False  # retorna False para que el flash muestre aviso
+            except Exception as e_admin:
+                logger.error(f"[Email] Fallo total: usuario={e_user} admin={e_admin}")
+                return False
     except Exception as e:
-        logger.error(f"[Email] Error enviando activacion a {user_email}: {e}")
+        logger.error(f"[Email] Error general: {type(e).__name__}: {e}")
         return False
 
 
