@@ -4,6 +4,9 @@
 {% block content %}
 <div class="d-flex align-items-center gap-3 mb-2">
   <h4 class="mb-0"><i class="bi bi-tags"></i> Precios de materiales (ARS)</h4>
+  <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary btn-sm ms-auto">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
 </div>
 <p class="text-muted small mb-3">
   Ingresá el <strong>precio comercial</strong> (lo que dice la lista del corralón/proveedor).
@@ -11,6 +14,60 @@
 </p>
 
 <form method="post" action="{{ url_for('admin.precios_actualizar') }}" id="formPrecios">
+
+  {# ── JORNALES ── #}
+  <div class="card mb-3">
+    <div class="card-header py-2 px-3 fw-bold small text-uppercase"
+         style="background:#1a56db;color:#fff;letter-spacing:.5px">
+      Jornales
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Categoría</th>
+            <th class="text-center" style="width:180px">Jornal diario ($/día)</th>
+            <th class="text-muted text-center" style="width:120px;font-weight:normal;font-size:.78rem">por hora</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="align-middle small">Jornal Oficial</td>
+            <td>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input type="number" name="jornal_oficial_dia"
+                       class="form-control text-end"
+                       value="{{ jornal_oficial_dia }}"
+                       step="1" min="0"
+                       oninput="calcHora(this, 'jo_hora')">
+              </div>
+            </td>
+            <td class="text-center align-middle text-muted small" id="jo_hora">
+              $ {{ '{:,.0f}'.format(jornal_oficial_dia / 8).replace(',','.') }}/hr
+            </td>
+          </tr>
+          <tr>
+            <td class="align-middle small">Jornal Ayudante</td>
+            <td>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">$</span>
+                <input type="number" name="jornal_ayudante_dia"
+                       class="form-control text-end"
+                       value="{{ jornal_ayudante_dia }}"
+                       step="1" min="0"
+                       oninput="calcHora(this, 'ja_hora')">
+              </div>
+            </td>
+            <td class="text-center align-middle text-muted small" id="ja_hora">
+              $ {{ '{:,.0f}'.format(jornal_ayudante_dia / 8).replace(',','.') }}/hr
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   {% for s in sectores %}
   <div class="card mb-3">
     <div class="card-header py-2 px-3 fw-bold small text-uppercase"
@@ -38,66 +95,4 @@
                 <input type="number"
                        class="form-control text-end com-input"
                        data-factor="{{ item.factor }}"
-                       data-nombre="{{ item.nombre }}"
-                       value="{{ item.precio_com | round | int }}"
-                       step="1" min="0"
-                       oninput="convertir(this)">
-              </div>
-            </td>
-            <td class="text-center align-middle text-muted small">
-              {% if item.unidad_com %}{{ item.unidad_com }}{% else %}—{% endif %}
-            </td>
-            <td>
-              <div class="input-group input-group-sm">
-                <span class="input-group-text text-muted">$</span>
-                <input type="number"
-                       class="form-control text-end calc-display bg-light"
-                       value="{{ item.precio | round(2) }}"
-                       step="0.01" min="0" readonly
-                       tabindex="-1">
-                {# campo oculto que se envía al servidor #}
-                <input type="hidden"
-                       name="calc_{{ item.nombre }}"
-                       class="calc-hidden"
-                       value="{{ item.precio }}">
-              </div>
-            </td>
-            <td class="text-center align-middle text-muted small">
-              {% if item.unidad_com %}
-                /{{ item.factor }} = $/un
-              {% else %}
-                $/un
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endfor %}
-
-  <div class="sticky-bottom bg-white border-top py-3 px-1 d-flex gap-3 align-items-center">
-    <button type="submit" class="btn btn-warning fw-bold px-4">
-      <i class="bi bi-save"></i> Guardar todos los precios
-    </button>
-    <span class="text-muted small">Los precios se aplican a presupuestos nuevos desde este momento.</span>
-  </div>
-</form>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function convertir(inp) {
-    const factor  = parseFloat(inp.dataset.factor) || 1;
-    const precCom = parseFloat(inp.value) || 0;
-    const precCalc = factor === 1 ? precCom : precCom / factor;
-
-    const row   = inp.closest('tr');
-    const disp  = row.querySelector('.calc-display');
-    const hid   = row.querySelector('.calc-hidden');
-    if (disp) disp.value = precCalc.toFixed(2);
-    if (hid)  hid.value  = precCalc.toFixed(4);
-}
-</script>
-{% endblock %}
+                       data-nombre="{{ item.nombre }}

@@ -221,23 +221,23 @@ def contacto_contestado(mid):
 
 # PRECIOS MATERIALES
 _LISTA_PRECIOS = [
-    ('CORRELON - Aridos y Cemento', [
-        'Cemento portland bolsas', 'Cemento Albanileria', 'Cal Hidraulica',
-        'Cal aerea Milagro', 'Hidrofugo', 'Arena comun', 'Tierra Colorada',
-        'Piedra Granitica', 'Granza', 'Hormigon elaborado colado',
+    ('CORRALÓN - Áridos y Cemento', [
+        'Cemento portland bolsas', 'Cemento Albañilería', 'Cal hidráulica hidratada',
+        'Cal aérea Milagro', 'Hidrófugo', 'Arena común', 'Tierra Colorada',
+        'Piedra Partida (Calc. ó Granít.)', 'Granza (mediana)', 'Hormigon elaborado colado',
         'Perlitas Telgopor (75 Lts)',
     ]),
-    ('CORRELON - Ladrillos y Mamposteria', [
+    ('CORRALÓN - Ladrillos y Mampostería', [
         'Ladrillos comunes', 'Ladrillos vista',
         'Ladrillo hueco 8x18x33cm', 'Ladrillo hueco 12X18X33cm',
         'Ladrillo hueco 18X18X33cm', 'Ladrillo hueco Portante 12x18x33cm',
         'Ladrillo hueco Portante 18x18x33cm',
     ]),
-    ('CORRELON - Hierros y Ferreteria', [
+    ('CORRALÓN - Hierros y Ferretería', [
         'Hierro redondo d=10mm', 'Alambre negro',
         'Clavos 2"', 'Clavos 2" 1/2', 'Clavos 3"', 'Clavos 4"',
     ]),
-    ('CORRELON - Viguetas', [
+    ('CORRALÓN - Viguetas', [
         'Viga Vipret 4m.', 'Ladrillo Telgopor 12*38*1m',
     ]),
     ('Maderera', [
@@ -289,8 +289,13 @@ def precios():
         "SELECT sub_nombre, MAX(precio_ars) as precio_ars "
         "FROM analisis_sub WHERE es_material=1 GROUP BY sub_nombre"
     ).fetchall()
+    cfg_jo = db.execute("SELECT valor FROM config WHERE clave='jornal_oficial_dia'").fetchone()
+    cfg_ja = db.execute("SELECT valor FROM config WHERE clave='jornal_ayudante_dia'").fetchone()
     db.close()
     precios_dict = {r['sub_nombre']: r['precio_ars'] for r in rows}
+
+    jornal_oficial_dia  = int(float(cfg_jo['valor'])) if cfg_jo else 80000
+    jornal_ayudante_dia = int(float(cfg_ja['valor'])) if cfg_ja else 40000
 
     COMERCIAL = {
         'cemento port': (25,   'bolsa 25kg'),
@@ -330,7 +335,9 @@ def precios():
             })
         sectores.append({'sector': sector, 'items': items})
 
-    return render_template('admin/precios.html', sectores=sectores, user=g.user)
+    return render_template('admin/precios.html', sectores=sectores, user=g.user,
+                           jornal_oficial_dia=jornal_oficial_dia,
+                           jornal_ayudante_dia=jornal_ayudante_dia)
 
 @bp.route('/precios/actualizar', methods=['POST'])
 @admin_required
@@ -350,9 +357,20 @@ def precios_actualizar():
                     actualizados += 1
             except:
                 pass
+        elif key in ('jornal_oficial_dia', 'jornal_ayudante_dia'):
+            try:
+                valor = float(val)
+                if valor > 0:
+                    db.execute(
+                        "INSERT OR REPLACE INTO config (clave, valor) VALUES (?, ?)",
+                        (key, str(int(valor)))
+                    )
+                    actualizados += 1
+            except:
+                pass
     db.commit()
     db.close()
-    flash(f'Precios actualizados ({actualizados} materiales).', 'success')
+    flash(f'Precios actualizados ({actualizados} ítems).', 'success')
     return redirect(url_for('admin.precios'))
 
 # TIPOS DE CAMBIO
@@ -497,45 +515,4 @@ def fix_db():
     return jsonify({'ok': True, 'cambios': log})
 
 
-# CONFIGURACION
-@bp.route('/configuracion', methods=['GET', 'POST'])
-@admin_required
-def configuracion():
-    db = get_db()
-    if request.method == 'POST':
-        for clave in ('pct_gg', 'pct_impuestos'):
-            val = request.form.get(clave)
-            if val:
-                db.execute(
-                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
-                    (clave, val)
-                )
-        db.commit()
-        db.close()
-        flash('Configuracion guardada.', 'success')
-        return redirect(url_for('admin.dashboard'))
-    cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
-    db.close()
-    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
-
-
-# LEADS
-@bp.route('/leads')
-@admin_required
-def leads():
-    db = get_db()
-    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
-    db.close()
-    return render_template('admin/leads.html', leads=todos, user=g.user)
-
-@bp.route('/leads/<int:lid>/estado', methods=['POST'])
-@admin_required
-def lead_estado(lid):
-    estado = request.form.get('estado', 'nuevo')
-    notas  = request.form.get('notas', '')
-    db = get_db()
-    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
-    db.commit()
-    db.close()
-    flash('Lead actualizado.', 'success')
-    return redirect(url_for('admin.leads'))
+# CONFIGURACIO
