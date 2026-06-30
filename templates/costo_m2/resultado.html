@@ -68,9 +68,14 @@
     <div class="hdr-nombre">{{ item.nombre }}</div>
     <div class="hdr-sub">Base de cálculo: 1 Oficial + 1 Ayudante</div>
   </div>
-  <button onclick="window.print()" class="btn btn-sm btn-outline-light no-print">
-    <i class="bi bi-printer"></i>
-  </button>
+  <div class="d-flex gap-2 no-print">
+    <a href="{{ url_for('costo_m2.index') }}" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-house"></i> Inicio
+    </a>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-printer"></i>
+    </button>
+  </div>
 </div>
 
 {# ── JORNALES ── #}

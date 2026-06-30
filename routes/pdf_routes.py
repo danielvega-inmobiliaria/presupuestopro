@@ -1,5 +1,7 @@
 import json
-from flask import Blueprint, send_file, g, redirect, url_for, flash
+import re
+from urllib.parse import quote
+from flask import Blueprint, send_file, g, redirect, url_for, flash, render_template
 from utils.auth import login_required
 from utils.pdf_generator import generar_pdf_propietario, generar_pdf_constructor
 from utils.calculations import calcular_cuotas, calcular_cuadro_pago
@@ -27,6 +29,28 @@ def cargar_presupuesto(pid, user_id):
     )
     empresa = dict(empresa_row) if empresa_row else {}
     return p, empresa
+
+@bp.route('/<int:pid>/propietario-preview')
+@login_required
+def propietario_preview(pid):
+    p, empresa = cargar_presupuesto(pid, g.user['id'])
+    if not p:
+        flash('Presupuesto no encontrado.', 'error')
+        return redirect(url_for('dashboard.index'))
+    # Limpiar teléfono para wa.me (solo dígitos; si empieza con 0 → reemplazar por 54)
+    tel_raw = (p.get('cliente_tel') or '').strip()
+    tel_digits = re.sub(r'\D', '', tel_raw)
+    if tel_digits.startswith('0'):
+        tel_digits = '54' + tel_digits[1:]
+    elif tel_digits and not tel_digits.startswith('54'):
+        tel_digits = '54' + tel_digits
+    msg = f"Hola {p.get('cliente_nombre', '')}! Te envío el presupuesto N° {p['nro']} de {empresa.get('nombre', 'PresupuestoPRO')}."
+    wa_url = f"https://wa.me/{tel_digits}?text={quote(msg)}" if tel_digits else None
+    return render_template('presupuesto/pdf_preview.html',
+                           p=p, empresa=empresa,
+                           wa_url=wa_url,
+                           tiene_tel=bool(tel_digits))
+
 
 @bp.route('/<int:pid>/propietario')
 @login_required

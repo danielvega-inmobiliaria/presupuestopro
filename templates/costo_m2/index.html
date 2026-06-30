@@ -11,6 +11,27 @@
 
 <p class="text-muted mb-3">Seleccioná un ítem para calcular su costo por metro cuadrado.</p>
 
+{# Jornales editables #}
+<div class="card mb-3 shadow-sm">
+  <div class="card-body py-2 px-3">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <span class="fw-semibold" style="font-size:.85rem;color:#374151">Jornales diarios:</span>
+      <div class="d-flex align-items-center gap-1">
+        <label for="jornal_of" class="text-muted mb-0" style="font-size:.82rem">Oficial $</label>
+        <input type="text" id="jornal_of" inputmode="decimal" value="80.000"
+               class="form-control form-control-sm text-end fw-semibold"
+               style="width:90px;border-color:#c5d0e6">
+      </div>
+      <div class="d-flex align-items-center gap-1">
+        <label for="jornal_ay" class="text-muted mb-0" style="font-size:.82rem">Ayudante $</label>
+        <input type="text" id="jornal_ay" inputmode="decimal" value="40.000"
+               class="form-control form-control-sm text-end fw-semibold"
+               style="width:90px;border-color:#c5d0e6">
+      </div>
+    </div>
+  </div>
+</div>
+
 {# Barra fija inferior con botones — aparece al seleccionar #}
 <div id="barraCalc" class="d-none" style="
   position:fixed; bottom:0; left:0; right:0; z-index:1050;
@@ -92,9 +113,17 @@ function cancelar() {
   document.getElementById('barraEspaciado').classList.add('d-none');
 }
 
+function normJornal(s) {
+  var str = (s || '0').toString().trim().replace(/\./g, '').replace(',', '.');
+  return parseFloat(str) || 0;
+}
+
 function calcular() {
   if (!selectedId) return;
-  var url = "{{ url_for('costo_m2.resultado') }}?item_id=" + selectedId;
+  var jo = normJornal(document.getElementById('jornal_of').value);
+  var ja = normJornal(document.getElementById('jornal_ay').value);
+  var url = "{{ url_for('costo_m2.resultado') }}?item_id=" + selectedId
+            + "&jornal_of=" + jo + "&jornal_ay=" + ja;
   window.open(url, '_blank', 'width=600,height=800,resizable=yes,scrollbars=yes');
 }
 </script>

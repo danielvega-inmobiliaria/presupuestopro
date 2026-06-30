@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}PDF Propietario — Presupuesto {{ p.nro }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="mb-0">PDF Propietario</h4>
+    <span class="text-muted small">Presupuesto N° {{ p.nro }} · {{ p.cliente_nombre }}</span>
+  </div>
+  <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+<div class="card shadow-sm" style="max-width:520px;margin:0 auto">
+  <div class="card-body p-4 text-center">
+
+    <div class="mb-4">
+      <i class="bi bi-file-earmark-pdf" style="font-size:3.5rem;color:#dc3545"></i>
+      <h5 class="mt-2 mb-0">Presupuesto N° {{ p.nro }}</h5>
+      {% if p.cliente_nombre %}
+      <p class="text-muted mb-0">{{ p.cliente_nombre }}</p>
+      {% endif %}
+      {% if p.total_presupuesto %}
+      <p class="fw-bold mt-1 mb-0" style="font-size:1.1rem">
+        Total: $ {{ '{:,.0f}'.format(p.total_presupuesto).replace(',','.') }}
+      </p>
+      {% endif %}
+    </div>
+
+    <div class="d-grid gap-3">
+      {# Descargar PDF #}
+      <a href="{{ url_for('pdf.propietario', pid=p.id) }}"
+         class="btn btn-danger btn-lg">
+        <i class="bi bi-download me-2"></i>Descargar PDF
+      </a>
+
+      {# Enviar por WhatsApp #}
+      {% if wa_url %}
+      <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer"
+         class="btn btn-success btn-lg">
+        <i class="bi bi-whatsapp me-2"></i>Enviar por WhatsApp
+      </a>
+      {% else %}
+      <button class="btn btn-success btn-lg" disabled
+              title="El presupuesto no tiene teléfono de cliente registrado">
+        <i class="bi bi-whatsapp me-2"></i>Enviar por WhatsApp
+        <small class="d-block" style="font-size:.7rem;opacity:.8">Sin teléfono registrado</small>
+      </button>
+      {% endif %}
+
+      {# Volver #}
+      <a href="{{ url_for('presupuesto.ver', pid=p.id) }}"
+         class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Volver al presupuesto
+      </a>
+    </div>
+
+    {% if not tiene_tel %}
+    <p class="text-muted mt-3 mb-0" style="font-size:.8rem">
+      Para habilitar WhatsApp, agregá el teléfono del cliente al editar el presupuesto.
+    </p>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
