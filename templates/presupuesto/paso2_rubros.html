@@ -42,8 +42,8 @@
           </div>
           <div class="col-auto">
             <div class="input-group input-group-sm" style="width:160px;">
-              <input type="number" class="form-control" name="superficie"
-                     value="{{ p.superficie or '' }}" min="0" step="0.01" placeholder="m2"
+              <input type="text" class="form-control" name="superficie"
+                     value="{{ p.superficie or '' }}" placeholder="m2"
                      inputmode="decimal">
               <span class="input-group-text">m2</span>
             </div>
@@ -101,7 +101,7 @@
                       <span class="badge bg-secondary">{{ it['unidad'] }}</span>
                     </td>
                     <td class="text-center align-middle">
-                      <input type="number"
+                      <input type="text"
                              class="form-control form-control-sm text-center cant-input"
                              name="item_{{ it['id'] }}"
                              id="cant_{{ it['id'] }}"
@@ -110,7 +110,6 @@
                              data-hay="{{ it['hay'] }}"
                              data-rubro="{{ rnum }}"
                              data-subtotal="subtotal_{{ it['id'] }}"
-                             min="0" step="any"
                              value="{{ prev_cant if prev_cant > 0 else '' }}"
                              placeholder="0" inputmode="decimal">
                     </td>
@@ -193,10 +192,12 @@ function fmt(n) {
   return Math.round(n).toLocaleString('es-AR');
 }
 
+function normVal(v) { return parseFloat((v || '').toString().replace(',', '.')) || 0; }
+
 function recalcularRubro(rnum) {
   let total = 0;
   document.querySelectorAll('.cant-input[data-rubro="' + rnum + '"]').forEach(function(inp) {
-    var cant = parseFloat(inp.value) || 0;
+    var cant = normVal(inp.value);
     var precio = parseFloat(inp.dataset.precio) || 0;
     var sub = cant * precio;
     total += sub;
@@ -248,7 +249,7 @@ function recalcularTotal() {
 function recalcularHH() {
   var hh = 0;
   document.querySelectorAll('.cant-input').forEach(function(inp) {
-    var cant = parseFloat(inp.value) || 0;
+    var cant = normVal(inp.value);
     var hof = parseFloat(inp.dataset.hof) || 0;
     var hay = parseFloat(inp.dataset.hay) || 0;
     hh += cant * (hof + hay);
@@ -282,6 +283,13 @@ document.addEventListener('DOMContentLoaded', function() {
     inp.addEventListener('input', function() {
       recalcularRubro(this.dataset.rubro);
       recalcularHH();
+    });
+  });
+
+  // Normalizar coma → punto antes de submit (para que Python pueda parsear float)
+  document.querySelector('form').addEventListener('submit', function() {
+    document.querySelectorAll('.cant-input, input[name="superficie"]').forEach(function(inp) {
+      inp.value = (inp.value || '').replace(',', '.');
     });
   });
 });

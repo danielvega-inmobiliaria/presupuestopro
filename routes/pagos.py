@@ -146,6 +146,38 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
     db.commit()
     logger.info(f"[MP] Usuario {user_id} activado hasta {nueva_exp}")
 
+    # Notificar al usuario y al admin
+    user_full = db.execute("SELECT email, nombre, apellido, telefono FROM users WHERE id=?", (user_id,)).fetchone()
+    if user_full:
+        _enviar_email_activacion(user_full['email'], user_full['nombre'], nueva_exp.isoformat())
+        # Siempre notificar al admin también
+        try:
+            api_key = os.environ.get('RESEND_API_KEY')
+            admin_email = os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')
+            app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
+            if api_key:
+                resend.api_key = api_key
+                nombre_display = f"{user_full['nombre'] or ''} {user_full.get('apellido') or ''}".strip() or user_full['email']
+                tel = user_full.get('telefono') or 'sin teléfono'
+                resend.Emails.send({
+                    "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
+                    "to": [admin_email],
+                    "subject": f"[PresupuestoPRO] Pago aprobado — {nombre_display}",
+                    "text": (
+                        f"Se activó una suscripción nueva.\n\n"
+                        f"Usuario:   {nombre_display}\n"
+                        f"Email:     {user_full['email']}\n"
+                        f"Teléfono:  {tel}\n"
+                        f"Vence:     {nueva_exp.isoformat()}\n"
+                        f"Payment:   {payment_id}\n\n"
+                        f"WhatsApp: https://wa.me/549{tel.replace(' ','').replace('-','').replace('+','')}\n"
+                        f"Link login: {app_url}/login"
+                    ),
+                })
+                logger.info(f"[Email] Admin notificado por activacion de {user_full['email']}")
+        except Exception as e_admin:
+            logger.warning(f"[Email] No se pudo notificar al admin: {e_admin}")
+
     # Enviar notificacion al usuario
     if user:
         _enviar_email_activacion(
@@ -279,6 +311,7 @@ def crear_suscripcion():
         },
         "statement_descriptor": "PRESUPUESTOPRO",
         "expires": False,
+        "notification_url": f"{base_url}/pagos/webhook",
     }
 
     result = sdk.preference().create(preference_data)

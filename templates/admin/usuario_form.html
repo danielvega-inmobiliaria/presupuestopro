@@ -51,9 +51,9 @@
                  {{ '' if u else 'required' }}>
         </div>
         <div class="mb-3">
-          <label class="form-label">Suscripción vence (dejar vacío = indefinido)</label>
+          <label class="form-label">Suscripción vence</label>
           <input type="date" name="subscription_expires" class="form-control"
-                 value="{{ u.subscription_expires if u else '' }}">
+                 value="{{ u.subscription_expires if u else (now_date + timedelta(days=30)).strftime('%Y-%m-%d') }}">
         </div>
         {% if u %}
         <div class="mb-3 form-check">

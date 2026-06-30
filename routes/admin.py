@@ -1,7 +1,7 @@
 import json
 import os
 import urllib.request
-from datetime import date
+from datetime import date, timedelta
 from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
@@ -62,7 +62,8 @@ def usuario_nuevo():
         finally:
             db.close()
         return redirect(url_for('admin.usuarios'))
-    return render_template('admin/usuario_form.html', u=None, user=g.user)
+    return render_template('admin/usuario_form.html', u=None, user=g.user,
+                           now_date=date.today(), timedelta=timedelta)
 
 @bp.route('/usuarios/<int:uid>/editar', methods=['GET', 'POST'])
 @admin_required
@@ -106,23 +107,35 @@ def usuario_editar(uid):
 def usuario_enviar_activacion(uid):
     db = get_db()
     u = db.execute("SELECT email, nombre, subscription_expires FROM users WHERE id=?", (uid,)).fetchone()
-    db.close()
     if not u:
+        db.close()
         flash('Usuario no encontrado.', 'error')
         return redirect(url_for('admin.usuarios'))
 
+    # Si no tiene fecha de vencimiento, asignar hoy + 30 días y activar
+    exp_str = u['subscription_expires']
+    if not exp_str:
+        exp_str = (date.today() + timedelta(days=30)).isoformat()
+        db.execute(
+            "UPDATE users SET active=1, subscription_expires=? WHERE id=?",
+            (exp_str, uid)
+        )
+        db.commit()
+
+    db.close()
+
     from routes.pagos import _enviar_email_activacion
-    exp = u['subscription_expires'] or '-'
+    from datetime import datetime
+    exp_display = exp_str
     try:
-        from datetime import datetime
-        exp = datetime.strptime(exp, '%Y-%m-%d').strftime('%d/%m/%Y')
+        exp_display = datetime.strptime(exp_str, '%Y-%m-%d').strftime('%d/%m/%Y')
     except Exception:
         pass
 
     ok = _enviar_email_activacion(
         user_email=u['email'],
         user_nombre=u['nombre'],
-        fecha_vencimiento=exp,
+        fecha_vencimiento=exp_display,
     )
     if ok:
         flash(f'Email de activacion enviado a {u["email"]}.', 'success')
