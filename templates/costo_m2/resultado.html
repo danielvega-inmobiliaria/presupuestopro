@@ -78,7 +78,7 @@
     <button onclick="window.close()" class="btn btn-sm btn-outline-light">
       <i class="bi bi-arrow-left"></i> Volver
     </button>
-    <button onclick="window.print()" class="btn btn-sm btn-outline-light">
+    <button id="btn-pdf" onclick="exportar()" class="btn btn-sm btn-outline-light" title="Guardar / Imprimir">
       <i class="bi bi-printer"></i>
     </button>
   </div>
@@ -159,9 +159,8 @@
     </tbody>
     <tfoot>
       <tr>
-        <td></td>
-        <td class="r" style="padding-right:8px;font-size:.75rem">Costo de Materiales por {{ display_unit }}</td>
-        <td class="r" style="white-space:nowrap">
+        <td colspan="2" style="font-size:.75rem;font-weight:700;padding-top:6px">Costo de Materiales por {{ display_unit }}</td>
+        <td class="r" style="white-space:nowrap;padding-top:6px">
           <div style="display:flex;justify-content:flex-end;align-items:center;gap:2px">
             <span>$</span><span id="tfoot_val">{{ '{:,.0f}'.format(total_mat).replace(',','.') }}</span>
           </div>
@@ -253,6 +252,26 @@ document.querySelectorAll('.precio-inp').forEach(function(el) {
   el.addEventListener('input',  recalcMat);
   el.addEventListener('change', recalcMat);
 });
+
+/* ── Imprimir / Compartir según dispositivo ── */
+function exportar() {
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS && navigator.share) {
+    // iOS: share sheet nativo → el usuario elige Imprimir o Guardar en Archivos
+    navigator.share({ title: document.title, url: window.location.href })
+      .catch(function(){});
+  } else {
+    window.print();
+  }
+}
+// Cambiar ícono según dispositivo
+(function(){
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (isIOS) {
+    var btn = document.getElementById('btn-pdf');
+    if (btn) btn.innerHTML = '<i class="bi bi-box-arrow-up"></i>';
+  }
+})();
 </script>
 </body>
 </html>
