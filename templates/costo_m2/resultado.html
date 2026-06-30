@@ -254,28 +254,47 @@ document.querySelectorAll('.precio-inp').forEach(function(el) {
   el.addEventListener('change', recalcMat);
 });
 
-/* ── Generar PDF desde el DOM (funciona en iOS y desktop) ── */
+/* ── Generar PDF desde el DOM (iOS y desktop) ── */
 function exportar() {
   var btn = document.getElementById('btn-pdf');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i>'; }
 
-  // Ocultar controles que no deben ir al PDF
   var noPrint = document.querySelectorAll('.no-print');
-  noPrint.forEach(function(el){ el.style.visibility='hidden'; });
+  noPrint.forEach(function(el){ el.style.visibility = 'hidden'; });
 
-  var nombre = '{{ item.nombre|replace("/","_")|replace(" ","_") }}';
+  var nombre = 'CostoM2_{{ item.nombre|replace("/","_")|replace(" ","_") }}';
   var opt = {
     margin:      [8, 8, 8, 8],
-    filename:    'CostoM2_' + nombre + '.pdf',
+    filename:    nombre + '.pdf',
     image:       { type: 'jpeg', quality: 0.97 },
     html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
-  html2pdf().set(opt).from(document.body).save().then(function() {
-    noPrint.forEach(function(el){ el.style.visibility=''; });
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-printer"></i>'; }
-  });
+  var restoreBtn = function() {
+    noPrint.forEach(function(el){ el.style.visibility = ''; });
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-file-earmark-pdf"></i>'; }
+  };
+
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  if (isIOS && navigator.share) {
+    // iOS: generar blob y compartir como archivo (NO como URL)
+    html2pdf().set(opt).from(document.body).output('blob').then(function(blob) {
+      var file = new File([blob], nombre + '.pdf', { type: 'application/pdf' });
+      restoreBtn();
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: nombre });
+      } else {
+        // Fallback iOS sin soporte de archivos: abrir blob
+        var url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
+    }).catch(restoreBtn);
+  } else {
+    // Desktop / Android: descarga directa
+    html2pdf().set(opt).from(document.body).save().then(restoreBtn).catch(restoreBtn);
+  }
 }
 </script>
 </body>

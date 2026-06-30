@@ -1352,6 +1352,50 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2i: columnas fecha_actualizacion + historial_json agregadas")
 
+        # ── 2j. analisis_sub → precios por unidad comercial de venta ─────────
+        # Convierte precios almacenados por unidad mínima a la unidad con la que
+        # se compra en corralón. El total (cant × precio) se mantiene idéntico.
+        #   Ladrillos comunes/vista : unidad → millar (×1000)
+        #   Cemento Albañilería     : kg     → bolsa 25 kg (×25)
+        #   Cemento portland bolsas : kg     → bolsa 50 kg (×50)
+        #   Cal aérea Milagro       : kg     → bolsa 25 kg (×25)
+        #   Hierro redondo          : por kg → sin cambio
+        #   Arena/Granza/m³         : ya están en m³ → sin cambio
+        ya_2j = db.execute("SELECT valor FROM config WHERE clave='2j_done'").fetchone()
+        if not ya_2j:
+            db.execute("""
+                UPDATE analisis_sub
+                SET cant_por_unit = ROUND(cant_por_unit / 1000.0, 6),
+                    precio_ars    = ROUND(precio_ars * 1000, 2)
+                WHERE sub_nombre IN ('Ladrillos comunes','Ladrillos vista')
+                  AND es_material = 1
+            """)
+            db.execute("""
+                UPDATE analisis_sub
+                SET cant_por_unit = ROUND(cant_por_unit / 25.0, 4),
+                    precio_ars    = ROUND(precio_ars * 25, 2)
+                WHERE sub_nombre = 'Cemento Albañilería'
+                  AND es_material = 1
+            """)
+            db.execute("""
+                UPDATE analisis_sub
+                SET cant_por_unit = ROUND(cant_por_unit / 50.0, 4),
+                    precio_ars    = ROUND(precio_ars * 50, 2)
+                WHERE sub_nombre = 'Cemento portland bolsas'
+                  AND es_material = 1
+            """)
+            db.execute("""
+                UPDATE analisis_sub
+                SET cant_por_unit = ROUND(cant_por_unit / 25.0, 4),
+                    precio_ars    = ROUND(precio_ars * 25, 2)
+                WHERE sub_nombre LIKE 'Cal a%'
+                  AND es_material = 1
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2j_done','2026-06-30')")
+            db.commit()
+            print("[migrate_db] 2j: analisis_sub convertido a unidades comerciales")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
