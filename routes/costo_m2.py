@@ -132,34 +132,29 @@ def resultado():
     hs_oficial   = round(item['hof'] * factor_conv, 2)
     hs_ayudante  = round(item['hay'] * factor_conv, 2)
 
-    # Costos por unidad display
-    costo_directo = total_mat_display + mo_por_unit_display
-
     PCT_GG  = 0.10
     PCT_IMP = 0.05
 
-    gg_monto  = round(costo_directo * PCT_GG,  2)
-    imp_monto = round(costo_directo * PCT_IMP, 2)
-    total_display = round(costo_directo + gg_monto + imp_monto, 2)
+    # Adicionales aplicados solo sobre MO
+    gg_monto  = round(mo_por_unit_display * PCT_GG,  2)
+    imp_monto = round(mo_por_unit_display * PCT_IMP, 2)
 
     return render_template('costo_m2/resultado.html',
         item=item,
         display_unit=display_unit,
         mat_items=mat_items,
-        tiene_materiales=total_mat_display > 0,   # True si hay mat (analisis_sub O fallback)
-        tiene_desglose=len(mat_items) > 0,         # True solo si hay filas en analisis_sub
+        tiene_materiales=total_mat_display > 0,
+        tiene_desglose=len(mat_items) > 0,
         total_mat=total_mat_display,
         mo_por_unit=mo_por_unit_display,
         hs_oficial=hs_oficial,
         hs_ayudante=hs_ayudante,
         jornal_of_dia=jornal_of_dia,
         jornal_ay_dia=jornal_ay_dia,
-        costo_directo=costo_directo,
         pct_gg=int(PCT_GG * 100),
         pct_imp=int(PCT_IMP * 100),
         gg_monto=gg_monto,
         imp_monto=imp_monto,
-        total_display=total_display,
         factor_conv=factor_conv,
         hof_orig=item['hof'],
         hay_orig=item['hay'],

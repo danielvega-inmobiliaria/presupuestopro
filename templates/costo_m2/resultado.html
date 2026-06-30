@@ -56,6 +56,12 @@
   .tbl-mat td { padding:5px 7px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
   .tbl-mat tfoot tr td { background:#fef3c7; font-weight:700; border-top:2px solid #d97706; }
 
+  /* Precio editable en tabla materiales */
+  .precio-inp { border:1px solid #d1d5db; border-radius:4px; padding:2px 6px;
+                width:90px; text-align:right; font-size:.79rem; background:#fef9e7;
+                font-weight:600; }
+  .precio-inp:focus { outline:none; border-color:#1a56db; background:#fff; }
+
   @media print { .no-print{display:none!important} body{background:#fff} }
 </style>
 </head>
@@ -94,16 +100,10 @@
   </div>
 </div>
 
-{# ── TARJETA AZUL: COSTO TOTAL / M2 ── #}
+{# ── TARJETA AZUL: COSTO MO / M2 ── #}
 <div class="card-azul">
-  <div class="label">Costo por {{ display_unit }}</div>
-  <div class="valor-grande" id="c_total">$ {{ '{:,.0f}'.format(total_display).replace(',','.') }}</div>
-  <div class="sub-row">
-    <span>MO — <strong id="c_mo">$ {{ '{:,.0f}'.format(mo_por_unit).replace(',','.') }}</strong></span>
-    {% if tiene_materiales %}
-    <span>MAT — <strong id="c_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</strong></span>
-    {% endif %}
-  </div>
+  <div class="label">MO / {{ display_unit }}</div>
+  <div class="valor-grande" id="c_mo">$ {{ '{:,.0f}'.format(mo_por_unit).replace(',','.') }}</div>
 </div>
 
 {# ── TARJETA VERDE: MATERIALES ── #}
@@ -140,8 +140,8 @@
       <tr>
         <th>Material</th>
         <th class="r">Cant.</th>
-        <th class="r">$</th>
-        <th class="r">Costo Comercial</th>
+        <th class="r">$ Precio</th>
+        <th class="r">$ Costo</th>
       </tr>
     </thead>
     <tbody>
@@ -149,16 +149,20 @@
       <tr>
         <td>{{ m.nombre }}</td>
         <td class="r">{{ m.cantidad }}</td>
-        <td class="r">$ {{ '{:,.0f}'.format(m.costo_necesario).replace(',','.') }}</td>
-        <td class="r text-muted">$ {{ '{:,.0f}'.format(m.costo_comercial).replace(',','.') }}</td>
+        <td class="r">
+          <input type="text" inputmode="decimal" class="precio-inp no-print"
+                 data-cant="{{ m.cantidad }}" data-row="{{ loop.index0 }}"
+                 value="{{ '{:,.0f}'.format(m.costo_comercial).replace(',','.') }}">
+          <span class="d-none d-print-inline">$ {{ '{:,.0f}'.format(m.costo_comercial).replace(',','.') }}</span>
+        </td>
+        <td class="r" id="fila_{{ loop.index0 }}">$ {{ '{:,.0f}'.format(m.costo_necesario).replace(',','.') }}</td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="2" style="text-align:right">DT por {{ display_unit }}</td>
-        <td class="r">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
-        <td></td>
+        <td colspan="3" class="r" style="padding-right:10px">Costo de Materiales por {{ display_unit }}</td>
+        <td class="r" id="tfoot_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
       </tr>
     </tfoot>
   </table>
@@ -182,34 +186,29 @@
 {% endif %}
 
 <script>
-var TOTAL_MAT   = {{ total_mat }};
 var HOF_ORIG    = {{ hof_orig }};
 var HAY_ORIG    = {{ hay_orig }};
 var FACTOR_CONV = {{ factor_conv }};
-var TIENE_MAT   = {{ 'true' if tiene_materiales else 'false' }};
 
 function fmt(n) {
   return Math.round(n).toLocaleString('es-AR').replace(/,/g,'.');
 }
 function normNum(s) {
-  // Soporta tanto formato arg (80.000) como sin separadores (80000) o coma decimal (80,5)
   var str = (s || '0').toString().trim();
-  // Si tiene punto Y coma → punto es miles, coma es decimal
   if (str.indexOf('.') !== -1 && str.indexOf(',') !== -1) {
     str = str.replace(/\./g,'').replace(',','.');
   } else if (str.indexOf('.') !== -1) {
-    // Solo punto: verificar si es miles (>3 dígitos después) o decimal
     var parts = str.split('.');
     if (parts[parts.length-1].length === 3 && parts.length > 1) {
-      str = str.replace(/\./g,'');  // miles
+      str = str.replace(/\./g,'');
     }
-    // else: decimal normal, dejar como está
   } else if (str.indexOf(',') !== -1) {
-    str = str.replace(',','.');  // coma decimal
+    str = str.replace(',','.');
   }
   return parseFloat(str) || 0;
 }
 
+/* ── Recalcula solo MO + adicionales sobre MO ── */
 function recalc() {
   var jo_dia  = normNum(document.getElementById('inp_jo').value);
   var ja_dia  = normNum(document.getElementById('inp_ja').value);
@@ -217,27 +216,39 @@ function recalc() {
   var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
 
   var mo  = (HOF_ORIG * (jo_dia / 8) + HAY_ORIG * (ja_dia / 8)) * FACTOR_CONV;
-  var cd  = TOTAL_MAT + mo;
-  var gg  = cd * pct_gg;
-  var imp = cd * pct_imp;
-  var tot = cd + gg + imp;
+  var gg  = mo * pct_gg;
+  var imp = mo * pct_imp;
 
-  document.getElementById('c_total').textContent = '$ ' + fmt(tot);
-  document.getElementById('c_mo').textContent    = '$ ' + fmt(mo);
-  if (TIENE_MAT) {
-    var el_mat = document.getElementById('c_mat');
-    var el_cv  = document.getElementById('cv_mat');
-    if (el_mat) el_mat.textContent = '$ ' + fmt(TOTAL_MAT);
-    if (el_cv)  el_cv.textContent  = '$ ' + fmt(TOTAL_MAT);
-  }
-  document.getElementById('a_gg').textContent  = '$ ' + fmt(gg);
-  document.getElementById('a_imp').textContent = '$ ' + fmt(imp);
+  document.getElementById('c_mo').textContent   = '$ ' + fmt(mo);
+  document.getElementById('a_gg').textContent   = '$ ' + fmt(gg);
+  document.getElementById('a_imp').textContent  = '$ ' + fmt(imp);
+}
+
+/* ── Recalcula materiales cuando se edita un precio unitario ── */
+function recalcMat() {
+  var total = 0;
+  document.querySelectorAll('.precio-inp').forEach(function(inp) {
+    var cant  = parseFloat(inp.dataset.cant) || 0;
+    var precio = normNum(inp.value);
+    var costo  = cant * precio;
+    total += costo;
+    var cel = document.getElementById('fila_' + inp.dataset.row);
+    if (cel) cel.textContent = '$ ' + fmt(costo);
+  });
+  var cv = document.getElementById('cv_mat');
+  if (cv) cv.textContent = '$ ' + fmt(total);
+  var tf = document.getElementById('tfoot_mat');
+  if (tf) tf.textContent = '$ ' + fmt(total);
 }
 
 ['inp_jo','inp_ja','inp_gg','inp_imp'].forEach(function(id) {
   var el = document.getElementById(id);
-  el.addEventListener('input',  recalc);
-  el.addEventListener('change', recalc);
+  if (el) { el.addEventListener('input', recalc); el.addEventListener('change', recalc); }
+});
+
+document.querySelectorAll('.precio-inp').forEach(function(el) {
+  el.addEventListener('input',  recalcMat);
+  el.addEventListener('change', recalcMat);
 });
 </script>
 </body>
