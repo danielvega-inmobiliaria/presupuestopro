@@ -1,37 +1,42 @@
-<div class="wizard-steps mb-4">
-  {% set steps = [
-    ('1','Datos',       'nuevo'),
-    ('2','Rubros',      'rubros'),
-    ('3','Subc.',       'subcontratos'),
-    ('4','Indirec.',    'indirectos'),
-    ('5','Modo/Tiempo', 'modo_tiempo'),
-    ('6','Materiales',  'materiales'),
-    ('7','Pago',        'forma_pago'),
-    ('8','Resumen',     'resumen'),
-  ] %}
-  {% set current_ep = request.endpoint.replace('presupuesto.','') %}
-  {% set paso_num = namespace(val=0) %}
-  {% for num, label, ep in steps %}
-    {% if ep == current_ep %}{% set paso_num.val = loop.index %}{% endif %}
-  {% endfor %}
-  {# wizard_step = el paso más alto que ya fue guardado #}
-  {% set max_step = p.get('wizard_step', paso_num.val) if p is defined else paso_num.val %}
+{% set steps = [
+  ('1','Datos de obra',  'nuevo'),
+  ('2','Rubros',         'rubros'),
+  ('3','Subcontratos',   'subcontratos'),
+  ('4','Indirectos',     'indirectos'),
+  ('5','Modo / Tiempo',  'modo_tiempo'),
+  ('6','Materiales',     'materiales'),
+  ('7','Forma de pago',  'forma_pago'),
+  ('8','Resumen',        'resumen'),
+] %}
+{% set current_ep = request.endpoint.replace('presupuesto.','') %}
+{% set ns = namespace(paso=0, label='') %}
+{% for num, label, ep in steps %}
+  {% if ep == current_ep %}
+    {% set ns.paso = loop.index %}
+    {% set ns.label = label %}
+  {% endif %}
+{% endfor %}
+{# Al editar un presupuesto completo, todos los pasos son navegables #}
+{% set max_step = 8 if (p is defined and p.get('_editando_nro')) else (p.get('wizard_step', ns.paso) if p is defined else ns.paso) %}
 
-  {% for num, label, ep in steps %}
-    {% set is_active = (loop.index == paso_num.val) %}
-    {% set is_done   = (loop.index < paso_num.val) %}
-    {% set is_nav    = (loop.index <= max_step) %}  {# clickeable si ya fue visitado #}
+<div class="wizard-steps mb-0">
+{% for num, label, ep in steps %}
+  {% set is_active = (loop.index == ns.paso) %}
+  {% set is_done   = (loop.index < ns.paso) %}
+  {% set is_nav    = (loop.index <= max_step and not is_active) %}
 
-    {% if is_nav and not is_active %}
-      <a href="{{ url_for('presupuesto.' ~ ep) }}"
-         class="step done{% if is_active %} active{% endif %}"
-         title="Ir a {{ label }}">
-        <i class="bi bi-check"></i><br>{{ label }}
-      </a>
-    {% elif is_active %}
-      <div class="step active">{{ num }}<br>{{ label }}</div>
-    {% else %}
-      <div class="step">{{ num }}<br>{{ label }}</div>
-    {% endif %}
-  {% endfor %}
+  {% if is_nav %}
+    <a href="{{ url_for('presupuesto.' ~ ep) }}"
+       class="step done" title="Paso {{ num }}: {{ label }}">
+      <i class="bi bi-check"></i>
+    </a>
+  {% elif is_active %}
+    <div class="step active">{{ num }}</div>
+  {% else %}
+    <div class="step">{{ num }}</div>
+  {% endif %}
+{% endfor %}
+</div>
+<div class="text-center text-muted mb-3" style="font-size:.72rem; padding:.2rem 0">
+  Paso {{ ns.paso }} — {{ ns.label }}
 </div>

@@ -60,6 +60,7 @@
 </nav>
 {% endif %}
 
+{% block sticky_nav %}{% endblock %}
 <div class="container-fluid py-4">
   {% with msgs = get_flashed_messages(with_categories=True) %}
     {% for cat, msg in msgs %}

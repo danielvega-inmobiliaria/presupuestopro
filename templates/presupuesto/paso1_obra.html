@@ -1,6 +1,15 @@
 {% extends 'base.html' %}
 {% block title %}Nuevo presupuesto — Paso 1{% endblock %}
 
+{% block sticky_nav %}
+<div class="wizard-sticky-nav">
+  <span class="text-muted small">Paso 1</span>
+  <button type="submit" form="formObra" class="btn btn-sm btn-warning fw-bold">
+    Siguiente <i class="bi bi-arrow-right"></i>
+  </button>
+</div>
+{% endblock %}
+
 {% block content %}
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
@@ -9,7 +18,7 @@
     <i class="bi bi-person-lines-fill"></i> Paso 1 — Datos del cliente y la obra
   </div>
   <div class="card-body p-4">
-    <form method="post">
+    <form method="post" id="formObra">
       <h6 class="text-muted mb-3">Cliente</h6>
       <div class="row g-3">
         <div class="col-md-6">

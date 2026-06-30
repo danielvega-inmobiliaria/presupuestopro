@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 {% block title %}Resumen — Paso 8{% endblock %}
 
+{% block sticky_nav %}
+<div class="wizard-sticky-nav">
+  <a href="{{ url_for('presupuesto.forma_pago') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Anterior
+  </a>
+  <button type="submit" form="formResumen" class="btn btn-sm btn-success fw-bold">
+    <i class="bi bi-save"></i> Guardar
+  </button>
+</div>
+{% endblock %}
+
 {% block content %}
 {% include 'presupuesto/_wizard_steps.html' with context %}
 

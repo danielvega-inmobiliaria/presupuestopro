@@ -9,16 +9,11 @@ body { background: #f8f9fa; }
 .navbar-brand { color: var(--pp-gold) !important; }
 
 /* Wizard steps */
-.wizard-steps {
-  display: flex; gap: 0; margin-bottom: 2rem;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;  /* Firefox */
-}
-.wizard-steps::-webkit-scrollbar { display: none; }  /* Chrome/Safari */
+.wizard-steps { display: flex; gap: 0; margin-bottom: .25rem; }
 .wizard-steps .step {
-  flex: 0 0 auto; min-width: 58px;
-  text-align: center; padding: .4rem .3rem;
-  font-size: .72rem; font-weight: 600;
+  flex: 1; min-width: 0;
+  text-align: center; padding: .5rem .05rem;
+  font-size: .8rem; font-weight: 700; line-height: 1;
   background: #dee2e6; color: #6c757d;
   border-right: 2px solid #fff;
 }
@@ -56,6 +51,20 @@ body { background: #f8f9fa; }
 
 /* Badges */
 .badge-pais { font-size: .85rem; padding: .35em .7em; }
+
+/* Sticky wizard nav */
+.wizard-sticky-nav {
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: .4rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+}
 
 /* Print */
 @media print {

@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 {% block title %}Paso 2: Computo de Obra{% endblock %}
 
+{% block sticky_nav %}
+<div class="wizard-sticky-nav">
+  <a href="{{ url_for('presupuesto.nuevo') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Anterior
+  </a>
+  <button type="submit" form="formComputo" class="btn btn-sm btn-warning fw-bold">
+    Siguiente <i class="bi bi-arrow-right"></i>
+  </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-2 px-md-3" style="max-width:960px; margin:0 auto;">
 

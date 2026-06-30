@@ -1,6 +1,17 @@
 {% extends 'base.html' %}
 {% block title %}Forma de pago — Paso 7{% endblock %}
 
+{% block sticky_nav %}
+<div class="wizard-sticky-nav">
+  <a href="{{ url_for('presupuesto.materiales') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Anterior
+  </a>
+  <button type="submit" form="formPago" class="btn btn-sm btn-warning fw-bold">
+    Siguiente <i class="bi bi-arrow-right"></i>
+  </button>
+</div>
+{% endblock %}
+
 {% block content %}
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
