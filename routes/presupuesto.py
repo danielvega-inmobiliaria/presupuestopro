@@ -1,7 +1,7 @@
 import json
 import math
 import urllib.request
-from datetime import date
+from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, session, g, flash
 from utils.auth import login_required
 from utils.calculations import (
@@ -1162,6 +1162,9 @@ def ver(pid):
     pres = db.execute(
         "SELECT * FROM presupuestos WHERE id=? AND user_id=?", (pid, g.user['id'])
     ).fetchone()
+    cfg_precios = db.execute(
+        "SELECT valor FROM config WHERE clave='precios_updated_at'"
+    ).fetchone()
     db.close()
     if not pres:
         flash('Presupuesto no encontrado.', 'error')
@@ -1171,6 +1174,27 @@ def ver(pid):
     for campo in ('rubros_json', 'subcontratos_json', 'indirectos_json', 'materiales_json'):
         p[campo.replace('_json', '')] = json.loads(p.get(campo) or '[]')
 
+    # ── Calcular días transcurridos y si hay precios nuevos ──────────────
+    hoy = date.today()
+    ref_fecha_str = p.get('fecha_actualizacion') or p.get('fecha_presup') or ''
+    try:
+        ref_fecha = datetime.strptime(ref_fecha_str[:10], '%Y-%m-%d').date()
+    except Exception:
+        ref_fecha = hoy
+    dias_transcurridos = (hoy - ref_fecha).days
+
+    precios_updated_str = cfg_precios['valor'] if cfg_precios else None
+    precios_mas_nuevos = False
+    if precios_updated_str:
+        try:
+            precios_date = datetime.strptime(precios_updated_str[:10], '%Y-%m-%d').date()
+            precios_mas_nuevos = precios_date > ref_fecha
+        except Exception:
+            pass
+
+    necesita_actualizacion = dias_transcurridos > 30 or precios_mas_nuevos
+    # ─────────────────────────────────────────────────────────────────────
+
     pais = session.get('pais', 'AR')
     tasa, simbolo = get_tipo_cambio(pais)
     cuadro = calcular_cuadro_pago(
@@ -1179,7 +1203,10 @@ def ver(pid):
         calcular_cuotas(p['dias_obra'], p['frecuencia_pago'])
     )
     return render_template('presupuesto/ver.html',
-                           p=p, cuadro=cuadro, simbolo=simbolo, user=g.user)
+                           p=p, cuadro=cuadro, simbolo=simbolo, user=g.user,
+                           dias_transcurridos=dias_transcurridos,
+                           precios_mas_nuevos=precios_mas_nuevos,
+                           necesita_actualizacion=necesita_actualizacion)
 
 
 # =========================================================================

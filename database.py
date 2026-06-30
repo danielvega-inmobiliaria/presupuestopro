@@ -1331,8 +1331,26 @@ def migrate_db():
             )
             db.commit()
             db.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('2h_done','2026-06-30')")
+            db.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('precios_updated_at','2026-06-30')")
             db.commit()
             print(f"[migrate_db] 2h: analisis_sub repoblado ({len(SUBS_2H)} filas) + HOF/HAY corregidos")
+
+        # ── 2i. Columnas fecha_actualizacion e historial_json en presupuestos ──
+        ya_2i = db.execute("SELECT valor FROM config WHERE clave='2i_done'").fetchone()
+        if not ya_2i:
+            try:
+                db.execute("ALTER TABLE presupuestos ADD COLUMN fecha_actualizacion TEXT")
+            except Exception:
+                pass
+            try:
+                db.execute("ALTER TABLE presupuestos ADD COLUMN historial_json TEXT DEFAULT '[]'")
+            except Exception:
+                pass
+            # precios_updated_at por si 2h ya corrió antes sin este valor
+            db.execute("INSERT OR IGNORE INTO config (clave, valor) VALUES ('precios_updated_at','2026-06-30')")
+            db.execute("INSERT OR REPLACE INTO config (clave, valor) VALUES ('2i_done','2026-06-30')")
+            db.commit()
+            print("[migrate_db] 2i: columnas fecha_actualizacion + historial_json agregadas")
 
     except Exception as e:
         print(f"[migrate_db] {e}")

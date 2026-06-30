@@ -2,6 +2,36 @@
 {% block title %}Presupuesto {{ p.nro }}{% endblock %}
 
 {% block content %}
+
+{# ── Badge días + alerta de actualización ── #}
+{% if necesita_actualizacion %}
+<div class="alert alert-warning d-flex align-items-center gap-3 mb-3 py-2" role="alert">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div class="flex-grow-1 small">
+    {% if dias_transcurridos > 30 %}
+      <strong>Este presupuesto tiene {{ dias_transcurridos }} días.</strong>
+      {% if precios_mas_nuevos %} Además, la lista de precios fue actualizada.{% endif %}
+    {% else %}
+      <strong>La lista de precios fue actualizada</strong> desde que se confeccionó este presupuesto.
+    {% endif %}
+    ¿Querés actualizarlo con los valores actuales?
+  </div>
+  <a href="{{ url_for('presupuesto.editar', pid=p.id) }}"
+     class="btn btn-warning btn-sm fw-bold text-nowrap">
+    <i class="bi bi-arrow-repeat me-1"></i>Actualizar precios
+  </a>
+</div>
+{% else %}
+<div class="mb-3">
+  <span class="badge bg-light text-secondary border" style="font-size:.78rem">
+    <i class="bi bi-clock me-1"></i>
+    {% if dias_transcurridos == 0 %}Confeccionado hoy
+    {% elif dias_transcurridos == 1 %}Hace 1 día
+    {% else %}Hace {{ dias_transcurridos }} días{% endif %}
+  </span>
+</div>
+{% endif %}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
     <h4 class="mb-0">Presupuesto <span class="badge bg-secondary">{{ p.nro }}</span></h4>
