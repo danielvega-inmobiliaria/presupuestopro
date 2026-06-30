@@ -6,6 +6,7 @@
 <title>Costo/{{ display_unit }} — {{ item.nombre }}</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   body { background:#f0f4f8; font-family:Arial,sans-serif; font-size:.9rem; }
 
@@ -78,8 +79,8 @@
     <button onclick="window.close()" class="btn btn-sm btn-outline-light">
       <i class="bi bi-arrow-left"></i> Volver
     </button>
-    <button id="btn-pdf" onclick="exportar()" class="btn btn-sm btn-outline-light" title="Guardar / Imprimir">
-      <i class="bi bi-printer"></i>
+    <button id="btn-pdf" onclick="exportar()" class="btn btn-sm btn-outline-light" title="Guardar PDF">
+      <i class="bi bi-file-earmark-pdf"></i>
     </button>
   </div>
 </div>
@@ -253,25 +254,29 @@ document.querySelectorAll('.precio-inp').forEach(function(el) {
   el.addEventListener('change', recalcMat);
 });
 
-/* ── Imprimir / Compartir según dispositivo ── */
+/* ── Generar PDF desde el DOM (funciona en iOS y desktop) ── */
 function exportar() {
-  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  if (isIOS && navigator.share) {
-    // iOS: share sheet nativo → el usuario elige Imprimir o Guardar en Archivos
-    navigator.share({ title: document.title, url: window.location.href })
-      .catch(function(){});
-  } else {
-    window.print();
-  }
+  var btn = document.getElementById('btn-pdf');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split"></i>'; }
+
+  // Ocultar controles que no deben ir al PDF
+  var noPrint = document.querySelectorAll('.no-print');
+  noPrint.forEach(function(el){ el.style.visibility='hidden'; });
+
+  var nombre = '{{ item.nombre|replace("/","_")|replace(" ","_") }}';
+  var opt = {
+    margin:      [8, 8, 8, 8],
+    filename:    'CostoM2_' + nombre + '.pdf',
+    image:       { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(document.body).save().then(function() {
+    noPrint.forEach(function(el){ el.style.visibility=''; });
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-printer"></i>'; }
+  });
 }
-// Cambiar ícono según dispositivo
-(function(){
-  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-  if (isIOS) {
-    var btn = document.getElementById('btn-pdf');
-    if (btn) btn.innerHTML = '<i class="bi bi-box-arrow-up"></i>';
-  }
-})();
 </script>
 </body>
 </html>
