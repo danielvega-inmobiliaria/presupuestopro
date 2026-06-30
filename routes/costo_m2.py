@@ -123,9 +123,10 @@ def resultado():
         })
 
     # Si no hay analisis_sub, usar precio_ars - precio_mo_ars como referencia
+    # Clampear a 0 para evitar materiales negativos cuando precio_mo_ars > precio_ars
     if not mat_items and item['precio_ars']:
         precio_mo_ref = item['precio_mo_ars'] or 0
-        total_mat_display = (item['precio_ars'] - precio_mo_ref) * factor_conv
+        total_mat_display = max(0.0, (item['precio_ars'] - precio_mo_ref) * factor_conv)
 
     # Horas para 1 unidad display
     hs_oficial   = round(item['hof'] * factor_conv, 2)
@@ -145,7 +146,8 @@ def resultado():
         item=item,
         display_unit=display_unit,
         mat_items=mat_items,
-        tiene_materiales=len(mat_items) > 0,
+        tiene_materiales=total_mat_display > 0,   # True si hay mat (analisis_sub O fallback)
+        tiene_desglose=len(mat_items) > 0,         # True solo si hay filas en analisis_sub
         total_mat=total_mat_display,
         mo_por_unit=mo_por_unit_display,
         hs_oficial=hs_oficial,

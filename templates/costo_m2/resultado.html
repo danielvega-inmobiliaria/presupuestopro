@@ -87,9 +87,6 @@
     <input type="text" id="inp_ja" class="jornal-input"
            value="{{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}" inputmode="decimal">
   </div>
-  <button class="btn btn-primary btn-sm" onclick="recalc()">
-    <i class="bi bi-arrow-clockwise"></i> Recalcular
-  </button>
 </div>
 
 {# ── TARJETA AZUL: COSTO TOTAL / M2 ── #}
@@ -106,7 +103,7 @@
 
 {# ── TARJETA VERDE: MATERIALES ── #}
 {% if tiene_materiales %}
-<div class="card-verde">
+<div class="card-verde" id="card_verde">
   <div class="label">Materiales / {{ display_unit }}</div>
   <div class="valor" id="cv_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</div>
 </div>
@@ -130,7 +127,7 @@
 </div>
 
 {# ── DESGLOSE MATERIALES ── #}
-{% if tiene_materiales %}
+{% if tiene_desglose %}
 <div class="mat-card">
   <div class="mat-title">Desglose Materiales por {{ display_unit }}</div>
   <table class="tbl-mat">
@@ -161,12 +158,20 @@
     </tfoot>
   </table>
 </div>
+{% elif tiene_materiales %}
+<div class="mat-card">
+  <div class="mat-title">Desglose Materiales</div>
+  <p class="text-muted mb-0" style="font-size:.82rem">
+    Desglose por material no disponible para este ítem.<br>
+    El costo de materiales surge de: precio unitario − costo MO calculado.
+  </p>
+</div>
 {% else %}
 <div class="mat-card">
   <div class="mat-title">Desglose Materiales</div>
   <p class="text-muted mb-0" style="font-size:.82rem">
-    Sin desglose de materiales disponible para este ítem.<br>
-    El costo de materiales surge de: precio unitario − costo MO calculado.
+    Sin datos de materiales para este ítem.<br>
+    El costo total refleja únicamente Mano de Obra + adicionales.
   </p>
 </div>
 {% endif %}
@@ -178,9 +183,26 @@ var HAY_ORIG    = {{ hay_orig }};
 var FACTOR_CONV = {{ factor_conv }};
 var TIENE_MAT   = {{ 'true' if tiene_materiales else 'false' }};
 
-function fmt(n) { return Math.round(n).toLocaleString('es-AR').replace(/,/g,'.'); }
+function fmt(n) {
+  return Math.round(n).toLocaleString('es-AR').replace(/,/g,'.');
+}
 function normNum(s) {
-  return parseFloat((s||'0').toString().replace(/\./g,'').replace(',','.')) || 0;
+  // Soporta tanto formato arg (80.000) como sin separadores (80000) o coma decimal (80,5)
+  var str = (s || '0').toString().trim();
+  // Si tiene punto Y coma → punto es miles, coma es decimal
+  if (str.indexOf('.') !== -1 && str.indexOf(',') !== -1) {
+    str = str.replace(/\./g,'').replace(',','.');
+  } else if (str.indexOf('.') !== -1) {
+    // Solo punto: verificar si es miles (>3 dígitos después) o decimal
+    var parts = str.split('.');
+    if (parts[parts.length-1].length === 3 && parts.length > 1) {
+      str = str.replace(/\./g,'');  // miles
+    }
+    // else: decimal normal, dejar como está
+  } else if (str.indexOf(',') !== -1) {
+    str = str.replace(',','.');  // coma decimal
+  }
+  return parseFloat(str) || 0;
 }
 
 function recalc() {
@@ -189,29 +211,28 @@ function recalc() {
   var pct_gg  = normNum(document.getElementById('inp_gg').value)  / 100;
   var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
 
-  var mo  = (HOF_ORIG * (jo_dia/8) + HAY_ORIG * (ja_dia/8)) * FACTOR_CONV;
+  var mo  = (HOF_ORIG * (jo_dia / 8) + HAY_ORIG * (ja_dia / 8)) * FACTOR_CONV;
   var cd  = TOTAL_MAT + mo;
   var gg  = cd * pct_gg;
   var imp = cd * pct_imp;
   var tot = cd + gg + imp;
 
-  // Tarjeta azul
   document.getElementById('c_total').textContent = '$ ' + fmt(tot);
   document.getElementById('c_mo').textContent    = '$ ' + fmt(mo);
   if (TIENE_MAT) {
-    document.getElementById('c_mat').textContent  = '$ ' + fmt(TOTAL_MAT);
-    document.getElementById('cv_mat').textContent = '$ ' + fmt(TOTAL_MAT);
+    var el_mat = document.getElementById('c_mat');
+    var el_cv  = document.getElementById('cv_mat');
+    if (el_mat) el_mat.textContent = '$ ' + fmt(TOTAL_MAT);
+    if (el_cv)  el_cv.textContent  = '$ ' + fmt(TOTAL_MAT);
   }
-  // Adicionales
   document.getElementById('a_gg').textContent  = '$ ' + fmt(gg);
   document.getElementById('a_imp').textContent = '$ ' + fmt(imp);
 }
 
 ['inp_jo','inp_ja','inp_gg','inp_imp'].forEach(function(id) {
-  document.getElementById(id).addEventListener('change', recalc);
-  document.getElementById(id).addEventListener('keydown', function(e) {
-    if (e.key==='Enter') recalc();
-  });
+  var el = document.getElementById(id);
+  el.addEventListener('input',  recalc);
+  el.addEventListener('change', recalc);
 });
 </script>
 </body>
