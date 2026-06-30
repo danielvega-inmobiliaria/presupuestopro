@@ -766,6 +766,71 @@ def migrate_db():
         print("[migrate_db] 2f: Precios Hormigón elaborado colado y losa ceramica corregidos")
         print("[migrate_db] 2e: HOF/HAY H.Elab. corregidos")
 
+        # 2g. Agregar columna m2_factor a items_obra (para calculadora Costo/m2)
+        cols_io2 = [r[1] for r in db.execute("PRAGMA table_info(items_obra)").fetchall()]
+        if 'm2_factor' not in cols_io2:
+            db.execute("ALTER TABLE items_obra ADD COLUMN m2_factor REAL DEFAULT NULL")
+            db.commit()
+            print("[migrate_db] 2g: Columna items_obra.m2_factor agregada")
+
+        # Renombres de items (para mejor legibilidad en la app)
+        _renombres = [
+            ('Relleno y Compactacion',              'Relleno y Compactacion C/15cm'),
+            ('Piso ceramico 2',                     'Piso Ceramico'),
+            ('Piso ceramico 3 (porcellanato)',       'Piso Porcellanato'),
+            ('Zocalo ceramico 2',                   'Zocalo Ceramico'),
+            ('Zocalo ceramico 3',                   'Zocalo Porcellanato'),
+            ('Rvto. ceramico 2',                    'Rvto. Ceramico'),
+            ('Rvto. ceramico 3 porcellanato',       'Rvto. Porcellanato'),
+            ('Demolicion mamposteria',              'Demolicion mamposteria 0,15'),
+        ]
+        for viejo, nuevo in _renombres:
+            db.execute("UPDATE items_obra SET nombre=? WHERE nombre=?", (nuevo, viejo))
+        db.commit()
+
+        # Agregar Demolicion mamposteria 0,30 si no existe
+        existe_030 = db.execute(
+            "SELECT id FROM items_obra WHERE nombre='Demolicion mamposteria 0,30'"
+        ).fetchone()
+        if not existe_030:
+            src = db.execute(
+                "SELECT rubro_num, rubro_nombre, unidad, precio_ars, hof, hay "
+                "FROM items_obra WHERE nombre='Demolicion mamposteria 0,15'"
+            ).fetchone()
+            if src:
+                db.execute(
+                    "INSERT INTO items_obra (rubro_num, rubro_nombre, nombre, unidad, precio_ars, hof, hay, orden, m2_factor) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (src['rubro_num'], src['rubro_nombre'],
+                     'Demolicion mamposteria 0,30', src['unidad'],
+                     src['precio_ars'], src['hof'], src['hay'], 85, 0.30)
+                )
+                db.commit()
+                print("[migrate_db] 2g: Item 'Demolicion mamposteria 0,30' agregado")
+
+        # Setear m2_factor para los items que se convierten de m3 a m2
+        _m2_factors = {
+            'Demolicion mamposteria 0,15':     0.15,
+            'Demolicion mamposteria 0,30':     0.30,
+            'Relleno y Compactacion C/15cm':   0.15,
+            'Ho.Ado. tabique 10cm (110-20)':   0.10,
+            'Ho.Ado. tabique 15cm (110-13)':   0.15,
+            'Ho.Ado. losa 10cm (80-10)':       0.10,
+            'Ho.Ado. losa 15cm (75-6.66)':     0.15,
+            'H.Elab. tabique 10cm (110-20)':   0.10,
+            'H.Elab. tabique 15cm (110-13)':   0.15,
+            'H.Elab. losa 10cm (80-10)':       0.10,
+            'H.Elab. losa 15cm (75-6.66)':     0.15,
+            'Mamp. ladrillo comun 15cm':       0.15,
+            'Mamp. ladrillo comun 30cm':       0.30,
+            'Mamp. ladrillo vista 15cm':       0.15,
+            'Mamp. ladrillo vista 30cm':       0.30,
+        }
+        for nombre, factor in _m2_factors.items():
+            db.execute("UPDATE items_obra SET m2_factor=? WHERE nombre=?", (factor, nombre))
+        db.commit()
+        print("[migrate_db] 2g: m2_factor seteado en items_obra")
+
         # 3. Crear tabla analisis_sub si no existe y popularla
         db.execute("""
             CREATE TABLE IF NOT EXISTS analisis_sub (
