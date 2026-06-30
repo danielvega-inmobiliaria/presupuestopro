@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Costo por M² — PresupuestoPRO{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-rulers me-2"></i>Costo por M²</h4>
+  <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+<p class="text-muted mb-3">Seleccioná un ítem para calcular su costo por metro cuadrado.</p>
+
+{# Barra fija inferior con botones — aparece al seleccionar #}
+<div id="barraCalc" class="d-none" style="
+  position:fixed; bottom:0; left:0; right:0; z-index:1050;
+  background:#1a56db; padding:14px 20px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  box-shadow:0 -2px 12px rgba(0,0,0,.25);">
+  <span id="barraLabel" class="text-white fw-semibold" style="font-size:.95rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+  <div class="d-flex gap-2">
+    <button onclick="cancelar()" class="btn btn-outline-light btn-sm px-3">
+      <i class="bi bi-x-lg"></i> Cancelar
+    </button>
+    <button onclick="calcular()" class="btn btn-warning btn-sm px-3 fw-bold">
+      <i class="bi bi-calculator"></i> Calcular
+    </button>
+  </div>
+</div>
+<div id="barraEspaciado" class="d-none" style="height:70px"></div>
+
+{% for (rnum, rnombre), items in rubros.items() %}
+<div class="card mb-3 shadow-sm">
+  <div class="card-header fw-semibold py-2" style="background:#f0f5ff;color:#1a56db">
+    <i class="bi bi-folder2 me-1"></i> {{ rnum }} — {{ rnombre }}
+  </div>
+  <div class="list-group list-group-flush">
+    {% for it in items %}
+    <label class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2 px-3 item-row"
+           style="cursor:pointer" data-id="{{ it.id }}" data-nombre="{{ it.nombre }}" data-unidad="{{ it.unidad }}">
+      <input type="radio" name="item_sel" class="form-check-input mt-0 flex-shrink-0"
+             value="{{ it.id }}" style="width:1.2em;height:1.2em">
+      <span class="flex-grow-1">{{ it.nombre }}</span>
+      <span class="badge bg-secondary ms-auto">{{ it.unidad }}</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<script>
+var selectedId = null;
+
+document.querySelectorAll('input[name="item_sel"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    var row = this.closest('.item-row');
+    var nombre = row.dataset.nombre;
+    var unidad = row.dataset.unidad;
+    selectedId = this.value;
+
+    // Highlight
+    document.querySelectorAll('.item-row').forEach(function(r) {
+      r.classList.remove('active');
+    });
+    row.classList.add('active');
+
+    // Mostrar barra
+    document.getElementById('barraLabel').textContent = nombre + ' (' + unidad + ')';
+    document.getElementById('barraCalc').style.display = 'flex';
+    document.getElementById('barraCalc').classList.remove('d-none');
+    document.getElementById('barraEspaciado').classList.remove('d-none');
+  });
+});
+
+// Clic en toda la fila activa el radio
+document.querySelectorAll('.item-row').forEach(function(row) {
+  row.addEventListener('click', function(e) {
+    if (e.target.tagName !== 'INPUT') {
+      var radio = this.querySelector('input[type="radio"]');
+      radio.checked = true;
+      radio.dispatchEvent(new Event('change'));
+    }
+  });
+});
+
+function cancelar() {
+  selectedId = null;
+  document.querySelectorAll('input[name="item_sel"]').forEach(function(r) { r.checked = false; });
+  document.querySelectorAll('.item-row').forEach(function(r) { r.classList.remove('active'); });
+  document.getElementById('barraCalc').style.display = 'none';
+  document.getElementById('barraCalc').classList.add('d-none');
+  document.getElementById('barraEspaciado').classList.add('d-none');
+}
+
+function calcular() {
+  if (!selectedId) return;
+  var url = "{{ url_for('costo_m2.resultado') }}?item_id=" + selectedId;
+  window.open(url, '_blank', 'width=600,height=800,resizable=yes,scrollbars=yes');
+}
+</script>
+{% endblock %}

@@ -4,9 +4,14 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h4 class="mb-0"><i class="bi bi-grid"></i> Mis presupuestos</h4>
-  <a href="{{ url_for('presupuesto.nuevo', limpiar=1) }}" class="btn btn-warning fw-bold">
-    <i class="bi bi-plus-circle"></i> Nuevo presupuesto
-  </a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('costo_m2.index') }}" class="btn btn-outline-primary fw-semibold">
+      <i class="bi bi-rulers"></i> Costo/m²
+    </a>
+    <a href="{{ url_for('presupuesto.nuevo', limpiar=1) }}" class="btn btn-warning fw-bold">
+      <i class="bi bi-plus-circle"></i> Nuevo presupuesto
+    </a>
+  </div>
 </div>
 
 {# ─── BORRADORES ────────────────────────────────────────────────────────── #}

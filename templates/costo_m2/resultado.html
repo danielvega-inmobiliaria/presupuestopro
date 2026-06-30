@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Costo/m² — {{ item.nombre }}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  body { background:#f8fafc; font-family:Arial,sans-serif; }
+  .header-card { background:#1a56db; color:#fff; border-radius:10px; padding:16px 20px; margin-bottom:16px; }
+  .section-title { font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; font-weight:700; margin-bottom:6px; }
+  .total-m2 { font-size:2.4rem; font-weight:800; color:#1a56db; }
+  .editable-jornal { border:1px solid #d1d5db; border-radius:6px; padding:4px 8px; width:110px; text-align:right; font-size:.9rem; }
+  .editable-jornal:focus { outline:none; border-color:#1a56db; box-shadow:0 0 0 2px rgba(26,86,219,.15); }
+  .tbl-mat td, .tbl-mat th { font-size:.82rem; padding:5px 8px; }
+  .badge-rubro { background:#e0e7ff; color:#3730a3; font-size:.75rem; font-weight:600; border-radius:4px; padding:2px 8px; }
+  @media print { .no-print { display:none!important; } body { background:#fff; } }
+</style>
+</head>
+<body class="p-3">
+
+<div class="header-card">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <div class="badge-rubro mb-1">{{ item.rubro_nombre }}</div>
+      <h5 class="mb-0 fw-bold">{{ item.nombre }}</h5>
+      <small class="opacity-75">Base de cálculo: {{ UNIDADES }} {{ item.unidad }} · 1 Oficial + 1 Ayudante</small>
+    </div>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-light no-print">
+      <i class="bi bi-printer"></i>
+    </button>
+  </div>
+</div>
+
+{# ── Jornales editables ─────────────────────────────────────────────────── #}
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-3">
+    <div class="section-title"><i class="bi bi-person-badge me-1"></i>Jornales diarios (editables)</div>
+    <div class="d-flex gap-3 flex-wrap align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <span style="font-size:.85rem">Oficial:</span>
+        <span style="font-size:.85rem">$</span>
+        <input type="text" id="inp_jo" class="editable-jornal" value="{{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}"
+               inputmode="decimal" onchange="recalc()">
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span style="font-size:.85rem">Ayudante:</span>
+        <span style="font-size:.85rem">$</span>
+        <input type="text" id="inp_ja" class="editable-jornal" value="{{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}"
+               inputmode="decimal" onchange="recalc()">
+      </div>
+      <button class="btn btn-primary btn-sm no-print" onclick="recalc()">
+        <i class="bi bi-arrow-clockwise"></i> Recalcular
+      </button>
+    </div>
+  </div>
+</div>
+
+{# ── Materiales ─────────────────────────────────────────────────────────── #}
+{% if mat_items %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-2">
+    <div class="section-title mb-2"><i class="bi bi-box-seam me-1"></i>Materiales para {{ UNIDADES }} {{ item.unidad }}</div>
+    <table class="table tbl-mat mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Material</th>
+          <th class="text-end">Cant./unit</th>
+          <th class="text-end">Total</th>
+          <th class="text-end">Precio unit.</th>
+          <th class="text-end">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in mat_items %}
+        <tr>
+          <td>{{ m.nombre }}</td>
+          <td class="text-end text-muted">{{ m.cant_unit }}</td>
+          <td class="text-end fw-semibold">{{ m.cant_total }}</td>
+          <td class="text-end text-muted">$ {{ '{:,.0f}'.format(m.precio).replace(',','.') }}</td>
+          <td class="text-end">$ {{ '{:,.0f}'.format(m.subtotal).replace(',','.') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="table-warning fw-bold">
+          <td colspan="4" class="text-end">Total Materiales</td>
+          <td class="text-end" id="td_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info py-2 mb-3">
+  <small>Sin desglose de materiales en la base de datos para este ítem. Se usa precio_ars − precio_mo_ars como referencia.</small>
+</div>
+{% endif %}
+
+{# ── Resumen de costos ──────────────────────────────────────────────────── #}
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-2">
+    <div class="section-title mb-2"><i class="bi bi-receipt me-1"></i>Resumen — {{ UNIDADES }} {{ item.unidad }}</div>
+    <table class="table mb-0" style="font-size:.88rem">
+      <tbody>
+        <tr>
+          <td>Materiales</td>
+          <td class="text-end" id="res_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
+        </tr>
+        <tr>
+          <td>
+            Mano de obra
+            <span class="text-muted" style="font-size:.78rem">
+              (of: <span id="lbl_hs_of">{{ hs_oficial }}</span> hs · ay: <span id="lbl_hs_ay">{{ hs_ayudante }}</span> hs)
+            </span>
+          </td>
+          <td class="text-end fw-semibold" id="res_mo">$ {{ '{:,.0f}'.format(total_mo).replace(',','.') }}</td>
+        </tr>
+        <tr class="table-light">
+          <td class="fw-semibold">Costo directo</td>
+          <td class="text-end fw-semibold" id="res_cd">$ {{ '{:,.0f}'.format(costo_directo).replace(',','.') }}</td>
+        </tr>
+        <tr>
+          <td>Gastos / Beneficio ({{ pct_gg }}%)</td>
+          <td class="text-end" id="res_gg">$ {{ '{:,.0f}'.format(gg_monto).replace(',','.') }}</td>
+        </tr>
+        <tr>
+          <td>Impuestos y Seguros ({{ pct_imp }}%)</td>
+          <td class="text-end" id="res_imp">$ {{ '{:,.0f}'.format(imp_monto).replace(',','.') }}</td>
+        </tr>
+        <tr class="table-primary fw-bold">
+          <td>Total {{ UNIDADES }} {{ item.unidad }}</td>
+          <td class="text-end" id="res_tot">$ {{ '{:,.0f}'.format(total_100).replace(',','.') }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Resultado final ─────────────────────────────────────────────────────── #}
+<div class="card border-0 shadow mb-3" style="background:#1a56db;border-radius:12px">
+  <div class="card-body text-center py-4">
+    <div class="text-white opacity-75 mb-1" style="font-size:.85rem">COSTO POR {{ item.unidad | upper }}</div>
+    <div class="total-m2 text-white" id="res_m2">$ {{ '{:,.0f}'.format(costo_m2).replace(',','.') }}</div>
+    <div class="text-white opacity-75 mt-1" style="font-size:.8rem">
+      Mat: <span id="lbl_mat_m2">$ {{ '{:,.0f}'.format(total_mat/UNIDADES).replace(',','.') }}</span>
+      &nbsp;·&nbsp;
+      MO: <span id="lbl_mo_m2">$ {{ '{:,.0f}'.format(total_mo/UNIDADES).replace(',','.') }}</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Datos base del servidor
+var TOTAL_MAT = {{ total_mat }};
+var HOF = {{ item.hof }};
+var HAY = {{ item.hay }};
+var UNIDADES = {{ UNIDADES }};
+var PCT_GG  = {{ pct_gg / 100 }};
+var PCT_IMP = {{ pct_imp / 100 }};
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('es-AR').replace(/,/g, '.');
+}
+
+function normNum(s) {
+  return parseFloat((s || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function recalc() {
+  var jo_dia = normNum(document.getElementById('inp_jo').value);
+  var ja_dia = normNum(document.getElementById('inp_ja').value);
+
+  var jo_hora = jo_dia / 8;
+  var ja_hora = ja_dia / 8;
+
+  var mo_unit = HOF * jo_hora + HAY * ja_hora;
+  var total_mo = mo_unit * UNIDADES;
+
+  var cd = TOTAL_MAT + total_mo;
+  var gg = cd * PCT_GG;
+  var imp = cd * PCT_IMP;
+  var total = cd + gg + imp;
+  var m2 = total / UNIDADES;
+
+  document.getElementById('res_mo').textContent  = '$ ' + fmt(total_mo);
+  document.getElementById('res_cd').textContent  = '$ ' + fmt(cd);
+  document.getElementById('res_gg').textContent  = '$ ' + fmt(gg);
+  document.getElementById('res_imp').textContent = '$ ' + fmt(imp);
+  document.getElementById('res_tot').textContent = '$ ' + fmt(total);
+  document.getElementById('res_m2').textContent  = '$ ' + fmt(m2);
+  document.getElementById('lbl_mat_m2').textContent = '$ ' + fmt(TOTAL_MAT / UNIDADES);
+  document.getElementById('lbl_mo_m2').textContent  = '$ ' + fmt(mo_unit);
+}
+
+// Permitir tipeo con coma
+['inp_jo','inp_ja'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); recalc(); }
+  });
+});
+</script>
+
+</body>
+</html>
