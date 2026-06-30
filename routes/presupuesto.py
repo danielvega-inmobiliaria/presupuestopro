@@ -1100,6 +1100,7 @@ def resumen():
             'total_materiales':  p.get('total_materiales', 0),
             'total_presupuesto': totales.get('total_final', 0),
             'descripcion_trabajos': p.get('descripcion_trabajos', ''),
+            'fecha_actualizacion': date.today().isoformat(),
             'status':            'completo',
             'wizard_step':       8,
             'session_json':      '{}',
@@ -1129,8 +1130,8 @@ def resumen():
              pct_anticipo, pct_final, frecuencia_pago, tipo_cambio,
              costo_directo, total_subcontratos, total_indirectos,
              total_mo, total_materiales, total_presupuesto,
-             descripcion_trabajos, status, wizard_step, session_json)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             descripcion_trabajos, fecha_actualizacion, status, wizard_step, session_json)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 tuple(campos.values())
             )

@@ -95,4 +95,73 @@
                 <input type="number"
                        class="form-control text-end com-input"
                        data-factor="{{ item.factor }}"
-                       data-nombre="{{ item.nombre }}
+                       data-nombre="{{ item.nombre }}"
+                       value="{{ item.precio_com | round | int }}"
+                       step="1" min="0"
+                       oninput="convertir(this)">
+              </div>
+            </td>
+            <td class="text-center align-middle text-muted small">
+              {% if item.unidad_com %}{{ item.unidad_com }}{% else %}—{% endif %}
+            </td>
+            <td>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text text-muted">$</span>
+                <input type="number"
+                       class="form-control text-end calc-display bg-light"
+                       value="{{ item.precio | round(2) }}"
+                       step="0.01" min="0" readonly
+                       tabindex="-1">
+                {# campo oculto que se envía al servidor #}
+                <input type="hidden"
+                       name="calc_{{ item.nombre }}"
+                       class="calc-hidden"
+                       value="{{ item.precio }}">
+              </div>
+            </td>
+            <td class="text-center align-middle text-muted small">
+              {% if item.unidad_com %}
+                /{{ item.factor }} = $/un
+              {% else %}
+                $/un
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="sticky-bottom bg-white border-top py-3 px-1 d-flex gap-3 align-items-center">
+    <button type="submit" class="btn btn-warning fw-bold px-4">
+      <i class="bi bi-save"></i> Guardar todos los precios
+    </button>
+    <span class="text-muted small">Los precios se aplican a presupuestos nuevos desde este momento.</span>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function convertir(inp) {
+    const factor  = parseFloat(inp.dataset.factor) || 1;
+    const precCom = parseFloat(inp.value) || 0;
+    const precCalc = factor === 1 ? precCom : precCom / factor;
+
+    const row   = inp.closest('tr');
+    const disp  = row.querySelector('.calc-display');
+    const hid   = row.querySelector('.calc-hidden');
+    if (disp) disp.value = precCalc.toFixed(2);
+    if (hid)  hid.value  = precCalc.toFixed(4);
+}
+
+function calcHora(inp, targetId) {
+    const dia  = parseFloat(inp.value) || 0;
+    const hora = Math.round(dia / 8);
+    const el   = document.getElementById(targetId);
+    if (el) el.textContent = '$ ' + hora.toLocaleString('es-AR').replace(/,/g,'.') + '/hr';
+}
+</script>
+{% endblock %}

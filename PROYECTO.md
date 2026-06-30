@@ -1,9 +1,18 @@
 # PresupuestoPRO — Contexto del Proyecto
 
+## Cómo usar este archivo
+- **Al empezar un chat nuevo:** pegá → `Leé PROYECTO.md y continuá desde donde quedamos`
+- **Al terminar un chat:** pedí → `Actualizá PROYECTO.md con lo que hicimos hoy`
+
+---
+
+_Última actualización: 30/06/2026 — 22:30 ART_
+
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
 - Repo: `danielvega-inmobiliaria/presupuestopro` (branch `main`)
 - URL prod: `https://web-production-0c9c1.up.railway.app`
+- Dominio: `presupuestopro.com.ar` (comprado en NIC.ar, DNS gestionado por **Cloudflare**)
 - Carpeta local: `D:\ESCRITORIO\CLAUDE\APP_PRESUPUESTOPRO`
 
 ---
@@ -41,6 +50,14 @@ git push
 - Todos los emails salen como `PresupuestoPRO <noreply@presupuestopro.com.ar>`
 - DNS Cloudflare: MX, DKIM, SPF y DMARC configurados y verificados
 - Emails a usuarios externos (hotmail, gmail, etc.) funcionan correctamente
+
+## Dominio — Estado ⚠️ PENDIENTE
+- NIC.ar es el registrar, **Cloudflare maneja el DNS** (nameservers apuntan a CF)
+- Railway ya tiene el dominio agregado en Settings → Networking
+- **Falta agregar en Cloudflare DNS** (dash.cloudflare.com → presupuestopro.com.ar → DNS):
+  - CNAME `@` → `byl34vyz.up.railway.app` (proxy OFF, nube gris)
+  - TXT `_railway-verify` → `railway-verify=ec171cc54d13d9455e81efbc0757087...` (ver Railway Settings → Networking para valor completo)
+- Una vez agregados, Railway verifica automáticamente (puede tardar hasta 24hs)
 
 ---
 
@@ -200,11 +217,34 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 ---
 
 ## Pendientes / Ideas
-- [ ] **Fix HH y analisis_sub desde Excel** (próximo chat — tarea principal)
+
+### 🔴 CRÍTICO
+- [ ] **Commitear database.py con migración 2l** — el archivo correcto (1993 líneas) está en disco pero NO está en git. Problema: git lock files bloquean el commit desde bash. Solución: usar **GitHub Desktop** o eliminar `.git/index.lock` desde Git Bash y correr:
+  ```
+  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+  rm -f .git/index.lock
+  git add database.py
+  git commit -m "fix: migration 2l factores comerciales (11 materiales)"
+  git push
+  ```
+- [ ] **Agregar DNS en Cloudflare** para apuntar presupuestopro.com.ar a Railway (ver sección Dominio arriba)
+
+### 🟡 IMPORTANTE
+- [ ] **Post Facebook de lanzamiento** — redactar post con screenshots del app para grupos de albañiles → landing page → MP. Pendiente de tomar screenshots: dashboard, costo/m2, ver presupuesto.
 - [ ] Confirmar variable `APP_BASE_URL` en Railway
 - [ ] Test completo flujo pago MP → activación → email
-- [ ] Apuntar `presupuestopro.com.ar` a Railway (registro A/CNAME en Cloudflare)
+
+### 🟢 IDEAS FUTURAS
 - [ ] Unificar landing_presupuestopro.md con posts para marketing
+
+## Cambios recientes comprometidos (HEAD actual en Railway)
+- `admin.py`: lista de precios con JORNALES como primer grupo, typo CORRELON→CORRALÓN corregido, sub_nombres actualizados
+- `templates/admin/precios.html`: botón Volver, tarjeta JORNALES con jornal_oficial/ayudante editables y cálculo $/hr en tiempo real
+
+## Sistema de contexto entre chats (configurado 30/06/2026)
+- `CLAUDE.md` creado en la raíz del proyecto — Claude lo lee automáticamente al empezar cada chat
+- Al mensaje 20, Claude actualiza PROYECTO.md automáticamente antes de sugerir nuevo chat
+- **Para empezar un chat nuevo no hace falta pegar nada** — CLAUDE.md lo maneja solo
 
 ---
 
@@ -212,4 +252,19 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 - `2a-2e`: columnas usuarios, items_obra, config, analisis_sub, HOF/HAY correcciones
 - `2f`: precios hormigón y losa cerámica
 - `2g`: columna `m2_factor` en items_obra + set de valores + renombres de ítems
-- `2h`: **PENDIENTE** — corrección masiva hof/hay + populate analisis_sub desde datos Excel hardcodeados
+- `2h`: corrección masiva hof/hay + populate analisis_sub con materiales hardcodeados desde Excel
+- `2i`: ajustes adicionales de analisis_sub
+- `2j`: factores de unidad comercial (primera pasada)
+- `2k`: factores de unidad comercial (segunda pasada)
+- `2l`: ⚠️ **ESCRITA PERO NO COMMITEADA** — corrige 11 factores comerciales erróneos de 2j/2k:
+  - Cemento portland: 50→25 (bolsa 25kg)
+  - Klaukol: 30→25 (bolsa 25kg)
+  - Hidrófugo: 5→10 (balde 10kg)
+  - Super Iggam: 20→30 (bolsa 30kg)
+  - Salpicrete: 20→30 (bolsa 30kg)
+  - Fondo Base: 20→25 (balde 25kg)
+  - Enduido sintético: 30→4 (lata 4kg)
+  - Pintura látex cielos: 20→10 (balde 10L)
+  - Pintura especial 1/2: 20→4 (lata 4L)
+  - Pintura satinol: 20→4 (lata 4L)
+  - Pintura cal hidráulica: 25→1 (revertir)

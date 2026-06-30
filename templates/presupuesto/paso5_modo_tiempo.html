@@ -229,8 +229,11 @@ function calcDias(){
     _diasSugerido = Math.ceil(hhRef / (workers * 8));
     var dSug = document.getElementById('dias-sugeridos');
     if(dSug){ dSug.textContent = _diasSugerido + ' dias'; }
-    // Auto-actualizar el campo siempre que cambie el equipo
-    document.getElementById('dias-obra').value = _diasSugerido;
+    // Auto-completar solo si el campo está vacío o en cero (presupuesto nuevo)
+    var diasInput = document.getElementById('dias-obra');
+    if(!diasInput.value || parseInt(diasInput.value) === 0){
+      diasInput.value = _diasSugerido;
+    }
   }
   mostrarTiempo(parseInt(document.getElementById('dias-obra').value)||0);
   recalc();

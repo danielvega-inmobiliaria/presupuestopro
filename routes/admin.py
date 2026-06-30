@@ -515,4 +515,45 @@ def fix_db():
     return jsonify({'ok': True, 'cambios': log})
 
 
-# CONFIGURACIO
+# CONFIGURACION
+@bp.route('/configuracion', methods=['GET', 'POST'])
+@admin_required
+def configuracion():
+    db = get_db()
+    if request.method == 'POST':
+        for clave in ('pct_gg', 'pct_impuestos'):
+            val = request.form.get(clave)
+            if val:
+                db.execute(
+                    "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
+                    (clave, val)
+                )
+        db.commit()
+        db.close()
+        flash('Configuracion guardada.', 'success')
+        return redirect(url_for('admin.dashboard'))
+    cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
+    db.close()
+    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
+
+
+# LEADS
+@bp.route('/leads')
+@admin_required
+def leads():
+    db = get_db()
+    todos = db.execute("SELECT * FROM leads ORDER BY created_at DESC").fetchall()
+    db.close()
+    return render_template('admin/leads.html', leads=todos, user=g.user)
+
+@bp.route('/leads/<int:lid>/estado', methods=['POST'])
+@admin_required
+def lead_estado(lid):
+    estado = request.form.get('estado', 'nuevo')
+    notas  = request.form.get('notas', '')
+    db = get_db()
+    db.execute("UPDATE leads SET estado=?, notas=? WHERE id=?", (estado, notas, lid))
+    db.commit()
+    db.close()
+    flash('Lead actualizado.', 'success')
+    return redirect(url_for('admin.leads'))
