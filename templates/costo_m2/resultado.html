@@ -7,220 +7,208 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 <style>
-  body { background:#f8fafc; font-family:Arial,sans-serif; }
-  .header-card { background:#1a56db; color:#fff; border-radius:10px; padding:14px 18px; margin-bottom:14px; }
-  .badge-rubro { background:rgba(255,255,255,.2); color:#fff; font-size:.72rem; font-weight:600; border-radius:4px; padding:2px 8px; display:inline-block; margin-bottom:4px; }
-  .costo-card { background:#1a56db; border-radius:12px; color:#fff; text-align:center; padding:20px 16px 16px; margin-bottom:14px; }
-  .costo-val { font-size:2.5rem; font-weight:800; line-height:1.1; }
-  .costo-label { font-size:.78rem; opacity:.75; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
-  .costo-sub { font-size:.78rem; opacity:.7; margin-top:6px; }
-  .section-title { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:#6b7280; font-weight:700; margin-bottom:6px; }
-  .editable-jornal { border:1px solid #d1d5db; border-radius:6px; padding:4px 8px; width:105px; text-align:right; font-size:.88rem; }
-  .editable-jornal:focus { outline:none; border-color:#1a56db; box-shadow:0 0 0 2px rgba(26,86,219,.15); }
-  .tbl-mat td, .tbl-mat th { font-size:.8rem; padding:4px 7px; }
-  .tbl-resumen td, .tbl-resumen th { font-size:.82rem; padding:5px 8px; }
+  body { background:#f0f4f8; font-family:Arial,sans-serif; font-size:.9rem; }
+
+  /* ── Header ── */
+  .hdr { background:#1a56db; color:#fff; padding:12px 16px; border-radius:10px; margin-bottom:12px; }
+  .hdr-rubro { font-size:.7rem; opacity:.7; text-transform:uppercase; letter-spacing:.06em; }
+  .hdr-nombre { font-size:1rem; font-weight:700; margin:2px 0; }
+  .hdr-sub { font-size:.78rem; opacity:.75; }
+
+  /* ── Jornales ── */
+  .jornales-row { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:12px;
+                  box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .jornal-input { border:1px solid #c5d0e6; border-radius:6px; padding:4px 8px;
+                  width:100px; text-align:right; font-size:.88rem; font-weight:600; }
+  .jornal-input:focus { outline:none; border-color:#1a56db; }
+
+  /* ── Tarjeta COSTO ── */
+  .costo-card { background:#1a56db; border-radius:12px; color:#fff;
+                padding:16px 18px 14px; margin-bottom:12px; }
+  .costo-title { font-size:.72rem; opacity:.7; text-transform:uppercase;
+                 letter-spacing:.08em; margin-bottom:8px; }
+  .costo-row { display:flex; justify-content:space-between; align-items:baseline;
+               border-bottom:1px solid rgba(255,255,255,.15); padding:5px 0; }
+  .costo-row:last-child { border-bottom:none; }
+  .costo-label { font-size:.88rem; opacity:.85; }
+  .costo-value { font-size:1.3rem; font-weight:800; }
+  .costo-total-row { display:flex; justify-content:space-between; align-items:baseline;
+                     border-top:2px solid rgba(255,255,255,.3); margin-top:8px; padding-top:8px; }
+  .costo-total-label { font-size:.8rem; opacity:.8; }
+  .costo-total-value { font-size:1.7rem; font-weight:800; }
+
+  /* ── Adicionales ── */
+  .adic-card { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:12px;
+               box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .adic-title { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
+                color:#6b7280; font-weight:700; margin-bottom:8px; }
+  .adic-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+  .adic-input { border:1px solid #c5d0e6; border-radius:6px; padding:4px 8px;
+                width:64px; text-align:center; font-size:.9rem; font-weight:700; }
+  .adic-input:focus { outline:none; border-color:#1a56db; }
+  .adic-monto { color:#374151; font-weight:600; font-size:.88rem; min-width:90px; text-align:right; }
+
+  /* ── Tabla materiales ── */
+  .mat-card { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:12px;
+              box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .mat-title { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
+               color:#6b7280; font-weight:700; margin-bottom:8px; }
+  .tbl-mat { width:100%; border-collapse:collapse; font-size:.8rem; }
+  .tbl-mat th { background:#f3f4f6; color:#374151; font-weight:700; padding:6px 8px;
+                text-align:left; border-bottom:2px solid #e5e7eb; }
+  .tbl-mat th.r, .tbl-mat td.r { text-align:right; }
+  .tbl-mat td { padding:5px 8px; border-bottom:1px solid #f0f0f0; }
+  .tbl-mat tr:last-child td { border-bottom:none; }
+  .tbl-mat tfoot tr td { background:#fef3c7; font-weight:700; border-top:2px solid #d97706; }
+
   @media print { .no-print { display:none!important; } body { background:#fff; } }
 </style>
 </head>
 <body class="p-3">
 
-{# ── Header ─────────────────────────────────────────────────────────────── #}
-<div class="header-card">
-  <div class="d-flex justify-content-between align-items-start">
-    <div>
-      <span class="badge-rubro">{{ item.rubro_nombre }}</span>
-      <h5 class="mb-0 fw-bold mt-1">{{ item.nombre }}</h5>
-      <small class="opacity-75">Base de cálculo: 1 Oficial + 1 Ayudante</small>
-    </div>
-    <button onclick="window.print()" class="btn btn-sm btn-outline-light no-print">
-      <i class="bi bi-printer"></i>
-    </button>
+{# ── HEADER ──────────────────────────────────────────────────────────────── #}
+<div class="hdr d-flex justify-content-between align-items-start">
+  <div>
+    <div class="hdr-rubro">{{ item.rubro_nombre }}</div>
+    <div class="hdr-nombre">{{ item.nombre }}</div>
+    <div class="hdr-sub">Base de cálculo: 1 Oficial + 1 Ayudante</div>
   </div>
+  <button onclick="window.print()" class="btn btn-sm btn-outline-light no-print">
+    <i class="bi bi-printer"></i>
+  </button>
 </div>
 
-{# ── Jornales editables ─────────────────────────────────────────────────── #}
-<div class="card shadow-sm mb-3">
-  <div class="card-body py-3">
-    <div class="section-title"><i class="bi bi-person-badge me-1"></i>Jornales diarios (editables)</div>
-    <div class="d-flex gap-3 flex-wrap align-items-center">
-      <div class="d-flex align-items-center gap-2">
-        <span style="font-size:.85rem">Oficial:</span>
-        <span style="font-size:.85rem">$</span>
-        <input type="text" id="inp_jo" class="editable-jornal"
-               value="{{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}"
-               inputmode="decimal">
-      </div>
-      <div class="d-flex align-items-center gap-2">
-        <span style="font-size:.85rem">Ayudante:</span>
-        <span style="font-size:.85rem">$</span>
-        <input type="text" id="inp_ja" class="editable-jornal"
-               value="{{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}"
-               inputmode="decimal">
-      </div>
-      <button class="btn btn-primary btn-sm no-print" onclick="recalc()">
-        <i class="bi bi-arrow-clockwise"></i> Recalcular
-      </button>
-    </div>
+{# ── JORNALES ─────────────────────────────────────────────────────────────── #}
+<div class="jornales-row d-flex flex-wrap align-items-center gap-3 no-print">
+  <div class="d-flex align-items-center gap-2">
+    <span class="text-muted" style="font-size:.8rem">Oficial:</span>
+    <span style="font-size:.8rem">$</span>
+    <input type="text" id="inp_jo" class="jornal-input"
+           value="{{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}"
+           inputmode="decimal">
   </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="text-muted" style="font-size:.8rem">Ayudante:</span>
+    <span style="font-size:.8rem">$</span>
+    <input type="text" id="inp_ja" class="jornal-input"
+           value="{{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}"
+           inputmode="decimal">
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="recalc()">
+    <i class="bi bi-arrow-clockwise"></i> Recalcular
+  </button>
 </div>
 
-{# ── Tarjeta azul COSTO POR M2/M3 ──────────────────────────────────────── #}
+{# ── COSTO POR M2 ─────────────────────────────────────────────────────────── #}
 <div class="costo-card">
-  <div class="costo-label">Costo por {{ display_unit }}</div>
-  <div class="costo-val" id="res_m2">$ {{ '{:,.0f}'.format(total_display).replace(',','.') }}</div>
-  <div class="costo-sub" id="lbl_sub">
-    {% if tiene_materiales and total_mat > 0 %}
-    Mat: $ <span id="lbl_mat">{{ '{:,.0f}'.format(total_mat).replace(',','.') }}</span>
-    &nbsp;·&nbsp;
-    {% endif %}
-    MO + GG + Seg: $ <span id="lbl_mo_gg">{{ '{:,.0f}'.format(mo_por_unit + gg_monto + imp_monto).replace(',','.') }}</span>
+  <div class="costo-title">Costo por {{ display_unit }}</div>
+  <div class="costo-row">
+    <span class="costo-label">MO</span>
+    <span class="costo-value" id="c_mo">$ {{ '{:,.0f}'.format(mo_por_unit).replace(',','.') }}</span>
+  </div>
+  {% if tiene_materiales %}
+  <div class="costo-row">
+    <span class="costo-label">MAT</span>
+    <span class="costo-value" id="c_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</span>
+  </div>
+  {% endif %}
+  <div class="costo-total-row">
+    <span class="costo-total-label">TOTAL / {{ display_unit }}</span>
+    <span class="costo-total-value" id="c_total">$ {{ '{:,.0f}'.format(total_display).replace(',','.') }}</span>
   </div>
 </div>
 
-{# ── Resumen de materiales para 1 unidad display ─────────────────────────── #}
-{% if tiene_materiales %}
-<div class="card shadow-sm mb-3">
-  <div class="card-body py-2">
-    <div class="section-title mb-2">
-      <i class="bi bi-box-seam me-1"></i>Materiales por {{ display_unit }}
-    </div>
-    <table class="table tbl-mat mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>Material</th>
-          <th class="text-end">Cantidad</th>
-          <th class="text-end">Costo Comercial</th>
-          <th class="text-end">Costo Necesario</th>
-        </tr>
-      </thead>
-      <tbody id="tbody_mat">
-        {% for m in mat_items %}
-        <tr>
-          <td>{{ m.nombre }}</td>
-          <td class="text-end">{{ m.cantidad }}</td>
-          <td class="text-end text-muted">$ {{ '{:,.0f}'.format(m.costo_comercial).replace(',','.') }}</td>
-          <td class="text-end fw-semibold">$ {{ '{:,.0f}'.format(m.costo_necesario).replace(',','.') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr class="table-warning fw-bold">
-          <td colspan="3" class="text-end">Total materiales / {{ display_unit }}</td>
-          <td class="text-end" id="td_mat_tot">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
-        </tr>
-      </tfoot>
-    </table>
+{# ── ADICIONALES EDITABLES ────────────────────────────────────────────────── #}
+<div class="adic-card">
+  <div class="adic-title">Con los siguientes adicionales</div>
+  <div class="adic-row">
+    <span style="min-width:90px">Beneficio:</span>
+    <input type="text" id="inp_gg" class="adic-input" value="{{ pct_gg }}" inputmode="decimal">
+    <span>%</span>
+    <span class="adic-monto" id="a_gg">$ {{ '{:,.0f}'.format(gg_monto).replace(',','.') }}</span>
   </div>
+  <div class="adic-row">
+    <span style="min-width:90px">Seguros:</span>
+    <input type="text" id="inp_imp" class="adic-input" value="{{ pct_imp }}" inputmode="decimal">
+    <span>%</span>
+    <span class="adic-monto" id="a_imp">$ {{ '{:,.0f}'.format(imp_monto).replace(',','.') }}</span>
+  </div>
+</div>
+
+{# ── DESGLOSE MATERIALES ──────────────────────────────────────────────────── #}
+{% if tiene_materiales %}
+<div class="mat-card">
+  <div class="mat-title">Desglose Materiales por {{ display_unit }}</div>
+  <table class="tbl-mat">
+    <thead>
+      <tr>
+        <th>Material</th>
+        <th class="r">Cant.</th>
+        <th class="r">$</th>
+        <th class="r">Costo Comercial</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in mat_items %}
+      <tr>
+        <td>{{ m.nombre }}</td>
+        <td class="r">{{ m.cantidad }}</td>
+        <td class="r">$ {{ '{:,.0f}'.format(m.costo_necesario).replace(',','.') }}</td>
+        <td class="r text-muted">$ {{ '{:,.0f}'.format(m.costo_comercial).replace(',','.') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2" style="text-align:right">DT por {{ display_unit }}</td>
+        <td class="r" id="dt_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
 </div>
 {% endif %}
-
-{# ── Resumen costos ─────────────────────────────────────────────────────── #}
-<div class="card shadow-sm mb-3">
-  <div class="card-body py-2">
-    <div class="section-title mb-2"><i class="bi bi-receipt me-1"></i>Desglose por {{ display_unit }}</div>
-    <table class="table tbl-resumen mb-0">
-      <tbody>
-        {% if tiene_materiales %}
-        <tr>
-          <td>Materiales</td>
-          <td class="text-end" id="res_mat">$ {{ '{:,.0f}'.format(total_mat).replace(',','.') }}</td>
-        </tr>
-        {% endif %}
-        <tr>
-          <td>
-            Mano de obra
-            <span class="text-muted" style="font-size:.76rem">
-              (of: <span id="lbl_hs_of">{{ hs_oficial }}</span> hs · ay: <span id="lbl_hs_ay">{{ hs_ayudante }}</span> hs)
-            </span>
-          </td>
-          <td class="text-end fw-semibold" id="res_mo">$ {{ '{:,.0f}'.format(mo_por_unit).replace(',','.') }}</td>
-        </tr>
-        <tr class="table-light">
-          <td class="fw-semibold">Costo directo</td>
-          <td class="text-end fw-semibold" id="res_cd">$ {{ '{:,.0f}'.format(costo_directo).replace(',','.') }}</td>
-        </tr>
-        <tr>
-          <td>Gastos / Beneficio ({{ pct_gg }}%)</td>
-          <td class="text-end" id="res_gg">$ {{ '{:,.0f}'.format(gg_monto).replace(',','.') }}</td>
-        </tr>
-        <tr>
-          <td>Impuestos y Seguros ({{ pct_imp }}%)</td>
-          <td class="text-end" id="res_imp">$ {{ '{:,.0f}'.format(imp_monto).replace(',','.') }}</td>
-        </tr>
-        <tr class="table-primary fw-bold">
-          <td>Total por {{ display_unit }}</td>
-          <td class="text-end" id="res_tot">$ {{ '{:,.0f}'.format(total_display).replace(',','.') }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
 
 <script>
 var TOTAL_MAT   = {{ total_mat }};
 var HOF_ORIG    = {{ hof_orig }};
 var HAY_ORIG    = {{ hay_orig }};
 var FACTOR_CONV = {{ factor_conv }};
-var PCT_GG      = {{ pct_gg / 100 }};
-var PCT_IMP     = {{ pct_imp / 100 }};
 var TIENE_MAT   = {{ 'true' if tiene_materiales else 'false' }};
 
-// Materiales individuales (cant_por_unit × factor_conv, precio_ars por unidad material)
-var MAT_DATA = [
-  {% for m in mat_items %}
-  { cant_orig: {{ m.cantidad / factor_conv if factor_conv != 0 else m.cantidad }}, precio: {{ m.costo_comercial }} },
-  {% endfor %}
-];
-
 function fmt(n) {
-  return Math.round(n).toLocaleString('es-AR').replace(/,/g, '.');
+  return Math.round(n).toLocaleString('es-AR').replace(/,/g,'.');
 }
 function normNum(s) {
-  return parseFloat((s || '0').toString().replace(/\./g, '').replace(',', '.')) || 0;
+  return parseFloat((s||'0').toString().replace(/\./g,'').replace(',','.')) || 0;
 }
 
 function recalc() {
-  var jo_dia = normNum(document.getElementById('inp_jo').value);
-  var ja_dia = normNum(document.getElementById('inp_ja').value);
-  var jo_hora = jo_dia / 8;
-  var ja_hora = ja_dia / 8;
+  var jo_dia  = normNum(document.getElementById('inp_jo').value);
+  var ja_dia  = normNum(document.getElementById('inp_ja').value);
+  var pct_gg  = normNum(document.getElementById('inp_gg').value) / 100;
+  var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
 
-  // MO por unidad display
-  var mo_unit = (HOF_ORIG * jo_hora + HAY_ORIG * ja_hora) * FACTOR_CONV;
+  var jo_h = jo_dia / 8;
+  var ja_h = ja_dia / 8;
+  var mo   = (HOF_ORIG * jo_h + HAY_ORIG * ja_h) * FACTOR_CONV;
+  var cd   = TOTAL_MAT + mo;
+  var gg   = cd * pct_gg;
+  var imp  = cd * pct_imp;
+  var tot  = cd + gg + imp;
 
-  var cd = TOTAL_MAT + mo_unit;
-  var gg = cd * PCT_GG;
-  var imp = cd * PCT_IMP;
-  var total = cd + gg + imp;
-
-  // Actualizar tarjeta azul
-  document.getElementById('res_m2').textContent = '$ ' + fmt(total);
-  var mo_gg_seg = mo_unit + gg + imp;
-  document.getElementById('lbl_mo_gg').textContent = fmt(mo_gg_seg);
-  if (document.getElementById('lbl_mat')) {
-    document.getElementById('lbl_mat').textContent = fmt(TOTAL_MAT);
-  }
-
-  // Desglose
-  if (document.getElementById('res_mat')) {
-    document.getElementById('res_mat').textContent = '$ ' + fmt(TOTAL_MAT);
-  }
-  document.getElementById('res_mo').textContent  = '$ ' + fmt(mo_unit);
-  document.getElementById('res_cd').textContent  = '$ ' + fmt(cd);
-  document.getElementById('res_gg').textContent  = '$ ' + fmt(gg);
-  document.getElementById('res_imp').textContent = '$ ' + fmt(imp);
-  document.getElementById('res_tot').textContent = '$ ' + fmt(total);
+  document.getElementById('c_mo').textContent    = '$ ' + fmt(mo);
+  if (TIENE_MAT) document.getElementById('c_mat').textContent  = '$ ' + fmt(TOTAL_MAT);
+  document.getElementById('c_total').textContent = '$ ' + fmt(tot);
+  document.getElementById('a_gg').textContent    = '$ ' + fmt(gg);
+  document.getElementById('a_imp').textContent   = '$ ' + fmt(imp);
 }
 
-['inp_jo','inp_ja'].forEach(function(id) {
-  document.getElementById(id).addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); recalc(); }
-  });
-  document.getElementById(id).addEventListener('input', function() {
-    // Normalizar coma en tiempo real
-    var pos = this.selectionStart;
-    // no reemplazar aquí para no interrumpir el tipeo
-  });
+// Recalcular al cambiar % adicionales o jornales
+['inp_jo','inp_ja','inp_gg','inp_imp'].forEach(function(id) {
+  var el = document.getElementById(id);
+  el.addEventListener('change', recalc);
+  el.addEventListener('keydown', function(e) { if (e.key==='Enter') recalc(); });
 });
 </script>
 </body>
