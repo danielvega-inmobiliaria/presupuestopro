@@ -24,15 +24,14 @@
     {% endif %}
 
     <form method="post" id="formMateriales">
-      <div class="table-responsive mx-3 mt-3">
-        <table class="table table-sm table-hover" id="tbl-mats">
+      <div class="mx-3 mt-3">
+        <table class="table table-sm table-hover w-100" id="tbl-mats">
           <thead class="table-light">
             <tr>
               <th>Material</th>
-              <th class="text-center" style="width:80px">Unidad</th>
-              <th class="text-center" style="width:110px">Cantidad</th>
-              <th class="text-end"   style="width:150px">$ a gastar</th>
-              <th style="width:40px"></th>
+              <th class="text-center" style="width:65px">Cant.</th>
+              <th class="text-end"    style="width:90px">Subtotal</th>
+              <th style="width:32px"></th>
             </tr>
           </thead>
           <tbody id="tbody-mats">
@@ -43,35 +42,32 @@
             {% if cur_cat != ns.last_cat %}
             {% set ns.last_cat = cur_cat %}
             <tr class="table-secondary">
-              <td colspan="5" class="py-1 px-2 small fw-bold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+              <td colspan="4" class="py-1 px-2 small fw-bold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
                 {{ cat_labels.get(cur_cat, 'General') }}
               </td>
             </tr>
             {% endif %}
             <tr class="mat-row" data-idx="{{ loop.index0 }}">
               <td>
-                <input type="text" name="mat_{{ loop.index0 }}_nombre"
-                       class="form-control form-control-sm border-0 bg-transparent"
-                       value="{{ m.nombre }}" readonly style="min-width:200px">
+                <div class="fw-semibold small">{{ m.nombre }}</div>
+                <div class="text-muted" style="font-size:.7rem">{{ m.unidad }}</div>
+                <input type="hidden" name="mat_{{ loop.index0 }}_nombre" value="{{ m.nombre }}">
+                <input type="hidden" name="mat_{{ loop.index0 }}_unidad" value="{{ m.unidad }}">
               </td>
-              <td class="text-center">
-                <input type="text" name="mat_{{ loop.index0 }}_unidad"
-                       class="form-control form-control-sm border-0 bg-transparent text-center"
-                       value="{{ m.unidad }}" style="width:70px">
-              </td>
-              <td>
+              <td class="text-center align-middle">
                 <input type="number" name="mat_{{ loop.index0 }}_cant"
                        class="form-control form-control-sm text-end mat-cant"
                        min="0" step="0.001" value="{{ m.cantidad }}"
                        data-precio="{{ m.precio_local }}"
                        data-idx="{{ loop.index0 }}"
+                       style="width:60px"
                        oninput="calcRow(this)">
+                <input type="hidden" name="mat_{{ loop.index0 }}_precio" value="{{ m.precio_local }}">
               </td>
-              <td class="text-end align-middle fw-bold" id="sub-{{ loop.index0 }}">
+              <td class="text-end align-middle fw-bold small" id="sub-{{ loop.index0 }}">
                 {{ simbolo }} {{ "{:,.0f}".format(m.subtotal).replace(',','.') }}
               </td>
               <td class="text-center align-middle">
-                <input type="hidden" name="mat_{{ loop.index0 }}_precio" value="{{ m.precio_local }}">
                 <button type="button" class="btn btn-sm btn-link text-danger p-0"
                         onclick="eliminarFila(this)" title="Quitar">
                   <i class="bi bi-x-circle"></i>
@@ -152,17 +148,21 @@ function agregarFila(){
   tr.className = 'mat-row';
   tr.dataset.idx = idx;
   tr.innerHTML = `
-    <td><input type="text" name="mat_${idx}_nombre"
-               class="form-control form-control-sm" placeholder="Material" style="min-width:200px"></td>
-    <td><input type="text" name="mat_${idx}_unidad"
-               class="form-control form-control-sm text-center" placeholder="un" style="width:70px"></td>
-    <td><input type="number" name="mat_${idx}_cant"
-               class="form-control form-control-sm text-end mat-cant"
-               min="0" step="0.001" value="0" data-precio="0" data-idx="${idx}"
-               oninput="calcRow(this)"></td>
-    <td class="text-end align-middle fw-bold" id="sub-${idx}">—</td>
+    <td>
+      <input type="text" name="mat_${idx}_nombre"
+             class="form-control form-control-sm mb-1" placeholder="Material">
+      <input type="text" name="mat_${idx}_unidad"
+             class="form-control form-control-sm" placeholder="Unidad" style="width:80px;font-size:.7rem">
+    </td>
     <td class="text-center align-middle">
+      <input type="number" name="mat_${idx}_cant"
+             class="form-control form-control-sm text-end mat-cant"
+             min="0" step="0.001" value="0" data-precio="0" data-idx="${idx}"
+             style="width:60px" oninput="calcRow(this)">
       <input type="hidden" name="mat_${idx}_precio" value="0">
+    </td>
+    <td class="text-end align-middle fw-bold small" id="sub-${idx}">—</td>
+    <td class="text-center align-middle">
       <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="eliminarFila(this)">
         <i class="bi bi-x-circle"></i>
       </button>
