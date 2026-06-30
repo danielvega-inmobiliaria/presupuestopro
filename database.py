@@ -1396,6 +1396,47 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2j: analisis_sub convertido a unidades comerciales")
 
+        # ── 2k. Unidades comerciales — resto de materiales ───────────────────
+        #   Klaukol             : kg → bolsa 30 kg  (×30)
+        #   Hidrófugo           : L  → bidón 5 L    (×5)
+        #   Super Iggam         : kg → bolsa 20 kg  (×20)
+        #   Salpicrete          : kg → bolsa 20 kg  (×20)
+        #   Fondo Base          : L  → bidón 20 L   (×20)
+        #   Enduido sintético   : kg → balde 30 kg  (×30)
+        #   Pintura látex (ext/int/cielos) : L → balde 20 L (×20)
+        #   Pintura especial 1/2, satinol  : L → balde 20 L (×20)
+        #   Esmalte albalux     : L → lata 4 L      (×4)
+        #   Pintura cal         : kg → bolsa 25 kg  (×25)
+        ya_2k = db.execute("SELECT valor FROM config WHERE clave='2k_done'").fetchone()
+        if not ya_2k:
+            conversiones_2k = [
+                ("Klaukol",                     30,  30),
+                ("Hidrófugo",                    5,   5),
+                ("Super Iggam",                 20,  20),
+                ("Salpicrete",                  20,  20),
+                ("Fondo Base",                  20,  20),
+                ("Enduido sintético",           30,  30),
+                ("Pintura látex exterior",      20,  20),
+                ("Pintura látex interior",      20,  20),
+                ("Pintura látex cielos",        20,  20),
+                ("Pintura especial 1",          20,  20),
+                ("Pintura especial 2",          20,  20),
+                ("Pintura satinol",             20,  20),
+                ("Esmalte albalux",              4,   4),
+                ("Pintura cal hidráulica",      25,  25),
+            ]
+            for sub, div_cant, mul_precio in conversiones_2k:
+                db.execute("""
+                    UPDATE analisis_sub
+                    SET cant_por_unit = ROUND(cant_por_unit / ?, 6),
+                        precio_ars    = ROUND(precio_ars * ?, 2)
+                    WHERE sub_nombre = ? AND es_material = 1
+                """, (div_cant, mul_precio, sub))
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2k_done','2026-06-30')")
+            db.commit()
+            print("[migrate_db] 2k: unidades comerciales aplicadas (Klaukol, Hidrófugo, pinturas, etc.)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
