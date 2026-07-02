@@ -31,6 +31,13 @@
     .logo-placeholder { width:52px; height:52px; background:#e8f0f8; border-radius:8px; border:2px dashed #b0c4de; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .logo-placeholder i { font-size:1.4rem; color:#7a9cbf; }
 
+    /* GRILLA RAPIDA */
+    .section-grilla { background:var(--azul); padding:0 0 56px; }
+    .grilla-item { display:flex; align-items:flex-start; gap:12px; color:#fff; }
+    .grilla-icon { width:40px; height:40px; border-radius:9px; background:rgba(249,115,22,.18); border:1px solid rgba(249,115,22,.35); display:flex; align-items:center; justify-content:center; font-size:1.15rem; color:var(--naranja); flex-shrink:0; }
+    .grilla-item h6 { color:#fff; font-weight:700; margin-bottom:2px; font-size:.95rem; }
+    .grilla-item p { color:#a8c4e0; font-size:.82rem; margin:0; }
+
     /* DEMO SECTION */
     .section-demo { background:#f0f4f8; padding:72px 0; }
     .phone-frame { width:260px; background:#1a1a2e; border-radius:36px; padding:12px; box-shadow:0 20px 60px rgba(0,0,0,.3); border:3px solid #333; position:relative; margin:0 auto; }
@@ -110,7 +117,7 @@
     </a>
     <div class="d-flex gap-2">
       <a href="/login" class="btn btn-outline-blanco btn-sm">Iniciar sesión</a>
-      <button class="btn btn-naranja btn-sm" data-bs-toggle="modal" data-bs-target="#modalInscripcion">Registrarme</button>
+      <button class="btn btn-naranja btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">PROBALA GRATIS</button>
     </div>
   </div>
 </nav>
@@ -124,8 +131,8 @@
         <h1>De los metros<br>a los <span>pesos</span>,<br>en minutos.</h1>
         <p class="mt-3 mb-4">Ingresás las cantidades de obra y PresupuestoPRO calcula solo los materiales, la mano de obra, el cuadro de pagos y genera el PDF con tu logo para el cliente.</p>
         <div class="d-flex flex-wrap gap-3">
-          <button class="btn btn-naranja btn-lg" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
-            <i class="bi bi-rocket-takeoff me-1"></i> Empezar ahora
+          <button class="btn btn-naranja btn-lg fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+            <i class="bi bi-rocket-takeoff me-1"></i> PROBALA GRATIS
           </button>
           <a href="#como-funciona" class="btn btn-outline-blanco btn-lg">Ver cómo funciona</a>
         </div>
@@ -160,6 +167,50 @@
               <tr style="background:#F97316;color:#fff;"><td style="padding:6px 8px;font-weight:700;border-radius:4px 0 0 4px;">TOTAL</td><td style="padding:6px 8px;text-align:right;font-weight:700;font-size:1rem;border-radius:0 4px 4px 0;">$38.750.000</td></tr>
             </table>
             <div style="margin-top:8px;font-size:.7rem;color:#9ca3af;text-align:center;">PDF generado por PresupuestoPRO en 3 minutos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GRILLA RAPIDA -->
+<section class="section-grilla">
+  <div class="container">
+    <div class="row g-4 pt-4">
+      <div class="col-6 col-lg-3">
+        <div class="grilla-item">
+          <div class="grilla-icon"><i class="bi bi-infinity"></i></div>
+          <div>
+            <h6>Presupuestos ilimitados</h6>
+            <p>Creá todos los que necesites, sin límite.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="grilla-item">
+          <div class="grilla-icon"><i class="bi bi-file-earmark-pdf-fill"></i></div>
+          <div>
+            <h6>PDF profesional</h6>
+            <p>Con tu logo, listo para el cliente.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="grilla-item">
+          <div class="grilla-icon"><i class="bi bi-graph-up-arrow"></i></div>
+          <div>
+            <h6>Ganancia real</h6>
+            <p>Costo directo, indirectos, GG e impuestos calculados solos.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <div class="grilla-item">
+          <div class="grilla-icon"><i class="bi bi-currency-exchange"></i></div>
+          <div>
+            <h6>Multi-moneda</h6>
+            <p>ARS · USD · Chile, Uruguay, Brasil y Paraguay.</p>
           </div>
         </div>
       </div>
@@ -221,6 +272,7 @@
                 <span class="phone-tab" onclick="switchTab('pdf')" id="tab-pdf">PDF</span>
                 <span class="phone-tab" onclick="switchTab('marca')" id="tab-marca">Mi marca</span>
                 <span class="phone-tab active" onclick="switchTab('precios')" id="tab-precios">Precios</span>
+                <span class="phone-tab" onclick="switchTab('ganancia')" id="tab-ganancia">Ganancia</span>
               </div>
             </div>
 
@@ -280,9 +332,23 @@
               </div>
             </div>
 
+            <!-- SCREEN: Ganancia Real -->
+            <div class="phone-content" id="screen-ganancia" style="display:none;">
+              <div class="phone-badge" style="background:#dcfce7;color:#166534;">✓ Paso 6 — Ganancia Real</div>
+              <div style="font-weight:700;font-size:.65rem;margin-bottom:6px;color:var(--azul);">Costo directo, indirectos, GG e impuestos</div>
+              <div class="phone-row"><span class="mat">Costo directo (MO + MAT)</span><span class="val">$14.320.000</span></div>
+              <div class="phone-row"><span class="mat">Gastos generales (12%)</span><span class="val">$1.718.400</span></div>
+              <div class="phone-row"><span class="mat">Impuestos y seguros</span><span class="val">$3.361.440</span></div>
+              <div style="background:#dcfce7;border-radius:6px;padding:6px 8px;margin-top:6px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:.58rem;font-weight:700;color:#166534;">TU GANANCIA REAL</span>
+                <span style="font-size:.75rem;font-weight:800;color:#166534;">$3.480.000</span>
+              </div>
+              <div class="phone-note">Lo que cobrás menos lo que realmente le pagás a tus operarios.</div>
+            </div>
+
           </div>
         </div>
-        <p class="text-center text-muted mt-3" style="font-size:.82rem;">👆 Tocá los tabs para ver PDF, marca y precios</p>
+        <p class="text-center text-muted mt-3" style="font-size:.82rem;">👆 Tocá los tabs para ver PDF, marca, precios y ganancia real</p>
       </div>
 
       <!-- Comentarios derecha -->
@@ -307,9 +373,18 @@
         </div>
         <div class="demo-comment" style="border-color:#22c55e;">
           <div class="d-flex align-items-start gap-2">
-            <span class="num" style="background:#22c55e;">✓</span>
+            <span class="num" style="background:#22c55e;">6</span>
             <div>
-              <strong style="color:#166534;">Guardado en la nube</strong>
+              <strong style="color:#166534;">NUEVO — Ganancia real, no solo el presupuesto</strong>
+              <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Costo directo, indirectos, gastos generales, impuestos y seguros calculados solos. Ves tu Total Final y tu Ganancia Real: lo que cobraste menos lo que realmente les pagaste a tus operarios.</p>
+            </div>
+          </div>
+        </div>
+        <div class="demo-comment">
+          <div class="d-flex align-items-start gap-2">
+            <span class="num">7</span>
+            <div>
+              <strong style="color:var(--azul)">Guardado en la nube</strong>
               <p class="mb-0 text-muted mt-1" style="font-size:.85rem;">Tus presupuestos siempre disponibles. Entrás con tu usuario desde el celu o la PC.</p>
             </div>
           </div>
@@ -324,6 +399,193 @@
       <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">2. Precios al día</strong></div></div>
       <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">3. Lista exacta</strong></div></div>
       <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">4. PDF con tu logo</strong></div></div>
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">5. Cuadro de pagos</strong></div></div>
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0;border-color:#22c55e;"><strong style="font-size:.85rem;color:#166534">6. Ganancia real</strong></div></div>
+      <div class="col-6"><div class="demo-comment" style="margin-bottom:0"><strong style="font-size:.85rem;color:var(--azul)">7. Guardado en la nube</strong></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PDF INTERACTIVO -->
+<section id="tu-pdf" style="background:#f8fafc;padding:72px 0;border-top:1px solid #e2e8f0;">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="section-title">Tu logo. Tu marca. Listo para el cliente.</h2>
+      <p class="section-sub">Probá cómo queda el PDF con los datos de tu empresa — en tiempo real.</p>
+    </div>
+    <div class="row g-5 align-items-start">
+
+      <!-- Panel izquierdo: formulario -->
+      <div class="col-lg-4">
+        <div style="background:#fff;border-radius:12px;padding:24px;border:1px solid #e2e8f0;">
+          <h6 style="color:var(--azul);font-weight:700;margin-bottom:16px;"><i class="bi bi-building me-1"></i> Datos de tu empresa</h6>
+
+          <!-- Logo upload -->
+          <div class="mb-4">
+            <label class="form-label small fw-bold">Logo</label>
+            <div id="logo-drop" onclick="document.getElementById('logo-file').click()"
+                 style="border:2px dashed #b0c4de;border-radius:8px;padding:20px;text-align:center;cursor:pointer;background:#f0f4f8;transition:border-color .2s;"
+                 onmouseover="this.style.borderColor='var(--naranja)'"
+                 onmouseout="this.style.borderColor='#b0c4de'">
+              <div id="logo-preview-area">
+                <i class="bi bi-cloud-upload" style="font-size:1.6rem;color:#7a9cbf;display:block;margin-bottom:4px;"></i>
+                <div style="font-size:.85rem;color:#374151;font-weight:600;">Subí tu logo</div>
+                <div style="font-size:.75rem;color:#9ca3af;">PNG, JPG (recomendado cuadrado)</div>
+              </div>
+            </div>
+            <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="loadLogo(event)">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Empresa / Nombre completo</label>
+            <input type="text" class="form-control form-control-sm" id="dem-empresa"
+                   placeholder="Tu constructora" oninput="updatePreview()" value="Constructora García &amp; Hijos">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">CUIT</label>
+            <input type="text" class="form-control form-control-sm" id="dem-cuit"
+                   placeholder="20-12345678-9" oninput="updatePreview()" value="20-28374651-3">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Teléfono / WhatsApp</label>
+            <input type="text" class="form-control form-control-sm" id="dem-tel"
+                   placeholder="351 5555-0000" oninput="updatePreview()" value="351 5555-0000">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Ciudad, Provincia</label>
+            <input type="text" class="form-control form-control-sm" id="dem-ciudad"
+                   placeholder="Córdoba, Córdoba" oninput="updatePreview()" value="Córdoba, Córdoba">
+          </div>
+
+          <div style="background:#dcfce7;border-radius:8px;padding:10px 14px;font-size:.82rem;color:#166534;">
+            <i class="bi bi-check-circle-fill me-1"></i> Estos datos aparecen en <strong>cada PDF</strong> que generás. Los cambiás cuando quieras desde tu perfil.
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel derecho: PDF preview live -->
+      <div class="col-lg-8">
+        <!-- Barra estilo "ventana" -->
+        <div style="background:#e8edf3;border-radius:6px 6px 0 0;padding:7px 14px;display:flex;gap:6px;align-items:center;">
+          <div style="width:10px;height:10px;background:#fc5c57;border-radius:50%;"></div>
+          <div style="width:10px;height:10px;background:#fdbc40;border-radius:50%;"></div>
+          <div style="width:10px;height:10px;background:#34c84a;border-radius:50%;"></div>
+          <span style="font-size:.78rem;color:#6b7280;margin-left:8px;">PresupuestoPRO — PDF Propietario</span>
+          <span style="margin-left:auto;font-size:.75rem;color:#22c55e;font-weight:600;">
+            <i class="bi bi-check-circle-fill me-1"></i>Se actualiza en tiempo real
+          </span>
+        </div>
+
+        <!-- Documento PDF -->
+        <div id="pdf-preview" style="background:#fff;padding:28px 32px;border:1px solid #dee2e6;border-top:none;border-radius:0 0 8px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+
+          <!-- Header empresa + número -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2.5px solid #1E3A5F;margin-bottom:14px;">
+            <div style="display:flex;align-items:flex-start;gap:14px;">
+              <div id="pdf-logo-wrap" style="width:64px;height:64px;background:#e8f0f8;border-radius:8px;border:2px dashed #b0c4de;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
+                <i class="bi bi-image" style="font-size:1.5rem;color:#7a9cbf;" id="pdf-logo-icon"></i>
+                <img id="pdf-logo-img" src="" alt="logo" style="display:none;width:100%;height:100%;object-fit:contain;">
+              </div>
+              <div>
+                <div id="preview-empresa" style="font-size:1.05rem;font-weight:700;color:#1E3A5F;line-height:1.2;">Constructora García &amp; Hijos</div>
+                <div id="preview-cuit" style="color:#6b7280;font-size:.82rem;margin-top:2px;">CUIT 20-28374651-3</div>
+                <div id="preview-tel" style="color:#6b7280;font-size:.82rem;">351 5555-0000</div>
+                <div id="preview-ciudad" style="color:#6b7280;font-size:.82rem;">Córdoba, Córdoba</div>
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-weight:700;color:#1E3A5F;font-size:.95rem;">PRESUPUESTO #2026-005</div>
+              <div style="color:#6b7280;font-size:.82rem;">30/06/2026</div>
+              <div style="margin-top:4px;"><span style="background:#dcfce7;color:#166534;border-radius:4px;padding:2px 8px;font-size:.72rem;font-weight:600;">Completo</span></div>
+            </div>
+          </div>
+
+          <!-- Obra info -->
+          <div style="background:#f8fafc;border-left:3px solid #1E3A5F;padding:8px 12px;margin-bottom:14px;border-radius:0 6px 6px 0;">
+            <div style="font-weight:700;color:#1E3A5F;font-size:.85rem;margin-bottom:2px;">OBRA: Tapial y vereda — Juan Pérez</div>
+            <div style="color:#6b7280;font-size:.8rem;line-height:1.4;">Casilda 432, Casilda · Tapial exterior 15cm con revoque + vereda de hormigón H-17 de 10cm.</div>
+          </div>
+
+          <!-- Rubros -->
+          <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:.88rem;">
+            <thead>
+              <tr style="background:#1E3A5F;color:#fff;">
+                <th style="padding:7px 10px;text-align:left;border-radius:4px 0 0 0;">Rubro</th>
+                <th style="padding:7px 10px;text-align:left;font-size:.78rem;font-weight:400;color:#a8c4e0;">Descripción</th>
+                <th style="padding:7px 10px;text-align:right;border-radius:0 4px 0 0;">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f0f3f8;">
+                <td style="padding:7px 10px;font-weight:600;">Mampostería</td>
+                <td style="padding:7px 10px;color:#6b7280;font-size:.8rem;">Mamp. ladrillo 15cm — 3 m²</td>
+                <td style="padding:7px 10px;text-align:right;font-weight:600;color:#1E3A5F;">$702.930</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f3f8;background:#fafbfc;">
+                <td style="padding:7px 10px;font-weight:600;">Contrapisos</td>
+                <td style="padding:7px 10px;color:#6b7280;font-size:.8rem;">Contrapiso H-13 sobre terreno — 22 m²</td>
+                <td style="padding:7px 10px;text-align:right;font-weight:600;color:#1E3A5F;">$404.460</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f3f8;">
+                <td style="padding:7px 10px;font-weight:600;">Hormigón elaborado</td>
+                <td style="padding:7px 10px;color:#6b7280;font-size:.8rem;">Losa H-21 de 15cm — 18 m²</td>
+                <td style="padding:7px 10px;text-align:right;font-weight:600;color:#1E3A5F;">$6.900.000</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f3f8;background:#fafbfc;">
+                <td colspan="2" style="padding:7px 10px;color:#6b7280;font-size:.82rem;">GG y beneficio (20%)</td>
+                <td style="padding:7px 10px;text-align:right;color:#6b7280;">$1.601.478</td>
+              </tr>
+              <tr style="border-bottom:2px solid #e2e8f0;background:#fafbfc;">
+                <td colspan="2" style="padding:7px 10px;color:#6b7280;font-size:.82rem;">Impuestos y seguros (7%)</td>
+                <td style="padding:7px 10px;text-align:right;color:#6b7280;">$560.518</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:#F97316;color:#fff;font-size:1rem;">
+                <td colspan="2" style="padding:10px 12px;font-weight:700;border-radius:0 0 0 4px;">TOTAL DEL PRESUPUESTO</td>
+                <td style="padding:10px 12px;text-align:right;font-weight:700;font-size:1.05rem;border-radius:0 0 4px 0;">$10.681.712</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <!-- Cuadro de pagos -->
+          <div style="margin-bottom:14px;">
+            <div style="font-weight:700;color:#1E3A5F;font-size:.85rem;margin-bottom:8px;text-transform:uppercase;">Forma de pago</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+              <div style="background:#d4edda;border-radius:6px;padding:10px;text-align:center;">
+                <div style="font-size:.7rem;color:#155724;font-weight:700;text-transform:uppercase;">Anticipo</div>
+                <div style="font-size:.95rem;font-weight:700;color:#166534;margin:2px 0;">$3.204.514</div>
+                <div style="font-size:.68rem;color:#6b7280;">Al inicio de obra</div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;text-align:center;">
+                <div style="font-size:.7rem;color:#374151;font-weight:700;text-transform:uppercase;">3 Cuotas semanales</div>
+                <div style="font-size:.95rem;font-weight:700;color:#1E3A5F;margin:2px 0;">$1.780.285</div>
+                <div style="font-size:.68rem;color:#6b7280;">cada una</div>
+              </div>
+              <div style="background:#fff3ea;border:1px solid #fed7aa;border-radius:6px;padding:10px;text-align:center;">
+                <div style="font-size:.7rem;color:#92400e;font-weight:700;text-transform:uppercase;">Saldo final</div>
+                <div style="font-size:.95rem;font-weight:700;color:#ea580c;margin:2px 0;">$2.136.843</div>
+                <div style="font-size:.68rem;color:#6b7280;">Al terminar</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer del PDF -->
+          <div style="border-top:1px solid #f0f3f8;padding-top:10px;display:flex;justify-content:space-between;align-items:center;">
+            <div id="preview-footer-empresa" style="font-size:.75rem;color:#9ca3af;">Constructora García &amp; Hijos · 351 5555-0000</div>
+            <div style="font-size:.72rem;color:#b0c4de;">PresupuestoPRO · presupuestopro.com.ar</div>
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <button class="btn btn-naranja btn-lg px-5" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+            <i class="bi bi-rocket-takeoff me-1"></i> Empezar gratis — creá tu primer presupuesto
+          </button>
+          <p class="text-muted mt-2 mb-0" style="font-size:.82rem;">
+            <i class="bi bi-info-circle me-1"></i>El logo y los datos se cargan desde tu perfil. Los cambiás cuando quieras.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -344,6 +606,7 @@
             <div class="x-item"><i class="bi bi-x-lg"></i><span>Precios desactualizados</span></div>
             <div class="x-item"><i class="bi bi-x-lg"></i><span>"¿Cuántas bolsas de cemento necesito?"</span></div>
             <div class="x-item"><i class="bi bi-x-lg"></i><span>Terminás la obra y quedaste corto</span></div>
+            <div class="x-item"><i class="bi bi-x-lg"></i><span>No sabés cuánto ganaste realmente</span></div>
             <div class="x-item"><i class="bi bi-x-lg"></i><span>PDF improvisado o papel suelto</span></div>
           </div>
         </div>
@@ -356,6 +619,7 @@
             <div class="check-item"><i class="bi bi-check-lg"></i><span>Precios de materiales siempre actualizados</span></div>
             <div class="check-item"><i class="bi bi-check-lg"></i><span>Lista de materiales exacta (bolsas, m³, kg)</span></div>
             <div class="check-item"><i class="bi bi-check-lg"></i><span>Cuadro de pagos y cuotas automático</span></div>
+            <div class="check-item"><i class="bi bi-check-lg"></i><span>Ganancia real calculada automáticamente</span></div>
             <div class="check-item"><i class="bi bi-check-lg"></i><span>PDF con tu logo listo para el cliente</span></div>
           </div>
         </div>
@@ -368,10 +632,10 @@
 <section class="section-features">
   <div class="container">
     <div class="text-center mb-5">
-      <h2 class="section-title">Todo lo que necesitás en 8 pasos</h2>
+      <h2 class="section-title">Todo lo que necesitás</h2>
       <p class="section-sub">Ingresás los datos de la obra y PresupuestoPRO hace el resto.</p>
     </div>
-    <div class="row g-4">
+    <div class="row g-4 justify-content-center">
       <div class="col-md-4">
         <div class="feature-card">
           <div class="feature-icon fi-azul"><i class="bi bi-list-check"></i></div>
@@ -398,6 +662,13 @@
           <div class="feature-icon fi-azul"><i class="bi bi-credit-card"></i></div>
           <h5 style="color:var(--azul);font-weight:700;">Cuadro de pagos y cuotas</h5>
           <p class="text-muted mb-0">Anticipo, cuotas semanales o quincenales y pago final. Todo calculado según la duración de la obra y la frecuencia que elijas.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="feature-card" style="border-color:#bbf7d0;">
+          <div class="feature-icon fi-verde"><i class="bi bi-graph-up-arrow"></i></div>
+          <h5 style="color:var(--azul);font-weight:700;">NUEVO — Análisis de rentabilidad y ganancia real</h5>
+          <p class="text-muted mb-0">Costo directo, subcontratos, indirectos, gastos generales, impuestos y seguros. Sabés tu Total Final y tu Ganancia Real descontando lo que le pagaste a tus operarios — no solo lo que le cobraste al cliente.</p>
         </div>
       </div>
       <div class="col-md-4">
@@ -436,8 +707,8 @@
       <div class="mb-3">
         <span class="badge-gratis"><i class="bi bi-gift me-1"></i> Primeros usuarios: acceso gratuito</span>
       </div>
-      <button class="btn btn-naranja btn-lg px-5" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
-        <i class="bi bi-rocket-takeoff me-1"></i> Empezar gratis
+      <button class="btn btn-naranja btn-lg px-5 fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+        <i class="bi bi-rocket-takeoff me-1"></i> PROBALA GRATIS
       </button>
     </div>
   </div>
@@ -447,9 +718,9 @@
 <section class="section-cta">
   <div class="container">
     <h2>¿Listo para presupuestar como un profesional?</h2>
-    <p class="mt-2 mb-4">Materiales calculados. Precios actualizados. PDF con tu marca. En minutos.</p>
-    <button class="btn btn-naranja btn-lg px-5" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
-      <i class="bi bi-rocket-takeoff me-1"></i> Empezar ahora — es gratis
+    <p class="mt-2 mb-4">Materiales calculados. Precios actualizados. Ganancia real. PDF con tu marca. En minutos.</p>
+    <button class="btn btn-naranja btn-lg px-5 fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+      <i class="bi bi-rocket-takeoff me-1"></i> PROBALA GRATIS
     </button>
   </div>
 </section>
@@ -459,10 +730,11 @@
   <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
       <span style="color:#fff;font-weight:600;">Presupuesto<span style="color:var(--naranja)">PRO</span></span>
-      <span class="ms-3">Para constructores y contratistas en Argentina y LATAM.</span>
+      <span class="ms-3">Para Albañiles, Constructores y Contratistas en Argentina y LATAM.</span>
     </div>
-    <div>
+    <div class="d-flex align-items-center gap-3">
       <a href="/login">Iniciar sesión</a>
+      <button class="btn btn-naranja btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">PROBALA GRATIS</button>
     </div>
   </div>
 </footer>
@@ -522,10 +794,10 @@
         <!-- Mensaje de éxito -->
         <div class="success-box" id="successInscripcion">
           <div style="font-size:3rem;">🎉</div>
-          <h5 class="text-success mt-2 mb-3">¡Registrado con éxito!</h5>
+          <h5 class="text-success mt-2 mb-3">Registrado con éxito</h5>
           <p class="text-muted mb-3">
-            Recibimos tus datos. En breve te enviamos por <strong>WhatsApp o email</strong> el link de pago para activar tu cuenta.<br><br>
-            <span style="font-size:.9rem;">Si sos de los <strong>primeros usuarios</strong>, tu acceso es <strong>gratuito</strong> y te lo activamos directamente.</span>
+            En breve te activamos la cuenta por <strong>WhatsApp o email</strong>.<br>
+            <strong>Tu acceso es gratuito.</strong>
           </p>
           <div class="d-flex justify-content-center gap-2 flex-wrap">
             <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
@@ -540,7 +812,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 /* ── TABS DEL PHONE MOCKUP ── */
-var tabOrder = ['pdf','marca','precios'];
+var tabOrder = ['pdf','marca','precios','ganancia'];
 var currentTab = 'precios';
 var autoRotate;
 
@@ -626,6 +898,37 @@ function mostrarExito() {
       document.getElementById('modalInscripcion').addEventListener('hidden.bs.modal', resetModal, { once: true });
     }
   }, 100);
+}
+
+/* ── PDF DEMO INTERACTIVO ── */
+function updatePreview() {
+  var empresa = document.getElementById('dem-empresa').value || 'Tu constructora';
+  var cuit    = document.getElementById('dem-cuit').value    || '20-12345678-9';
+  var tel     = document.getElementById('dem-tel').value     || '351 5555-0000';
+  var ciudad  = document.getElementById('dem-ciudad').value  || 'Ciudad, Provincia';
+  document.getElementById('preview-empresa').textContent        = empresa;
+  document.getElementById('preview-cuit').textContent           = 'CUIT ' + cuit;
+  document.getElementById('preview-tel').textContent            = tel;
+  document.getElementById('preview-ciudad').textContent         = ciudad;
+  document.getElementById('preview-footer-empresa').textContent = empresa + ' · ' + tel;
+}
+
+function loadLogo(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    // Área de upload: mostrar miniatura
+    document.getElementById('logo-preview-area').innerHTML =
+      '<img src="' + e.target.result + '" style="max-height:60px;max-width:100%;border-radius:4px;">' +
+      '<div style="font-size:.7rem;color:#6b7280;margin-top:4px;">Logo cargado ✓</div>';
+    // PDF preview: reemplazar icono por la imagen
+    document.getElementById('pdf-logo-icon').style.display = 'none';
+    var img = document.getElementById('pdf-logo-img');
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
 }
 
 function resetModal() {
