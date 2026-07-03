@@ -297,19 +297,18 @@ def precios():
     jornal_oficial_dia  = int(float(cfg_jo['valor'])) if cfg_jo else 80000
     jornal_ayudante_dia = int(float(cfg_ja['valor'])) if cfg_ja else 40000
 
+    # ⚠️ Cemento portland, Cemento Albañilería, Cal aérea, Klaukol, Salpicrete y
+    # Super Iggam YA están en analisis_sub como precio por bolsa (migraciones 2j/2k/2l
+    # en database.py). No van en este diccionario: si se los vuelve a multiplicar acá
+    # por el factor de bolsa queda una DOBLE CONVERSIÓN y el precio comercial sale
+    # 25-30 veces más caro de lo real (mismo bug que había en paso6_materiales).
     COMERCIAL = {
-        'cemento port': (25,   'bolsa 25kg'),
-        'cemento alb':  (25,   'bolsa 25kg'),
-        'cal hidr':     (25,   'bolsa 25kg'),
-        'cal a':        (25,   'bolsa 25kg'),
-        'cal viv':      (25,   'bolsa 25kg'),
-        'perlitas':     (75,   'bolsa 75Lt'),
-        'revear':       (30,   'balde 30kg'),
-        'salpicrete':   (30,   'bolsa 30kg'),
-        'iggam':        (30,   'bolsa 30kg'),
-        'klaukol':      (25,   'bolsa 25kg'),
-        'hierro':       (7.44, 'barra 12m'),
-        'pastina':      (5,    'bolsa 5kg'),
+        'cal hidr':     (25,   'bolsa 25kg'),   # sin migrar — sigue en $/kg
+        'cal viv':      (25,   'bolsa 25kg'),   # sin migrar — sigue en $/kg
+        'perlitas':     (75,   'bolsa 75Lt'),   # sin migrar — sigue en $/lt
+        'revear':       (30,   'balde 30kg'),   # sin migrar — sigue en $/kg
+        'hierro':       (7.44, 'barra 12m'),    # sin migrar — sigue en $/kg
+        'pastina':      (5,    'bolsa 5kg'),    # sin migrar — sigue en $/kg
     }
 
     def _info_comercial(nombre):

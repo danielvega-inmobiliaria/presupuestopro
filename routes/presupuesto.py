@@ -225,20 +225,26 @@ def _calcular_materiales_desde_rubros(p):
                                                   'nombre_display': hoja_n}
                         mat_acum[hoja_key]['cantidad'] += hoja_c
 
-        # Conversión kg acumulados → bolsas/unidades de compra.
-        # Formato: keyword → (factor_kg, etiqueta_unidad)
+        # Conversión kg/L acumulados → bolsas/unidades de compra.
+        # Formato: keyword → (factor_base, etiqueta_unidad)
+        #
+        # ⚠️ IMPORTANTE: las migraciones 2j (database.py) y 2k/2l ya convirtieron
+        # cant_por_unit / precio_ars en analisis_sub A UNIDAD COMERCIAL (bolsa) para:
+        # Cemento portland bolsas, Cemento Albañilería, Cal aérea Milagro, Klaukol,
+        # Salpicrete y Super Iggam. Esos valores en DB YA vienen en "bolsas" y "$/bolsa",
+        # no en kg. Si acá se los vuelve a dividir/multiplicar por el factor de bolsa,
+        # queda una DOBLE CONVERSIÓN: la cantidad mostrada sale ~25-30 veces más chica
+        # y el precio unitario ~25-30 veces más caro (el subtotal además se distorsiona
+        # extra por el redondeo hacia arriba aplicado sobre la cantidad ya dividida).
+        # Por eso esos 6 materiales NO van en este diccionario: se usan tal cual vienen
+        # de analisis_sub. Los que siguen abajo NO fueron tocados por 2j/2k/2l y
+        # siguen almacenados en kg/L "crudos", así que sí necesitan esta conversión.
         BOLSAS_KG = {
-            'cemento port': (25, 'Bolsas'),          # portland: bolsa 25 kg
-            'cemento alb':  (25, 'Bolsas'),          # Albañilería: bolsa 25 kg
-            'cal hidr':     (25, 'Bolsas'),          # cal hidráulica: bolsa 25 kg
-            'cal a':        (25, 'Bolsas'),          # cal aérea Milagro: bolsa 25 kg
-            'cal viv':      (25, 'Bolsas'),          # cal viva: bolsa 25 kg
-            'perlitas':     (75, 'Bolsas 75 Lts.'), # perlitas telgopor: bolsa 75 lt
-            'revear':       (30, 'Bolsas'),          # Revear: balde 30 kg
-            'salpicrete':   (30, 'Bolsas'),          # Salpicrete: bolsa 30 kg
-            'iggam':        (30, 'Bolsas'),          # Super Iggam: bolsa 30 kg
-            'klaukol':      (25, 'Bolsas'),          # Klaukol: bolsa 25 kg
-            'hierro':       (7.44, 'Barras'),        # Hierro 10mm: barra 12m = 7.44 kg
+            'cal hidr':     (25, 'Bolsas'),          # cal hidráulica: bolsa 25 kg (sin migrar)
+            'cal viv':      (25, 'Bolsas'),          # cal viva: bolsa 25 kg (sin migrar)
+            'perlitas':     (75, 'Bolsas 75 Lts.'), # perlitas telgopor: bolsa 75 lt (sin migrar)
+            'revear':       (30, 'Bolsas'),          # Revear: balde 30 kg (sin migrar)
+            'hierro':       (7.44, 'Barras'),        # Hierro 10mm: barra 12m = 7.44 kg (sin migrar)
         }
 
         result = []
