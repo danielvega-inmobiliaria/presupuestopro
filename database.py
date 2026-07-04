@@ -1878,6 +1878,54 @@ def migrate_db():
             db.commit()
             print(f"[migrate_db] 2n: {len(SUBS_2N)} materiales resincronizados contra PRESUPUESTO COCHERA.xlsx")
 
+        # ── 2o. Corrección de ítems renombrados (_renombres) que 2n no alcanzó ──
+        #   database.py renombra items_obra.nombre para varios ítems (ver lista
+        #   `_renombres` más arriba: Relleno y Compactacion → "...C/15cm", Piso/
+        #   Zocalo/Rvto ceramico "2"/"3" → "Piso/Zocalo/Rvto Ceramico/Porcellanato").
+        #   La migración 2n comparó contra el Excel usando el nombre ORIGINAL
+        #   (pre-renombre), así que para estos ítems quedaron sin corregir bajo su
+        #   nombre real post-renombre. Encontrado por el usuario en "Relleno y
+        #   Compactación": la app traía "Máquina excavadora" (que el Excel no
+        #   tiene para este ítem) y menos Tierra Colorada de la que corresponde.
+        ya_2o = db.execute("SELECT valor FROM config WHERE clave='2o_done'").fetchone()
+        if not ya_2o:
+            SUBS_2O = [
+                # Relleno y Compactación: SIN máquina excavadora, Tierra Colorada correcta
+                ('Relleno y Compactacion C/15cm', 'Tierra Colorada', 1.58, 20000.0, 1),
+                # Klaukol estaba a precio viejo (720) en vez del real (600) en estos 6
+                ('Piso Ceramico', 'Piso cerámico 2', 1.05, 25000.0, 1),
+                ('Piso Ceramico', 'Klaukol', 4.0, 600.0, 1),
+                ('Piso Ceramico', 'Pastina', 0.2, 5500.0, 1),
+                ('Piso Porcellanato', 'Piso cerámico 3 (porcellanato)', 1.05, 35000.0, 1),
+                ('Piso Porcellanato', 'Klaukol', 4.0, 600.0, 1),
+                ('Piso Porcellanato', 'Pastina', 0.2, 5500.0, 1),
+                ('Zocalo Ceramico', 'Zócalo cerámico 2', 1.05, 2083.33, 1),
+                ('Zocalo Ceramico', 'Klaukol', 0.2, 600.0, 1),
+                ('Zocalo Ceramico', 'Pastina', 0.02, 5500.0, 1),
+                ('Zocalo Porcellanato', 'Zócalo cerámico 3 (Porcellanato)', 1.05, 2916.67, 1),
+                ('Zocalo Porcellanato', 'Pastina', 0.02, 5500.0, 1),
+                ('Zocalo Porcellanato', 'Klaukol', 0.2, 600.0, 1),
+                ('Rvto. Ceramico', 'Rvto.cerámico 2', 1.1, 25000.0, 1),
+                ('Rvto. Ceramico', 'Klaukol', 2.0, 600.0, 1),
+                ('Rvto. Ceramico', 'Pastina', 0.2, 5500.0, 1),
+                ('Rvto. Porcellanato', 'Rvto.cerámico 3 (porcellanato)', 1.1, 35000.0, 1),
+                ('Rvto. Porcellanato', 'Klaukol', 2.0, 600.0, 1),
+                ('Rvto. Porcellanato', 'Pastina', 0.2, 5500.0, 1),
+            ]
+            nombres_2o = sorted(set(t[0] for t in SUBS_2O))
+            for item_nombre in nombres_2o:
+                db.execute("DELETE FROM analisis_sub WHERE item_nombre=? AND es_material=1", (item_nombre,))
+            db.commit()
+            db.executemany(
+                "INSERT INTO analisis_sub (item_nombre, sub_nombre, cant_por_unit, precio_ars, es_material) "
+                "VALUES (?,?,?,?,?)",
+                SUBS_2O
+            )
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2o_done','2026-07-04')")
+            db.commit()
+            print(f"[migrate_db] 2o: {len(SUBS_2O)} materiales corregidos en items renombrados (Relleno y Compactacion, Piso/Zocalo/Rvto Ceramico/Porcellanato)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
