@@ -1926,6 +1926,38 @@ def migrate_db():
             db.commit()
             print(f"[migrate_db] 2o: {len(SUBS_2O)} materiales corregidos en items renombrados (Relleno y Compactacion, Piso/Zocalo/Rvto Ceramico/Porcellanato)")
 
+        # ── 2p. Reaplicar conversión a unidad comercial post 2n/2o ──────────────
+        #   2n y 2o insertaron los datos del Excel TAL CUAL (kg/L crudos), pero
+        #   2j/2k/2l ya habían convertido 6 materiales a unidad comercial (bolsa)
+        #   antes de que 2n/2o corrieran. Al hacer DELETE+INSERT, 2n/2o pisaron
+        #   esa conversión y volvieron a dejar estos 6 materiales en kg crudo en
+        #   TODOS los ítems que los usan — mismo bug de doble-conversión que ya
+        #   se había corregido en routes/presupuesto.py y admin.py, pero ahora
+        #   del lado de los DATOS en vez del código. Factores finales (los mismos
+        #   que dejó 2l): Cemento portland/Albañilería/Cal aérea/Klaukol = 25,
+        #   Salpicrete/Super Iggam = 30.
+        ya_2p = db.execute("SELECT valor FROM config WHERE clave='2p_done'").fetchone()
+        if not ya_2p:
+            FACTORES_2P = [
+                ('Cemento portland bolsas', 25),
+                ('Cemento Albañilería',     25),
+                ('Cal aérea Milagro',       25),
+                ('Klaukol',                 25),
+                ('Salpicrete',              30),
+                ('Super Iggam',             30),
+            ]
+            for sub, factor in FACTORES_2P:
+                db.execute("""
+                    UPDATE analisis_sub
+                    SET cant_por_unit = ROUND(cant_por_unit / ?, 6),
+                        precio_ars    = ROUND(precio_ars    * ?, 2)
+                    WHERE sub_nombre = ? AND es_material = 1
+                """, (factor, factor, sub))
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2p_done','2026-07-04')")
+            db.commit()
+            print("[migrate_db] 2p: reconversion a unidad comercial post 2n/2o (6 materiales)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
