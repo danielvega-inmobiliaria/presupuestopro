@@ -2085,6 +2085,30 @@ def migrate_db():
             db.commit()
             print(f"[migrate_db] 2q: {len(PRECIOS_2Q)} precios actualizados desde LISTA_MATERIALES_V3_formulafix.xlsx")
 
+        # ── 2r. BUG: precio_mo_ars de las 4 instalaciones quedó desactualizado ──
+        #   tras 2m. _actualizar_mo_analisis() escribe items_obra.precio_mo_ars UNA
+        #   sola vez (guard: "WHERE precio_mo_ars IS NULL OR = 0") y nunca se vuelve
+        #   a llamar. La migración 2m corrigió hof/hay de las 4 instalaciones pero NO
+        #   recalculó precio_mo_ars — a diferencia de 2h, que sí lo hacía (ver arriba:
+        #   "UPDATE items_obra SET precio_mo_ars = ROUND(hof*10000 + hay*5000, 2)").
+        #   Resultado: el total de MO del presupuesto (paso2: precio_mo_ars × cantidad)
+        #   usaba HOF/HAY viejos y "cruzados" para estas 4 instalaciones, aunque
+        #   items_obra.hof/hay ya estuviera corregido desde 2m. Detectado 04/07/2026
+        #   por Daniel comparando MO real (Excel COCHERA: $5.902.594) vs MO de la app
+        #   ($8.736.994) para el presupuesto de Ezequiel Petrini.
+        ya_2r = db.execute("SELECT valor FROM config WHERE clave='2r_done'").fetchone()
+        if not ya_2r:
+            db.execute("""
+                UPDATE items_obra
+                SET precio_mo_ars = ROUND(hof * 10000 + hay * 5000, 2)
+                WHERE nombre IN ('Instalacion Desague','Instalacion Agua F/C',
+                                 'Instalacion Gas','Instalacion Electrica')
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2r_done','2026-07-04')")
+            db.commit()
+            print("[migrate_db] 2r: precio_mo_ars recalculado para las 4 instalaciones (post 2m)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

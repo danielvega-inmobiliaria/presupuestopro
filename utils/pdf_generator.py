@@ -284,13 +284,15 @@ def generar_pdf_constructor(p, empresa=None):
     pct_imp      = p.get('pct_impuestos', 7)
     modo         = p.get('modo', 'mo_mat')
 
-    # Calcular costo_directo desde rubros si la columna de DB vale 0
+    # Costo Directo = total_mo + total_materiales (analisis_sub). Fix 04/07/2026:
+    # antes usaba p.get('costo_directo') / sum(rubros total_local), que es
+    # items_obra.precio_ars×qty — un catálogo de precios que ninguna migración
+    # de precios actualiza. Ver misma corrección en routes/presupuesto.py.
     rubros_list      = p.get('rubros', [])
-    costo_dir_calc   = sum(r.get('total_local', 0) for r in rubros_list)
-    costo_directo    = p.get('costo_directo', 0) or costo_dir_calc
     total_subc       = p.get('total_subcontratos', 0)
     total_ind        = p.get('total_indirectos', 0)
     total_mo         = p.get('total_mo', 0)
+    costo_directo    = total_mo + p.get('total_materiales', 0)
 
     # Base segun modo: solo_mo usa la MO como base de calculo, mo_mat usa rubros
     if modo == 'solo_mo':

@@ -866,10 +866,14 @@ def modo_tiempo():
             ganancia_real = total_mo + monto_gg - operarios_reales
             costo_directo = 0
         else:
-            # CD = mismo que paso 2 (sum precio_ars×qty), consistente con Excel
+            # CD = total_mo_analisis + materiales (analisis_sub), NO items_obra.precio_ars.
+            # Fix 04/07/2026: antes usaba p.get('costo_directo') (=sum(precio_ars×qty) de
+            # paso 2), un catálogo de precios "todo incluido" que ninguna migración de
+            # precios (2h..2q) actualiza nunca. Esto desconectaba el TOTAL final de todas
+            # las correcciones de precios de materiales/MO hechas en analisis_sub e
+            # items_obra.precio_mo_ars. Ahora el Costo Directo sigue siempre a analisis_sub.
             _mat_total = sum(m.get('subtotal', 0) for m in p.get('materiales', []))
-            costo_directo = (p.get('costo_directo')
-                             or p.get('total_mo_analisis', 0) + (_mat_total or p.get('total_materiales', 0)))
+            costo_directo = p.get('total_mo_analisis', 0) + (_mat_total or p.get('total_materiales', 0))
             base = costo_directo + total_subc + total_ind
             monto_gg  = round(base * pct_gg / 100)
             monto_imp = round(base * pct_imp / 100)
@@ -905,12 +909,10 @@ def modo_tiempo():
     rubros_list = p.get('rubros', [])
     subc_list   = p.get('subcontratos', [])
     ind_dict    = p.get('indirectos', {})
-    # Costo Directo: usar el mismo valor que paso 2 (sum precio_ars×qty)
-    # para consistencia. Fallback: MO+MAT analisis si costo_directo no está disponible.
+    # Costo Directo: total_mo_analisis + materiales (analisis_sub). Ver nota del fix
+    # 04/07/2026 más abajo (modo_tiempo POST) — ya no se usa items_obra.precio_ars.
     _mat_total  = sum(m.get('subtotal', 0) for m in p.get('materiales', []))
-    cd_rubros   = (p.get('costo_directo')
-                   or sum(r.get('total_local', 0) for r in rubros_list)
-                   or p.get('total_mo_analisis', 0) + (_mat_total or p.get('total_materiales', 0)))
+    cd_rubros   = p.get('total_mo_analisis', 0) + (_mat_total or p.get('total_materiales', 0))
     total_subc  = sum(s.get('mo_local', 0) + s.get('mat_local', 0) for s in subc_list)
     total_ind   = sum(v for v in ind_dict.values() if isinstance(v, (int, float)))
     totales_ctx = p.get('totales', {})
