@@ -1958,6 +1958,133 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2p: reconversion a unidad comercial post 2n/2o (6 materiales)")
 
+        # ── 2q. Actualización de precios reales — LISTA_MATERIALES_V3_formulafix.xlsx ──
+        #   Fuente: D:\ESCRITORIO\CLAUDE\02_CONSTRUCCION\PRESUPUESTOS\LISTA_MATERIALES_V3_formulafix.xlsx
+        #   (Corralón El Cruce · Lista 169 · 04/06/2026). Para los 6 materiales que la app ya
+        #   almacena en unidad comercial (bolsa, post 2j/2k/2l/2p) se usa la columna F de la V3
+        #   ($ Precio comercial, precio de la bolsa entera). Para el resto (que sigue en su unidad
+        #   de cálculo cruda: kg/m3/u/ml/lt/m2) se usa la columna G ($ por unidad de cálculo).
+        #   88 materiales verificados 1 a 1 contra la V3 (incluye Baldosa cerámica azotea ← V3
+        #   "Baldosa cerámica Alberdi", Zócalo de madera ← V3 "Zócalo de pino", Viga Vipret 4m. ←
+        #   V3 "Vigueta 4,00 m", y Ladrillo hueco 18X18X33cm ← V3 "18x18x33 cm" (celda B22, corregida
+        #   por Daniel — era un typo "25cm" en la V3), todos confirmados por Daniel el 04/07/2026).
+        #   Queda sin actualizar (a propósito):
+        #   - 'Hormigón colado' / 'Hormigon elaborado colado' / 'Hormigón elaborado colado':
+        #     a propósito NO se actualizan acá. Son 2 materiales distintos usados como insumo
+        #     interno en las recetas de analisis_sub (Hormigón colado = mezclado en obra, usado
+        #     en ítems "Ho.Ado.*" a $233.860/m3; Hormigón elaborado colado = camión mixer, usado
+        #     en ítems "H.Elab.*" a $215.000/m3 — 'Hormigon elaborado colado' sin tilde es el
+        #     mismo material con inconsistencia de tilde). Decisión de Daniel (04/07/2026): estos
+        #     cálculos internos se mantienen tal como los trae el Excel (COCHERA, migración 2n).
+        #     El valor de la V3 ($190.000/m3, "Hormigón elaborado pto.obra") se usa solo como
+        #     referencia de "costo de hormigón puesto en obra" en el Excel de precios comerciales,
+        #     no reemplaza estos 2 insumos internos.
+        #   NOTA: existe también _migrar_precios_v1() (llamada desde init_db, con estos mismos
+        #   precios pero en base kg cruda para TODOS los materiales incl. los 6 de bolsa) que
+        #   nunca corrió sobre una base ya existente porque solo se invoca desde init_db(), no
+        #   desde migrate_db(). Esta migración 2q reemplaza esa función para las bases ya creadas.
+        ya_2q = db.execute("SELECT valor FROM config WHERE clave='2q_done'").fetchone()
+        if not ya_2q:
+            PRECIOS_2Q = [
+                ('Accesorios Desagues', 8500),
+                ('Accesorios Gas', 3500),
+                ('Accesorios TF', 3000),
+                ('Alambre negro', 7000),
+                ('Arena común', 31000),
+                ('Baldosa cerámica azotea', 33000),
+                ('Cable 1,5 mm', 510),
+                ('Cable 2,5 mm', 850),
+                ('Cajas Metalicas', 850),
+                ('Cal Hidráulica', 332),
+                ('Cal aérea Milagro', 9300),
+                ('Caño Awaduct 110', 8125),
+                ('Caño Awaduct 40', 2900),
+                ('Caño Awaduct 50', 5300),
+                ('Caño Awaduct 63', 6250),
+                ('Caño Corrugado 1"', 376),
+                ('Caño Corrugado 3/4"', 260),
+                ('Caño Epoxi 3/4', 12890.63),
+                ('Caño TF 20', 2625),
+                ('Caño TF 25', 5000),
+                ('Caño epoxi 1/2', 6406.25),
+                ('Cemento Albañilería', 7400),
+                ('Cemento portland bolsas', 8300),
+                ('Chapas Cerco', 14800),
+                ('Chapas Techo', 14800),
+                ('Clavadores 2 x 2', 1007.59),
+                ('Clavos 2"', 5600),
+                ('Clavos 2" 1/2', 5600),
+                ('Clavos 3"', 7200),
+                ('Clavos 4"', 7200),
+                ('Color pintura cal', 20000),
+                ('Enduido sintético', 7500),
+                ('Escurridores 1/2 x 2', 459.46),
+                ('Esmalte albalux', 23175),
+                ('Fondo Base', 3800),
+                ('Granza', 36000),
+                ('Hidrófugo', 2900),
+                ('Hierro redondo d=10mm', 2553.76),
+                ('Issolant', 4950),
+                ('Klaukol', 18000),
+                ('Ladrillo Telgopor 12*38*1m', 6200),
+                ('Ladrillo hueco 12X18X33cm', 830),
+                ('Ladrillo hueco 8x18x33cm', 720),
+                ('Ladrillo hueco Portante 12x18x33cm', 1160),
+                ('Ladrillo hueco Portante 18x18x33cm', 1400),
+                ('Ladrillo hueco 18X18X33cm', 1160),
+                ('Ladrillos comunes', 230),
+                ('Ladrillos vista', 390),
+                ('Llaves de Paso Agua', 25000),
+                ('Llaves de Paso Gas', 25000),
+                ('Loseta cemento 60x40cm', 5000),
+                ('Martillo neumático', 25000),
+                ('Metal desplegado', 3333.33),
+                ('Mosaico calcáreo', 25000),
+                ('Palito 1"x1"', 500),
+                ('Pastina', 5500),
+                ('Perlitas Telgopor', 106.67),
+                ('Piedra Granítica', 93000),
+                ('Pino encofrado 1"', 8860.76),
+                ('Pino tabla machimbre', 11600),
+                ('Pintura especial 1', 21250),
+                ('Pintura especial 2', 22500),
+                ('Pintura látex cielos', 7200),
+                ('Pintura látex exterior', 7250),
+                ('Pintura látex interior', 4750),
+                ('Pintura satinol', 22500),
+                ('Piso cerámico 1', 15000),
+                ('Piso cerámico 2', 25000),
+                ('Piso cerámico 3 (porcellanato)', 35000),
+                ('Rvto.cerámico 1', 15000),
+                ('Rvto.cerámico 2', 25000),
+                ('Rvto.cerámico 3 (porcellanato)', 35000),
+                ('Saligna   1"x2"', 1037.97),
+                ('Saligna 1"x4"', 886.08),
+                ('Saligna 3"x3"', 1766.67),
+                ('Salpicrete', 80000),
+                ('Super Iggam', 25000),
+                ('Tarugo 6', 62),
+                ('Tierra Colorada', 20000),
+                ('Tirantes 2x6', 27166.67),
+                ('Tornillo', 45),
+                ('Tornillo c/arand goma', 118),
+                ('Transporte material suelto', 19000),
+                ('Viga Vipret 4m.', 3862.5),
+                ('Zócalo cerámico 1', 1250),
+                ('Zócalo cerámico 2', 2083.33),
+                ('Zócalo cerámico 3 (Porcellanato)', 2916.67),
+                ('Zócalo de madera', 3500),
+            ]
+            for sub, precio in PRECIOS_2Q:
+                db.execute(
+                    "UPDATE analisis_sub SET precio_ars=? WHERE sub_nombre=? AND es_material=1",
+                    (precio, sub)
+                )
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2q_done','2026-07-04')")
+            db.commit()
+            print(f"[migrate_db] 2q: {len(PRECIOS_2Q)} precios actualizados desde LISTA_MATERIALES_V3_formulafix.xlsx")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

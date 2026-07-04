@@ -6,7 +6,7 @@
 
 ---
 
-_Última actualización: 04/07/2026 — 11:25 ART_
+_Última actualización: 04/07/2026 — 12:55 ART_
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -249,6 +249,18 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 
 ## Cambios recientes comprometidos (HEAD actual en Railway)
 
+### Sesión 04/07/2026 (tarde) — Precios reales V3 + bug de `_migrar_precios_v1` nunca ejecutado
+- Pedido: listado de materiales con Unidad/Precio Comercial vs Unidad/Precio de Cálculo. El primer intento se armó contra un `presupuestopro.db` local **desactualizado** (sin ninguno de los flags `2j_done`...`2p_done`, sin tabla `suscripciones`) → descartado.
+- Daniel señaló `D:\ESCRITORIO\CLAUDE\02_CONSTRUCCION\PRESUPUESTOS\LISTA_MATERIALES_V3_formulafix.xlsx` (Corralón El Cruce, Lista 169, 04/06/2026) como la planilla de referencia real. Es una planilla de TRABAJO (no la lee la app): columna F = precio comercial que carga Daniel, columna G = F÷cant.presentación (autocalculada, "va a la app"), columna H = precio de lista viejo (jun-2026, como referencia).
+- **Hallazgo clave:** existe `_migrar_precios_v1(db)` en `database.py` (agregada en commit `5882585`, ANTES de que existieran las migraciones 2h-2p) con precios ya sacados de esta misma V3. Pero solo se llama desde `init_db()`, nunca desde `migrate_db()` → en una base que ya existe (como producción) nunca corrió de forma útil. Es código "muerto" en la práctica.
+- **Fix:** migración nueva `2q` en `database.py` (después de 2p), que actualiza `analisis_sub.precio_ars` de 88 materiales con los valores de la V3: para los 6 materiales que ya están en unidad comercial (Cemento portland, Cemento Albañilería, Cal aérea Milagro, Klaukol, Salpicrete, Super Iggam) usa la columna F (precio de la bolsa); para el resto usa la columna G (precio por unidad de cálculo cruda). Guardada con flag `2q_done`, corre sola en el próximo arranque de la app.
+- **Decisiones de Daniel (04/07/2026) sobre los casos ambiguos:**
+  - ✅ Adoptados y agregados a 2q: Baldosa cerámica azotea (V3: "Baldosa cerámica Alberdi", $33.000/m2), Zócalo de madera (V3: "Zócalo de pino", $3.500/ml), Viga Vipret 4m. (V3: "Vigueta 4,00 m", $3.862,50/u), Ladrillo hueco 18X18X33cm (V3 celda B22 corregida por Daniel de "25cm" a "33cm", $1.160/u).
+  - ⛔ Hormigón colado / Hormigon elaborado colado / Hormigón elaborado colado: **NO se tocan en 2q, a propósito.** Son 2 materiales distintos usados como insumo interno en las recetas de `analisis_sub`: "Hormigón colado" = mezclado en obra, usado en ítems `Ho.Ado.*` a $233.860/m3 (COCHERA, migración 2n); "Hormigón elaborado colado" = camión mixer, usado en ítems `H.Elab.*` a $215.000/m3 ("Hormigon elaborado colado" sin tilde es el mismo material, con inconsistencia de tilde en los datos). Estos cálculos internos se mantienen tal como los trae el Excel. El valor de la V3 ($190.000/m3, "Hormigón elaborado pto.obra") se usa **solo como referencia de "costo de hormigón puesto en obra"** en el Excel de precios comerciales — no reemplaza los 2 insumos internos.
+  - "Revear/DeckAr" y "Contenedor/volquete" de la V3 no tienen fila propia en `analisis_sub` hoy (no son materiales usados actualmente por ningún ítem). Los renglones "Jornal Oficial/Ayudante" de la V3 ($80.000/$40.000 por día) no tocan `analisis_sub` — van por la tabla `config` (`jornal_oficial_dia`/`jornal_ayudante_dia`), coinciden con los defaults actuales de `routes/admin.py`.
+- **Entregable actualizado:** `EXPORTS/Materiales_App_Lista_Comercial_v2.xlsx` — regenerado con los valores finales confirmados (88 actualizados + fila de referencia "Hormigón colado" $190.000/m3 + nota de los 2 insumos internos que no cambian). El archivo `Materiales_App_Lista_Comercial.xlsx` (sin `_v2`) quedó abierto en Excel y no se pudo sobrescribir — reemplazar manualmente cuando se cierre.
+- **Pendiente:** commitear `database.py` (migración 2q) + `PROYECTO.md` vía Git Bash (comandos pasados a Daniel en el chat) — sigue la regla crítica de este archivo. Después del commit+push+deploy, revisar `/admin/precios` en producción para confirmar que los 88 valores quedaron aplicados.
+
 ### Sesión 04/07/2026 — Verificación vs Excel real (PRESUPUESTO COCHERA.xlsx)
 - Comparados los 15 ítems cargados en la cochera de Ezequiel Petrini contra el Excel: HOF/HAY de ítems normales coincide 100% con la app.
 - **Bug encontrado y corregido:** HOF/HAY de las 4 instalaciones estaban cruzadas (la migración 2h las había tomado de la columna de referencia del Excel, que está desalineada respecto al desglose real de Oficial/Ayudante por instalación). Corregido con migración `2m` en `database.py`:
@@ -305,3 +317,4 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 - `2n`: resync completo de materiales (358 filas, 117 ítems) contra PRESUPUESTO COCHERA.xlsx
 - `2o`: corrige 7 ítems que 2n no tocó por el mecanismo de `_renombres` (Relleno y Compactación, Piso/Zocalo/Rvto Cerámico/Porcellanato)
 - `2p`: reaplica factores de unidad comercial (25/30) a 6 materiales que 2n/2o habían revertido a Kg crudo
+- `2q`: actualiza precio_ars de 84 materiales con los valores reales de `LISTA_MATERIALES_V3_formulafix.xlsx` (Corralón El Cruce, Lista 169, 04/06/2026). Ver sesión 04/07/2026 (tarde) para detalle y hallazgo del bug de `_migrar_precios_v1`.
