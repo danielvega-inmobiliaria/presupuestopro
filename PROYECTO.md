@@ -6,7 +6,7 @@
 
 ---
 
-_Última actualización: 30/06/2026 — 22:30 ART_
+_Última actualización: 03/07/2026 — 17:25 ART_
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -37,11 +37,13 @@ git push
 | Variable | Estado |
 |---|---|
 | `RESEND_API_KEY` | ✅ Configurada |
-| `MP_ACCESS_TOKEN` | ✅ Configurada |
-| `MP_PUBLIC_KEY` | ✅ Configurada |
+| `MP_ACCESS_TOKEN` | ✅ Configurada (TEST-...) |
+| `MP_PUBLIC_KEY` | ✅ Configurada (TEST-a4752ff6...) |
+| `MP_APP_ID` | ✅ Configurada (3111479646589398) |
+| `MP_PRECIO_ARS` | ✅ Configurada (12500) |
+| `APP_BASE_URL` | ✅ Configurada |
 | `SECRET_KEY` | ✅ Configurada |
 | `ADMIN_EMAIL` | ⚠️ Verificar (default: `danve61@gmail.com`) |
-| `APP_BASE_URL` | ⚠️ Verificar si está configurada |
 
 ---
 
@@ -51,13 +53,10 @@ git push
 - DNS Cloudflare: MX, DKIM, SPF y DMARC configurados y verificados
 - Emails a usuarios externos (hotmail, gmail, etc.) funcionan correctamente
 
-## Dominio — Estado ⚠️ PENDIENTE
-- NIC.ar es el registrar, **Cloudflare maneja el DNS** (nameservers apuntan a CF)
-- Railway ya tiene el dominio agregado en Settings → Networking
-- **Falta agregar en Cloudflare DNS** (dash.cloudflare.com → presupuestopro.com.ar → DNS):
-  - CNAME `@` → `byl34vyz.up.railway.app` (proxy OFF, nube gris)
-  - TXT `_railway-verify` → `railway-verify=ec171cc54d13d9455e81efbc0757087...` (ver Railway Settings → Networking para valor completo)
-- Una vez agregados, Railway verifica automáticamente (puede tardar hasta 24hs)
+## Dominio — Estado ✅ FUNCIONANDO (30/06/2026)
+- `presupuestopro.com.ar` resuelve y muestra la landing correctamente
+- NIC.ar registrar → DNS gestionado por Cloudflare → apunta a Railway
+- CNAME `@` configurado en Cloudflare con proxy OFF (DNS only)
 
 ---
 
@@ -102,10 +101,16 @@ Usadas en: cálculo de `precio_mo_ars`, feature COSTO/M2, presupuesto.
 
 ## Features implementadas
 
-### Pagos / Suscripción (`routes/pagos.py`)
-- `notification_url` agregado a la preferencia MP → webhook se dispara correctamente
-- `_activar_suscripcion()`: envía email al usuario + notificación al admin (danve61@gmail.com)
-- Admin recibe: nombre, email, teléfono, link WhatsApp, fecha vencimiento, payment_id
+### Pagos / Suscripción (`routes/pagos.py`) — Actualizado 03/07/2026
+- Integración Mercado Pago Preapproval (suscripciones automáticas)
+- Rutas: `/pagos/planes`, `/pagos/crear-suscripcion`, `/pagos/retorno`, `/pagos/webhook`, `/pagos/estado`
+- Tabla `suscripciones` en DB + columna `users.mp_preapproval_id`
+- `_activar_suscripcion()`: extiende `subscription_expires` +30 días, activa `users.active=1`
+- `_cancelar_suscripcion()`: marca estado='cancelled' en tabla suscripciones
+- Webhook en `/pagos/webhook` (público, sin auth) — procesa `subscription_preapproval`
+- Página `/pagos/planes` muestra precio desde `MP_PRECIO_ARS` ($12.500 ARS/mes actual)
+- **Credenciales actuales:** sandbox/TEST (para cambiar a producción: reemplazar tokens en Railway)
+- Admin: admin@presupuestopro.com / admin1234
 
 ### Admin (`routes/admin.py`)
 - `usuario_enviar_activacion`: auto-setea `subscription_expires = hoy+30d` si es NULL antes de enviar
@@ -219,6 +224,9 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 ## Pendientes / Ideas
 
 ### 🔴 CRÍTICO
+- [ ] **Configurar Webhook en MP Developers** → app PresupuestoPRO → Webhooks → URL: `https://web-production-0c9c1.up.railway.app/pagos/webhook` · Evento: `subscription_preapproval`
+- [ ] **Test flujo completo MP**: crear cuenta prueba "comprador" en MP Developers → Cuentas de prueba → suscribirse desde `/pagos/planes` → verificar activación en DB
+- [ ] **Pasar a producción MP**: cuando el test funcione, reemplazar `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY` por los de producción en Railway
 - [ ] **Commitear database.py con migración 2l** — el archivo correcto (1993 líneas) está en disco pero NO está en git. Problema: git lock files bloquean el commit desde bash. Solución: usar **GitHub Desktop** o eliminar `.git/index.lock` desde Git Bash y correr:
   ```
   cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
@@ -227,17 +235,39 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
   git commit -m "fix: migration 2l factores comerciales (11 materiales)"
   git push
   ```
-- [ ] **Agregar DNS en Cloudflare** para apuntar presupuestopro.com.ar a Railway (ver sección Dominio arriba)
+- [x] **DNS Cloudflare** ✅ presupuestopro.com.ar funcionando (30/06/2026)
 
 ### 🟡 IMPORTANTE
 - [ ] **Post Facebook de lanzamiento** — redactar post con screenshots del app para grupos de albañiles → landing page → MP. Pendiente de tomar screenshots: dashboard, costo/m2, ver presupuesto.
 - [ ] Confirmar variable `APP_BASE_URL` en Railway
 - [ ] Test completo flujo pago MP → activación → email
+- [x] **Resincronizar cantidades de materiales en `analisis_sub`** ✅ hecho 04/07/2026 con migración 2n (ver abajo).
 
 ### 🟢 IDEAS FUTURAS
 - [ ] Unificar landing_presupuestopro.md con posts para marketing
+- [ ] **Permitir sesión simultánea celu + compu** — hoy `login_user()` en `utils/auth.py` invalida cualquier sesión anterior de la cuenta (sesión única). Decisión 04/07/2026: dejarlo como está por ahora, pero evaluar cambiarlo (guardar múltiples tokens por usuario en vez de uno solo) si vuelve a ser un problema.
 
 ## Cambios recientes comprometidos (HEAD actual en Railway)
+
+### Sesión 04/07/2026 — Verificación vs Excel real (PRESUPUESTO COCHERA.xlsx)
+- Comparados los 15 ítems cargados en la cochera de Ezequiel Petrini contra el Excel: HOF/HAY de ítems normales coincide 100% con la app.
+- **Bug encontrado y corregido:** HOF/HAY de las 4 instalaciones estaban cruzadas (la migración 2h las había tomado de la columna de referencia del Excel, que está desalineada respecto al desglose real de Oficial/Ayudante por instalación). Corregido con migración `2m` en `database.py`:
+  - Instalación Desagües: 5,7/5,7 → **24,5/24,5**
+  - Instalación Agua F/C: 5,7/5,7 → **31,67/31,67**
+  - Instalación Gas: 5,7/5,7 → **27/27**
+  - Instalación Eléctrica: 31,67/31,67 → **5,7/5,7**
+- **Resync completo hecho:** al comparar programáticamente los 93 ítems en común entre `analisis_sub` (migración 2h) y la hoja "Análisis" del Excel, 79 tenían al menos una diferencia de cantidad o precio de material (varios directamente les faltaba un material, ej. Hidrófugo en "Cemento: capa aisladora s/muros"). Se armó un parser automático de la hoja Análisis (bloques por ítem, separando materiales de mano de obra) y se generó la migración `2n` en `database.py`: reemplaza los materiales de 117 ítems (358 filas) tomando el Excel como fuente de verdad, preservando sin tocar los 9 ítems que no están en ese Excel (variantes propias de la app: Piso/Rvto/Zocalo Cerámico "2"/"3", etc).
+- ⚠️ **Ojo:** este resync es un reemplazo masivo automático. Si en el pasado se hizo alguna corrección manual deliberada que contradice el Excel (ej. el comentario "Mamp. ladrillo comun 30cm: mismas proporciones que 15cm, corrección del Excel" en `database.py` línea ~1145), esa corrección pudo haber quedado pisada por 2n. Revisar si aparece algo raro en presupuestos nuevos.
+
+### Sesión 03/07/2026 — Integración Mercado Pago
+- `requirements.txt`: agregado `mercadopago==2.3.0`
+- `config.py`: variables MP_ACCESS_TOKEN, MP_PUBLIC_KEY, MP_APP_ID, MP_PRECIO_ARS, MP_PLAN_NOMBRE, APP_BASE_URL
+- `database.py`: tabla `suscripciones` + migración `users.mp_preapproval_id`
+- `routes/pagos.py`: blueprint nuevo con 5 rutas (planes, crear-suscripcion, retorno, webhook, estado)
+- `app.py`: registrado blueprint `pagos`
+- **Deploy:** ✅ Deployment successful en Railway · Página `/pagos/planes` verificada y funcional
+
+### Sesión anterior
 - `admin.py`: lista de precios con JORNALES como primer grupo, typo CORRELON→CORRALÓN corregido, sub_nombres actualizados
 - `templates/admin/precios.html`: botón Volver, tarjeta JORNALES con jornal_oficial/ayudante editables y cálculo $/hr en tiempo real
 
