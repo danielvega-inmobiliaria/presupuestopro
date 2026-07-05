@@ -416,6 +416,23 @@ def migrate_db():
             print("[migrate_db] empresa_perfil.contacto agregado")
         db.commit()
 
+        # Fix 05/07/2026: tabla password_reset_tokens — routes/auth.py (recuperar()
+        # y restablecer()) la usa desde siempre, pero nunca se creó acá ni en
+        # init_db(). En producción esto rompía "Olvidé mi contraseña" con un
+        # Error Interno del Servidor (INSERT/SELECT contra una tabla inexistente).
+        # Reportado por Daniel al probar el login en stopro.com.ar.
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                token TEXT UNIQUE NOT NULL,
+                expires_at DATETIME NOT NULL,
+                used INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
         # 1b. Columnas nuevas en items_obra (precio_mo_ars, orden)
         cols_io = [r[1] for r in db.execute("PRAGMA table_info(items_obra)").fetchall()]
         if 'precio_mo_ars' not in cols_io:
@@ -2257,6 +2274,17 @@ def init_db():
         fecha_fin DATE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Fix 05/07/2026: agregada también acá para instalaciones nuevas (ver
+    -- misma tabla creada en migrate_db() para DBs ya existentes).
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        token TEXT UNIQUE NOT NULL,
+        expires_at DATETIME NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
