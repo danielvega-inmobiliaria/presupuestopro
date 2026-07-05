@@ -416,6 +416,28 @@ def _calcular_totales_finales(modo, total_mo, total_materiales, subc, ind,
     }
 
 
+def _generar_descripcion_trabajos(rubros):
+    """Fix 05/07/2026: genera automáticamente la "Descripción de trabajos" en
+    paso 8 a partir de los nombres de los ítems ya cargados (SIN cantidades —
+    esas ya están en la tabla de ítems del PDF, esto es solo la redacción en
+    prosa). Decisión de Daniel: sacar el campo de paso 1 (ahí todavía no
+    existen los ítems) y autogenerar esto en paso 8, dejándolo editable por si
+    el constructor quiere adornarlo — así no se le puede pasar de largo
+    ningún ítem al redactar a mano."""
+    nombres = []
+    vistos = set()
+    for rubro in rubros or []:
+        for it in rubro.get('items', []):
+            if it.get('cantidad', 0) > 0:
+                nombre = (it.get('nombre') or '').strip()
+                if nombre and nombre not in vistos:
+                    vistos.add(nombre)
+                    nombres.append(nombre)
+    if not nombres:
+        return ''
+    return "Se realizarán los siguientes trabajos: {}, Limpieza de obra.".format(', '.join(nombres))
+
+
 # =========================================================================
 # BORRADOR: guardar/actualizar en DB
 # =========================================================================
@@ -648,7 +670,10 @@ def nuevo():
             'obra_tipo':           request.form.get('obra_tipo', 'Vivienda nueva'),
             'fecha_presup':        request.form.get('fecha_presup', date.today().isoformat()),
             'validez':             int(request.form.get('validez', 15)),
-            'descripcion_trabajos': request.form.get('descripcion_trabajos', ''),
+            # Fix 05/07/2026: "descripcion_trabajos" ya no se pide en paso 1
+            # (todavía no existen los ítems acá) — se autogenera en paso 8.
+            # Importante: NO tocar esta clave acá, para no pisarla con '' al
+            # reeditar un presupuesto que ya tenía descripción guardada.
         })
         p = _guardar_borrador(p, 1)
         session['presup'] = _session_compact(p)
@@ -1243,6 +1268,12 @@ def resumen():
         p.get('pct_imp', 7),
         p.get('operarios_reales', 0),
     )
+
+    # Fix 05/07/2026: si todavía no hay descripción de trabajos (ya no se pide
+    # en paso 1), se autogenera acá desde los ítems cargados. Solo si está
+    # vacía — para no pisar una ya guardada o ya editada a mano.
+    if not (p.get('descripcion_trabajos') or '').strip():
+        p['descripcion_trabajos'] = _generar_descripcion_trabajos(p.get('rubros', []))
 
     if request.method == 'POST':
         # Permite editar descripcion_trabajos desde el resumen

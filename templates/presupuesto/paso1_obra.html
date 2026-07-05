@@ -75,12 +75,12 @@
           <input type="number" name="validez" class="form-control"
                  value="{{ p.get('validez', 15) }}" min="1">
         </div>
-        <div class="col-12">
-          <label class="form-label">Descripción de trabajos <span class="text-muted small">(aparece en el presupuesto)</span></label>
-          <textarea name="descripcion_trabajos" class="form-control" rows="3"
-                    placeholder="Ej: Se incluye demolición de revoque, mampostería en planta baja, instalación sanitaria completa y pinturas...">{{ p.get('descripcion_trabajos', '') if p else '' }}</textarea>
-        </div>
       </div>
+      <!-- Fix 05/07/2026: se sacó "Descripción de trabajos" de acá — a esta
+           altura del wizard todavía no existen los ítems (se cargan en paso 2),
+           así que no se puede armar una descripción real. Ahora se genera
+           automáticamente en paso 8 (resumen), a partir de los ítems ya
+           cargados, y queda editable ahí antes de guardar. -->
 
       <div class="d-flex justify-content-end mt-4">
         <button type="submit" class="btn btn-primary px-5">
