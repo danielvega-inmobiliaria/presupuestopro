@@ -65,6 +65,19 @@ def get_config_pct():
     return cfg.get('pct_gg', 20), cfg.get('pct_impuestos', 7)
 
 
+def get_config_jornales():
+    """Jornales por defecto configurados en Admin > Precios (misma fuente que
+    routes/admin.py y routes/costo_m2.py). Fix 04/07/2026: paso 5 mostraba
+    0,0 en vez de estos valores porque nunca los consultaba."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT clave, valor FROM config WHERE clave IN ('jornal_oficial_dia','jornal_ayudante_dia')"
+    ).fetchall()
+    db.close()
+    cfg = {r['clave']: float(r['valor']) for r in rows}
+    return cfg.get('jornal_oficial_dia', 80000), cfg.get('jornal_ayudante_dia', 40000)
+
+
 # =========================================================================
 # HELPER: Materiales desde analisis_sub × cantidades actuales (TOT MAT)
 # =========================================================================
@@ -952,7 +965,8 @@ def modo_tiempo():
 
     if request.method == 'POST':
         modo = request.form.get('modo', 'mo_mat')
-        n_of = int(request.form.get('n_oficiales', 2))
+        # Fix 04/07/2026: default 1 Oficial (antes 2) — pedido de Daniel.
+        n_of = int(request.form.get('n_oficiales', 1))
         n_ay = int(request.form.get('n_ayudantes', 1))
         jornal_of = float(request.form.get('jornal_oficial', 0) or 0)
         jornal_ay = float(request.form.get('jornal_ayudante', 0) or 0)
@@ -1020,6 +1034,17 @@ def modo_tiempo():
     pais = session.get('pais', 'AR')
     _, simbolo = get_tipo_cambio(pais)
     pct_gg_def, pct_imp_def = get_config_pct()
+
+    # Fix 04/07/2026: defaults pedidos por Daniel — 1 Oficial y 1 Ayudante
+    # siempre (antes 2/1), y jornales pre-cargados con "la lista interna"
+    # (Admin > Precios: jornal_oficial_dia/jornal_ayudante_dia) en vez de 0,0.
+    jornal_of_def, jornal_ay_def = get_config_jornales()
+    p.setdefault('n_oficiales', 1)
+    p.setdefault('n_ayudantes', 1)
+    if not p.get('jornal_oficial'):
+        p['jornal_oficial'] = jornal_of_def
+    if not p.get('jornal_ayudante'):
+        p['jornal_ayudante'] = jornal_ay_def
     # Calcular base fresca desde rubros/subc/ind para el JS
     rubros_list = p.get('rubros', [])
     subc_list   = p.get('subcontratos', [])

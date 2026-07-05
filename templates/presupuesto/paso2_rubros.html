@@ -22,7 +22,10 @@
   </div>
 
   <!-- Barra total sticky -->
-  <div class="card border-0 shadow-sm mb-3" style="position:sticky; top:60px; z-index:100; background:#0f1e3c;">
+  <!-- Fix 04/07/2026: top bajado de 60px a 106px — con 60px esta barra (z-index:100)
+       quedaba pegada casi en el mismo lugar que .wizard-sticky-nav (top:56px,
+       z-index:99) y la tapaba por completo, ocultando los botones Anterior/Siguiente. -->
+  <div class="card border-0 shadow-sm mb-3" style="position:sticky; top:106px; z-index:90; background:#0f1e3c;">
     <div class="card-body py-2 px-3">
       <div class="row align-items-center g-2 text-white">
         <div class="col-auto">
