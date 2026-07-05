@@ -106,6 +106,7 @@
                 <tbody>
                   {% for it in items_list %}
                   {% set prev_cant = cantidades.get(it['id'], 0) %}
+                  {% set precio_unit = (it['precio_mo_ars'] or 0) + (it['mat_ars'] or 0) %}
                   <tr id="row-{{ it['id'] }}" class="{{ 'table-warning' if prev_cant > 0 else '' }}">
                     <td class="align-middle">{{ it['nombre'] }}</td>
                     <td class="text-center align-middle">
@@ -116,7 +117,8 @@
                              class="form-control form-control-sm text-center cant-input"
                              name="item_{{ it['id'] }}"
                              id="cant_{{ it['id'] }}"
-                             data-precio="{{ it['precio_ars'] }}"
+                             data-mo="{{ it['precio_mo_ars'] or 0 }}"
+                             data-mat="{{ it['mat_ars'] or 0 }}"
                              data-hof="{{ it['hof'] }}"
                              data-hay="{{ it['hay'] }}"
                              data-rubro="{{ rnum }}"
@@ -125,11 +127,11 @@
                              placeholder="0" inputmode="decimal">
                     </td>
                     <td class="text-end align-middle text-muted d-none d-md-table-cell">
-                      {{ "{:,.0f}".format(it['precio_ars']).replace(",",".") }}
+                      {{ "{:,.0f}".format(precio_unit).replace(",",".") }}
                     </td>
                     <td class="text-end align-middle fw-semibold" id="subtotal_{{ it['id'] }}">
                       {% if prev_cant > 0 %}
-                      {{ "{:,.0f}".format(prev_cant * it['precio_ars']).replace(",",".") }}
+                      {{ "{:,.0f}".format(prev_cant * precio_unit).replace(",",".") }}
                       {% else %}—{% endif %}
                     </td>
                   </tr>
@@ -209,7 +211,9 @@ function recalcularRubro(rnum) {
   let total = 0;
   document.querySelectorAll('.cant-input[data-rubro="' + rnum + '"]').forEach(function(inp) {
     var cant = normVal(inp.value);
-    var precio = parseFloat(inp.dataset.precio) || 0;
+    // Fix 04/07/2026: precio unitario = MO + Materiales (analisis_sub), no
+    // items_obra.precio_ars (catálogo viejo, nunca actualizado por las migraciones).
+    var precio = (parseFloat(inp.dataset.mo) || 0) + (parseFloat(inp.dataset.mat) || 0);
     var sub = cant * precio;
     total += sub;
 

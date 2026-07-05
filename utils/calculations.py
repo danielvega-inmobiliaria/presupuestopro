@@ -143,26 +143,14 @@ def calcular_cuotas(dias_obra, frecuencia):
         periodos = (dias_obra - 1) // 30
     return max(0, periodos)
 
-def calcular_totales(rubros, subcontratos, indirectos, pct_gg, pct_imp):
-    """Calcula todos los subtotales y el total final."""
-    costo_directo     = sum(r.get('total_local', 0) for r in rubros)
-    total_subc        = sum(
-        s.get('mo_local', 0) + s.get('mat_local', 0) for s in subcontratos
-    )
-    total_ind         = sum(v for v in indirectos.values() if isinstance(v, (int, float)))
-    base              = costo_directo + total_subc + total_ind
-    monto_gg          = base * pct_gg / 100
-    monto_imp         = base * pct_imp / 100
-    total_final       = base + monto_gg + monto_imp
-    return {
-        'costo_directo':   round(costo_directo),
-        'total_subc':      round(total_subc),
-        'total_ind':       round(total_ind),
-        'base':            round(base),
-        'monto_gg':        round(monto_gg),
-        'monto_imp':       round(monto_imp),
-        'total_final':     round(total_final),
-    }
+# NOTA (fix 04/07/2026): la vieja calcular_totales() de acá quedó eliminada — usaba
+# sum(rubro.total_local), es decir items_obra.precio_ars, el catálogo de precios que
+# ninguna migración actualiza (la misma causa raíz que el bug de Costo Directo
+# reportado por Daniel). Estaba importada en routes/presupuesto.py pero nunca se
+# llamaba — código muerto. La única fuente de verdad ahora es
+# routes/presupuesto.py::_calcular_totales_finales(), que usa total_mo (de
+# items_obra.precio_mo_ars) + total_materiales (de analisis_sub, vía
+# _calcular_materiales_desde_rubros / _mo_materiales_frescos).
 
 def calcular_cuadro_pago(total, pct_ant, pct_final, n_cuotas):
     """Genera el cuadro de pagos. saldo_final absorbe el remanente para garantizar

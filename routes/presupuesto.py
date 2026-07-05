@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from utils.auth import login_required
 from utils.calculations import (
     RUBROS_DEFAULT, SUBCONTRATOS_SUGERIDOS, PAISES,
-    calcular_dias_obra, calcular_cuotas, calcular_totales, calcular_cuadro_pago,
+    calcular_dias_obra, calcular_cuotas, calcular_cuadro_pago,
     normalize_nombre, ANALISIS_NAME_MAP, ITEMS_G_FACTOR
 )
 from database import get_db
@@ -176,6 +176,46 @@ def _resolver_material(nombre, cant, precio, analisis_mat, visitados=None):
         return [(nombre, cant, precio)]
 
 
+def _materiales_por_unidad_items():
+    """Costo de materiales por 1 UNIDAD de cada ítem de obra (fix 04/07/2026), para
+    mostrar en paso 2 un precio unitario/subtotal en vivo consistente con
+    analisis_sub (en vez de items_obra.precio_ars). Expande recursivamente
+    sub-ítems compuestos (Hormigón colado, Armadura, Encofrado) igual que
+    _calcular_materiales_desde_rubros, pero para 1 sola unidad de cada ítem.
+    Devuelve {item_key_normalizado: costo_materiales_por_unidad}."""
+    try:
+        db = get_db()
+        subs_rows = db.execute(
+            "SELECT item_nombre, sub_nombre, cant_por_unit, precio_ars, es_material "
+            "FROM analisis_sub WHERE es_material=1"
+        ).fetchall()
+        db.close()
+    except Exception as e:
+        print(f"[_materiales_por_unidad_items] error DB: {e}")
+        return {}
+
+    analisis_mat = {}
+    for row in subs_rows:
+        key = ANALISIS_NAME_MAP.get(normalize_nombre(row['item_nombre']),
+                                    normalize_nombre(row['item_nombre']))
+        analisis_mat.setdefault(key, []).append({
+            'nombre': row['sub_nombre'],
+            'cant':   row['cant_por_unit'],
+            'precio': row['precio_ars'],
+        })
+
+    resultado = {}
+    for item_key, subs in analisis_mat.items():
+        total = 0.0
+        for sub in subs:
+            for _, hoja_c, hoja_p in _resolver_material(
+                    sub['nombre'], sub['cant'], sub['precio'], analisis_mat,
+                    visitados={item_key}):
+                total += hoja_c * hoja_p
+        resultado[item_key] = total
+    return resultado
+
+
 def _calcular_materiales_desde_rubros(p):
     """Recalcula la lista de materiales (formato TOT MAT) desde analisis_sub
     usando las cantidades actuales de los rubros en el presupuesto."""
@@ -279,6 +319,72 @@ def _calcular_materiales_desde_rubros(p):
         print(f"[materiales] Error calculando materiales: {e}")
         return p.get('materiales', [])
 
+
+def _mo_materiales_frescos(p):
+    """Fuente única de verdad para MO y Materiales de un presupuesto (fix 04/07/2026).
+    Recalcula EN VIVO desde items_obra.precio_mo_ars y analisis_sub usando las
+    cantidades actuales de p['rubros'] — nunca desde items_obra.precio_ars (catálogo
+    viejo que ninguna migración de precios actualiza) ni desde total_mo_analisis /
+    total_materiales cacheados de un paso anterior del wizard (paso 2 usa una versión
+    simplificada sin expandir Hormigón/Armadura/Encofrado; esta es siempre la versión
+    completa, recursiva, la misma que ve el usuario en la pantalla de materiales).
+    Devuelve (total_mo, total_materiales, materiales_list)."""
+    total_mo = 0.0
+    try:
+        db = get_db()
+        mo_por_nombre = {row['nombre']: (row['precio_mo_ars'] or 0)
+                          for row in db.execute("SELECT nombre, precio_mo_ars FROM items_obra").fetchall()}
+        db.close()
+        for rubro in p.get('rubros', []):
+            for it in rubro.get('items', []):
+                qty = it.get('cantidad', 0)
+                if qty > 0:
+                    total_mo += mo_por_nombre.get(it['nombre'], 0) * qty
+    except Exception as e:
+        print(f"[_mo_materiales_frescos] error MO: {e}")
+        total_mo = p.get('total_mo_analisis', 0) or p.get('total_mo', 0)
+
+    materiales_list = _calcular_materiales_desde_rubros(p) if p.get('rubros') else None
+    if materiales_list:
+        total_materiales = sum(m['subtotal'] for m in materiales_list)
+    else:
+        materiales_list = p.get('materiales', [])
+        total_materiales = p.get('total_materiales', 0)
+    return round(total_mo), round(total_materiales), materiales_list
+
+
+def _calcular_totales_finales(modo, total_mo, total_materiales, subc, ind,
+                               pct_gg, pct_imp, operarios_reales):
+    """Única fuente de verdad para Costo Directo / Base / GG / Impuestos / TOTAL
+    (fix 04/07/2026). La usan paso 5 (modo_tiempo) y paso 8 (resumen, antes de
+    guardar) para que el total NUNCA dependa de en qué paso del wizard se calculó
+    por última vez — siempre se deriva de total_mo + total_materiales frescos."""
+    total_subc = sum(s.get('mo_local', 0) + s.get('mat_local', 0) for s in subc)
+    total_ind  = sum(v for v in ind.values() if isinstance(v, (int, float)))
+
+    if modo == 'solo_mo':
+        base = total_mo + total_subc + total_ind
+        costo_directo = 0
+    else:
+        costo_directo = total_mo + total_materiales
+        base = costo_directo + total_subc + total_ind
+
+    monto_gg  = round(base * pct_gg / 100)
+    monto_imp = round(base * pct_imp / 100)
+    ganancia_real = total_mo + monto_gg - operarios_reales
+
+    return {
+        'costo_directo':    round(costo_directo) if modo != 'solo_mo' else 0,
+        'total_mo':         total_mo,
+        'total_subc':       round(total_subc),
+        'total_ind':        round(total_ind),
+        'base':             round(base),
+        'monto_gg':         monto_gg,
+        'monto_imp':        monto_imp,
+        'total_final':      round(base + monto_gg + monto_imp),
+        'operarios_reales': operarios_reales,
+        'ganancia_real':    round(ganancia_real),
+    }
 
 
 # =========================================================================
@@ -534,11 +640,20 @@ def rubros():
     ).fetchall()
     db.close()
 
+    # Fix 04/07/2026: costo de materiales por unidad de cada ítem (analisis_sub),
+    # para que la vista previa en vivo de paso 2 (JS) muestre MO+Materiales en vez
+    # de items_obra.precio_ars (el catálogo viejo — ver notas en _calcular_totales_finales).
+    mat_por_unidad = _materiales_por_unidad_items()
+
     rubros_agrupados = {}
     for r in RUBROS_DEFAULT:
+        items_r = [dict(i) for i in items_rows if i['rubro_num'] == r['num']]
+        for it in items_r:
+            key = ANALISIS_NAME_MAP.get(normalize_nombre(it['nombre']), normalize_nombre(it['nombre']))
+            it['mat_ars'] = round(mat_por_unidad.get(key, 0), 2)
         rubros_agrupados[r['num']] = {
             **r,
-            'items': [dict(i) for i in items_rows if i['rubro_num'] == r['num']],
+            'items': items_r,
         }
 
     if request.method == 'POST':
@@ -560,14 +675,19 @@ def rubros():
                 cant_str = request.form.get('item_{}'.format(iid), '').strip()
                 cant = float(cant_str) if cant_str else 0.0
                 if cant > 0:
-                    subtotal = round(cant * it['precio_ars'])
+                    # Fix 04/07/2026: precio unitario = MO (precio_mo_ars) + Materiales
+                    # (analisis_sub, ver mat_ars más arriba). Ya NO se usa items_obra.precio_ars.
+                    precio_mo  = float(it['precio_mo_ars']) if it['precio_mo_ars'] else 0.0
+                    precio_mat = float(it.get('mat_ars', 0) or 0)
+                    precio_unit = precio_mo + precio_mat
+                    subtotal = round(cant * precio_unit)
                     hh_item = round(cant * (it['hof'] + it['hay']), 2)
                     items_rubro.append({
                         'id': iid,
                         'nombre': it['nombre'],
                         'unidad': it['unidad'],
                         'cantidad': cant,
-                        'precio_unit': it['precio_ars'],
+                        'precio_unit': round(precio_unit, 2),
                         'subtotal': subtotal,
                         'hh': hh_item,
                     })
@@ -576,10 +696,10 @@ def rubros():
                     # hh_g4: aplica factor de paralelismo para instalaciones especiales
                     g_factor = ITEMS_G_FACTOR.get(normalize_nombre(it['nombre']), 1.0)
                     hh_g4 += (it['hof'] + it['hay']) * cant / g_factor
-                    # MO y Materiales desde precio_mo_ars (Análisis sheet)
-                    precio_mo = float(it['precio_mo_ars']) if it['precio_mo_ars'] else 0.0
+                    # MO y Materiales (RESUMEN!E3/E2), ahora exactos (antes E2 era una
+                    # aproximación: precio_ars - precio_mo_ars)
                     total_mo_items  += precio_mo * cant
-                    total_mat_items += (it['precio_ars'] - precio_mo) * cant
+                    total_mat_items += precio_mat * cant
 
             rubros_data.append({
                 'num': r['num'],
@@ -672,7 +792,9 @@ def rubros():
         p_cookie['hh_g4'] = p.get('hh_g4')
         p_cookie['total_mo_analisis'] = p.get('total_mo_analisis')
         p_cookie['total_materiales'] = p.get('total_materiales')
-        # costo_directo = suma de precio_ars×qty (paso 2), usado como CD en paso 5
+        # costo_directo = suma de (MO+Materiales)×qty por rubro (fix 04/07/2026).
+        # Ya no se usa como fuente de este cálculo en paso 5 (ver _calcular_totales_finales),
+        # queda solo de referencia/compatibilidad.
         p_cookie['costo_directo'] = sum(r.get('total_local', 0) for r in p.get('rubros', []))
         # Guardar rubros en forma compacta (solo id+cantidad, sin sub-datos)
         p_cookie['rubros_cant'] = {
@@ -805,6 +927,29 @@ def indirectos():
 def modo_tiempo():
     p = session.get('presup', {})
 
+    # 'rubros' no viaja en la cookie de sesión (_HEAVY_SESSION_KEYS) — recargar desde
+    # DB si hace falta, igual que en paso 6, para poder recalcular materiales acá.
+    if not p.get('rubros') and p.get('_pid'):
+        try:
+            db_rt = get_db()
+            row_rt = db_rt.execute(
+                "SELECT session_json FROM presupuestos WHERE id=?", (p['_pid'],)
+            ).fetchone()
+            db_rt.close()
+            if row_rt and row_rt['session_json']:
+                p = {**json.loads(row_rt['session_json']), **p}
+        except Exception as e_rt:
+            print(f"[modo_tiempo] error recargando rubros desde DB: {e_rt}")
+
+    # Fix 04/07/2026: recalcular MO y Materiales SIEMPRE acá, en vivo (ver
+    # _mo_materiales_frescos) — única fuente de verdad, ya no depende de valores
+    # cacheados de paso 2 (aproximados) ni de items_obra.precio_ars.
+    total_mo_fresco, total_mat_fresco, materiales_fresh = _mo_materiales_frescos(p)
+    if p.get('rubros'):
+        p['materiales'] = materiales_fresh
+        p['total_materiales'] = total_mat_fresco
+        p['total_mo_analisis'] = total_mo_fresco
+
     if request.method == 'POST':
         modo = request.form.get('modo', 'mo_mat')
         n_of = int(request.form.get('n_oficiales', 2))
@@ -854,44 +999,14 @@ def modo_tiempo():
 
         subc = p.get('subcontratos', [])
         ind  = p.get('indirectos', {})
-        total_subc = sum(s.get('mo_local', 0) + s.get('mat_local', 0) for s in subc)
-        total_ind  = sum(v for v in ind.values() if isinstance(v, (int, float)))
 
-        if modo == 'solo_mo':
-            # Base = MO (HH-based) + subc + ind
-            base = total_mo + total_subc + total_ind
-            monto_gg  = round(base * pct_gg / 100)
-            monto_imp = round(base * pct_imp / 100)
-            # Ganancia Real = MO cobrada + GG$ − operarios_reales
-            ganancia_real = total_mo + monto_gg - operarios_reales
-            costo_directo = 0
-        else:
-            # CD = total_mo_analisis + materiales (analisis_sub), NO items_obra.precio_ars.
-            # Fix 04/07/2026: antes usaba p.get('costo_directo') (=sum(precio_ars×qty) de
-            # paso 2), un catálogo de precios "todo incluido" que ninguna migración de
-            # precios (2h..2q) actualiza nunca. Esto desconectaba el TOTAL final de todas
-            # las correcciones de precios de materiales/MO hechas en analisis_sub e
-            # items_obra.precio_mo_ars. Ahora el Costo Directo sigue siempre a analisis_sub.
-            _mat_total = sum(m.get('subtotal', 0) for m in p.get('materiales', []))
-            costo_directo = p.get('total_mo_analisis', 0) + (_mat_total or p.get('total_materiales', 0))
-            base = costo_directo + total_subc + total_ind
-            monto_gg  = round(base * pct_gg / 100)
-            monto_imp = round(base * pct_imp / 100)
-            # Ganancia Real = MO cobrada + GG$ aplicado al total (MO+Materiales) − operarios_reales
-            ganancia_real = total_mo + monto_gg - operarios_reales
-
-        p['totales'] = {
-            'costo_directo': round(costo_directo) if modo != 'solo_mo' else 0,
-            'total_mo':      total_mo,
-            'total_subc':    round(total_subc),
-            'total_ind':     round(total_ind),
-            'base':          round(base),
-            'monto_gg':      monto_gg,
-            'monto_imp':     monto_imp,
-            'total_final':   round(base + monto_gg + monto_imp),
-            'operarios_reales': operarios_reales,
-            'ganancia_real': round(ganancia_real),
-        }
+        # Fix 04/07/2026: Costo Directo/Base/GG/Impuestos/TOTAL se calculan con la
+        # única función compartida (_calcular_totales_finales), usada también en
+        # paso 8 antes de guardar — ver nota en esa función.
+        p['totales'] = _calcular_totales_finales(
+            modo, total_mo, p.get('total_materiales', 0), subc, ind,
+            pct_gg, pct_imp, operarios_reales
+        )
 
         p = _guardar_borrador(p, 5)
         session['presup'] = _session_compact(p)
@@ -1061,6 +1176,26 @@ def resumen():
                     p = {**p_db, **p}   # sesión cookie gana en conflicto, DB aporta rubros/materiales
                 except Exception:
                     pass
+
+        # Fix 04/07/2026: recalcular TOTALES una última vez acá, justo antes de
+        # guardar. Si el usuario editó materiales a mano en paso 6 (paso6 corre
+        # DESPUÉS de paso5, donde se calculó 'totales' por primera vez), ese cambio
+        # no se reflejaba en costo_directo/total_final sin este recálculo final.
+        # Es la misma función que usa paso 5 — única fuente de verdad para el total.
+        _mat_final = sum(m.get('subtotal', 0) for m in p.get('materiales', [])) \
+                     or p.get('total_materiales', 0)
+        p['totales'] = _calcular_totales_finales(
+            p.get('modo', 'mo_mat'),
+            p.get('total_mo', 0),
+            _mat_final,
+            p.get('subcontratos', []),
+            p.get('indirectos', {}),
+            p.get('pct_gg', 20),
+            p.get('pct_imp', 7),
+            p.get('operarios_reales', 0),
+        )
+        p['total_materiales'] = _mat_final
+        session['presup'] = _session_compact(p)
 
         totales = p.get('totales', {})
 
