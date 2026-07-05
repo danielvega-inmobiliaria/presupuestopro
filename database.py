@@ -1744,7 +1744,7 @@ def migrate_db():
                 ('Instalacion Desague', 'Caño Awaduct 63', 2.4, 6250.0, 1),
                 ('Instalacion Desague', 'Caño Awaduct 50', 1.0, 5300.0, 1),
                 ('Instalacion Desague', 'Caño Awaduct 40', 3.2, 2900.0, 1),
-                ('Instalacion Desague', 'Accesorios', 10.0, 8500.0, 1),
+                ('Instalacion Desague', 'Accesorios Desagues', 10.0, 8500.0, 1),
                 ('Instalacion Desague', 'Cemento portland bolsas', 4.0, 332.0, 1),
                 ('Instalacion Desague', 'Arena común', 0.02, 31000.0, 1),
                 ('Instalacion Electrica', 'Caño Corrugado 1"', 1.0, 244.4, 1),
@@ -1756,13 +1756,13 @@ def migrate_db():
                 ('Instalacion Electrica', 'Arena común', 0.01, 31000.0, 1),
                 ('Instalacion Agua F/C', 'Caño TF 25', 8.0, 3250.0, 1),
                 ('Instalacion Agua F/C', 'Caño TF 20', 14.0, 1706.25, 1),
-                ('Instalacion Agua F/C', 'Accesorios', 27.0, 3000.0, 1),
+                ('Instalacion Agua F/C', 'Accesorios TF', 27.0, 3000.0, 1),
                 ('Instalacion Agua F/C', 'Llaves de Paso', 3.0, 25000.0, 1),
                 ('Instalacion Agua F/C', 'Cemento portland bolsas', 2.0, 332.0, 1),
                 ('Instalacion Agua F/C', 'Arena común', 0.0264, 31000.0, 1),
                 ('Instalacion Gas', 'Caño Epoxi 3/4', 8.0, 12890.62, 1),
                 ('Instalacion Gas', 'Caño epoxi 1/2', 2.2, 6406.25, 1),
-                ('Instalacion Gas', 'Accesorios', 12.0, 3500.0, 1),
+                ('Instalacion Gas', 'Accesorios Gas', 12.0, 3500.0, 1),
                 ('Instalacion Gas', 'Llaves de Paso', 1.0, 25000.0, 1),
                 ('Instalacion Gas', 'Cemento portland bolsas', 2.0, 332.0, 1),
                 ('Instalacion Gas', 'Arena común', 0.03, 31000.0, 1),
@@ -2125,6 +2125,38 @@ def migrate_db():
             db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2r_done','2026-07-04')")
             db.commit()
             print("[migrate_db] 2r: precio_mo_ars recalculado para las 4 instalaciones (post 2m)")
+
+        # ── 2s. "Accesorios" genérico → nombre específico (Desagues/TF/Gas) ─────
+        #   Bug reportado por Daniel 05/07/2026: la app seguía mostrando
+        #   "Accesorios" genérico en vez de "Accesorios Desagües" como indica la
+        #   lista V3 (LISTA_MATERIALES_V3_formulafix.xlsx). Causa real: la
+        #   migración 2n (resincronización contra PRESUPUESTO COCHERA.xlsx)
+        #   reinsertó estos 3 materiales con el nombre genérico "Accesorios"
+        #   para 'Instalacion Desague'/'Instalacion Agua F/C'/'Instalacion Gas',
+        #   perdiendo la distinción que sí tenía analisis_data.py (fuente
+        #   canónica: 'Accesorios Desagues', 'Accesorios TF', 'Accesorios Gas'
+        #   respectivamente — Agua F/C usa "TF" de Termofusión). Efecto
+        #   secundario: la migración 2q (precios reales de la lista V3) buscaba
+        #   esos nombres específicos por sub_nombre exacto y nunca los
+        #   encontraba, así que tampoco les actualizó el precio real.
+        ya_2s = db.execute("SELECT valor FROM config WHERE clave='2s_done'").fetchone()
+        if not ya_2s:
+            RENOMBRES_2S = [
+                # (item_nombre, nombre_correcto (lista V3), precio_real_v3)
+                ('Instalacion Desague',  'Accesorios Desagues', 8500.0),
+                ('Instalacion Agua F/C', 'Accesorios TF',       3000.0),
+                ('Instalacion Gas',      'Accesorios Gas',      3500.0),
+            ]
+            for item_nombre, nombre_correcto, precio in RENOMBRES_2S:
+                db.execute("""
+                    UPDATE analisis_sub
+                    SET sub_nombre = ?, precio_ars = ?
+                    WHERE item_nombre = ? AND sub_nombre = 'Accesorios' AND es_material = 1
+                """, (nombre_correcto, precio, item_nombre))
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2s_done','2026-07-05')")
+            db.commit()
+            print("[migrate_db] 2s: 'Accesorios' generico renombrado a nombre especifico (Desagues/TF/Gas) segun lista V3")
 
     except Exception as e:
         print(f"[migrate_db] {e}")

@@ -41,7 +41,7 @@
 
   {% if is_nav %}
     <a href="{{ url_for('presupuesto.' ~ ep) }}"
-       onclick="return wizardGoto(this.href)"
+       onclick="return wizardGoto(this.getAttribute('href'))"
        class="step done" title="Paso {{ num }}: {{ label }}">
       <i class="bi bi-check"></i>
       <span class="step-label">{{ corto }}</span>

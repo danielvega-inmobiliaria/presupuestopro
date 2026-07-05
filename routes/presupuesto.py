@@ -1,6 +1,7 @@
 import json
 import math
 import urllib.request
+from urllib.parse import urlparse
 from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, session, g, flash
 from utils.auth import login_required
@@ -74,10 +75,19 @@ def _redir_next(default_url):
     íconos eran <a href> planos que descartaban cambios sin guardar — ej. la
     frecuencia de pago elegida en paso 7 se perdía al volver de paso 5/6).
     Solo acepta rutas internas (empiezan con /presupuesto/) para evitar un
-    open-redirect si alguien manipula el campo."""
-    destino = request.form.get('_next')
-    if destino and destino.startswith('/presupuesto/'):
-        return redirect(destino)
+    open-redirect si alguien manipula el campo.
+
+    Fix 05/07/2026 (cont. 5): el JS antes mandaba `this.href` (URL absoluta,
+    con dominio) en vez de la ruta relativa que generaba url_for() — como esa
+    URL absoluta nunca empezaba con '/presupuesto/', SIEMPRE caía al
+    default_url (el paso siguiente por defecto), sin importar qué ícono se
+    hubiera clickeado. Ahora se parsea con urlparse y se compara solo el
+    path, así funciona tanto si `_next` viene relativo como absoluto."""
+    destino = (request.form.get('_next') or '').strip()
+    if destino:
+        path = urlparse(destino).path
+        if path.startswith('/presupuesto/'):
+            return redirect(path)
     return redirect(default_url)
 
 
@@ -446,6 +456,59 @@ def _generar_descripcion_trabajos(rubros, subcontratos=None):
     if not nombres:
         return ''
     return "Se realizarán los siguientes trabajos: {}, Limpieza de obra.".format(', '.join(nombres))
+
+
+def _actualizar_descripcion_con_faltantes(desc_actual, rubros, subcontratos=None):
+    """Fix 05/07/2026 (cont. 5): antes, _generar_descripcion_trabajos() solo
+    se ejecutaba si la descripción estaba TOTALMENTE vacía — así que al
+    editar un presupuesto ya guardado (con descripción ya escrita) y agregar
+    un ítem o subcontrato nuevo, ese nombre nunca se sumaba al texto (Daniel
+    reportó: "agregué un subcontrato y no me lo agregó a la descripción").
+    Esta función revisa qué nombres (ítems + "SC {nombre}") todavía NO
+    aparecen como texto en la descripción actual, y los inserta antes de
+    "Limpieza de obra." (o al final si esa frase no está) — sin tocar el
+    resto del texto ya escrito/editado a mano."""
+    desc_actual = (desc_actual or '').strip()
+
+    nombres = []
+    vistos = set()
+    for rubro in rubros or []:
+        for it in rubro.get('items', []):
+            if it.get('cantidad', 0) > 0:
+                nombre = (it.get('nombre') or '').strip()
+                if nombre and nombre not in vistos:
+                    vistos.add(nombre)
+                    nombres.append(nombre)
+    for sc in subcontratos or []:
+        nombre_sc = (sc.get('nombre') or '').strip()
+        if nombre_sc:
+            etiqueta = f"SC {nombre_sc}"
+            if etiqueta not in vistos:
+                vistos.add(etiqueta)
+                nombres.append(etiqueta)
+
+    if not nombres:
+        return desc_actual
+
+    if not desc_actual:
+        return "Se realizarán los siguientes trabajos: {}, Limpieza de obra.".format(', '.join(nombres))
+
+    desc_baja = desc_actual.lower()
+    faltantes = [n for n in nombres if n.lower() not in desc_baja]
+    if not faltantes:
+        return desc_actual
+
+    agregado = ', '.join(faltantes)
+    idx = desc_baja.rfind('limpieza de obra')
+    if idx != -1:
+        antes = desc_actual[:idx].rstrip()
+        despues = desc_actual[idx:]
+        if antes and not antes.endswith(','):
+            antes += ','
+        return "{} {}, {}".format(antes, agregado, despues)
+    else:
+        sep = '' if desc_actual.endswith(('.', ',')) else ','
+        return "{}{} {}.".format(desc_actual, sep, agregado)
 
 
 # =========================================================================
@@ -1295,12 +1358,16 @@ def resumen():
     )
 
     # Fix 05/07/2026: si todavía no hay descripción de trabajos (ya no se pide
-    # en paso 1), se autogenera acá desde los ítems cargados. Solo si está
-    # vacía — para no pisar una ya guardada o ya editada a mano.
-    if not (p.get('descripcion_trabajos') or '').strip():
-        p['descripcion_trabajos'] = _generar_descripcion_trabajos(
-            p.get('rubros', []), p.get('subcontratos', [])
-        )
+    # en paso 1), se autogenera acá desde los ítems cargados.
+    # Fix 05/07/2026 (cont. 5): antes solo se autogeneraba si estaba
+    # TOTALMENTE vacía, así que editar un presupuesto ya guardado y agregar
+    # un ítem/subcontrato nuevo no lo sumaba al texto. Ahora se usa
+    # _actualizar_descripcion_con_faltantes(), que agrega solo lo que falta
+    # (ítems o "SC {nombre}" no mencionados todavía) sin pisar el resto del
+    # texto ya escrito/editado a mano.
+    p['descripcion_trabajos'] = _actualizar_descripcion_con_faltantes(
+        p.get('descripcion_trabajos', ''), p.get('rubros', []), p.get('subcontratos', [])
+    )
 
     if request.method == 'POST':
         # Permite editar descripcion_trabajos desde el resumen
