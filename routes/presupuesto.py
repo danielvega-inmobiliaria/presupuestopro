@@ -416,14 +416,17 @@ def _calcular_totales_finales(modo, total_mo, total_materiales, subc, ind,
     }
 
 
-def _generar_descripcion_trabajos(rubros):
+def _generar_descripcion_trabajos(rubros, subcontratos=None):
     """Fix 05/07/2026: genera automáticamente la "Descripción de trabajos" en
     paso 8 a partir de los nombres de los ítems ya cargados (SIN cantidades —
     esas ya están en la tabla de ítems del PDF, esto es solo la redacción en
     prosa). Decisión de Daniel: sacar el campo de paso 1 (ahí todavía no
     existen los ítems) y autogenerar esto en paso 8, dejándolo editable por si
     el constructor quiere adornarlo — así no se le puede pasar de largo
-    ningún ítem al redactar a mano."""
+    ningún ítem al redactar a mano.
+    Fix 05/07/2026 (cont.): también suma los subcontratos cargados en paso 3,
+    con prefijo "SC" (ej. "SC Electricidad"), antes del cierre "Limpieza de
+    obra." — para que tampoco se le pase de largo ningún subcontrato."""
     nombres = []
     vistos = set()
     for rubro in rubros or []:
@@ -433,6 +436,13 @@ def _generar_descripcion_trabajos(rubros):
                 if nombre and nombre not in vistos:
                     vistos.add(nombre)
                     nombres.append(nombre)
+    for sc in subcontratos or []:
+        nombre_sc = (sc.get('nombre') or '').strip()
+        if nombre_sc:
+            etiqueta = f"SC {nombre_sc}"
+            if etiqueta not in vistos:
+                vistos.add(etiqueta)
+                nombres.append(etiqueta)
     if not nombres:
         return ''
     return "Se realizarán los siguientes trabajos: {}, Limpieza de obra.".format(', '.join(nombres))
@@ -925,11 +935,22 @@ def subcontratos():
             mo = float(request.form.get('subc_{}_mo'.format(sid), 0) or 0)
             mat = float(request.form.get('subc_{}_mat'.format(sid), 0) or 0)
             nombre = next((s['nombre'] for s in SUBCONTRATOS_SUGERIDOS if s['id'] == sid), sid)
+            # Fix 05/07/2026: cantidad/unidad editables — para que el
+            # subcontrato aparezca con su propia cantidad en la tabla de
+            # "Items de obra" del PDF (ej. "3 Bocas", "1 Global"). Ver
+            # _generar_descripcion_trabajos() y generar_pdf_propietario().
+            try:
+                cant_sc = float(request.form.get('subc_{}_cant'.format(sid), 1) or 1)
+            except ValueError:
+                cant_sc = 1
+            unidad_sc = (request.form.get('subc_{}_unidad'.format(sid), 'Global') or 'Global').strip()
             subc_data.append({
                 'id': sid, 'nombre': nombre,
                 'mo_local': mo, 'mat_local': mat,
                 'total_local': mo + mat,
                 'total_usd': round((mo + mat) / tasa, 2) if tasa else 0,
+                'cantidad': cant_sc,
+                'unidad': unidad_sc or 'Global',
             })
         n = 0
         while n <= 20:
@@ -937,11 +958,15 @@ def subcontratos():
             if nombre:
                 mo = float(request.form.get('custom_{}_mo'.format(n), 0) or 0)
                 mat = float(request.form.get('custom_{}_mat'.format(n), 0) or 0)
+                cant_sc = request.form.get('custom_{}_cant'.format(n), '1') or '1'
+                unidad_sc = (request.form.get('custom_{}_unidad'.format(n), 'Global') or 'Global').strip()
                 subc_data.append({
                     'id': 'custom_{}'.format(n), 'nombre': nombre,
                     'mo_local': mo, 'mat_local': mat,
                     'total_local': mo + mat,
                     'total_usd': round((mo + mat) / tasa, 2) if tasa else 0,
+                    'cantidad': float(cant_sc) if cant_sc else 1,
+                    'unidad': unidad_sc or 'Global',
                 })
             n += 1
 
@@ -1273,7 +1298,9 @@ def resumen():
     # en paso 1), se autogenera acá desde los ítems cargados. Solo si está
     # vacía — para no pisar una ya guardada o ya editada a mano.
     if not (p.get('descripcion_trabajos') or '').strip():
-        p['descripcion_trabajos'] = _generar_descripcion_trabajos(p.get('rubros', []))
+        p['descripcion_trabajos'] = _generar_descripcion_trabajos(
+            p.get('rubros', []), p.get('subcontratos', [])
+        )
 
     if request.method == 'POST':
         # Permite editar descripcion_trabajos desde el resumen
