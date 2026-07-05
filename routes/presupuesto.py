@@ -65,6 +65,22 @@ def get_config_pct():
     return cfg.get('pct_gg', 20), cfg.get('pct_impuestos', 7)
 
 
+def _redir_next(default_url):
+    """Fix 05/07/2026: si el form enviado trae el campo oculto '_next' (lo pone
+    el botón "Anterior" con su propio destino, o el JS wizardGoto() cuando se
+    salta de paso clickeando un ícono verde en _wizard_steps.html), redirige
+    ahí en vez de al siguiente paso por defecto. Así el paso actual SIEMPRE se
+    guarda antes de navegar a cualquier otro lado (antes "Anterior" y los
+    íconos eran <a href> planos que descartaban cambios sin guardar — ej. la
+    frecuencia de pago elegida en paso 7 se perdía al volver de paso 5/6).
+    Solo acepta rutas internas (empiezan con /presupuesto/) para evitar un
+    open-redirect si alguien manipula el campo."""
+    destino = request.form.get('_next')
+    if destino and destino.startswith('/presupuesto/'):
+        return redirect(destino)
+    return redirect(default_url)
+
+
 def get_config_jornales():
     """Jornales por defecto configurados en Admin > Precios (misma fuente que
     routes/admin.py y routes/costo_m2.py). Fix 04/07/2026: paso 5 mostraba
@@ -636,7 +652,7 @@ def nuevo():
         })
         p = _guardar_borrador(p, 1)
         session['presup'] = _session_compact(p)
-        return redirect(url_for('presupuesto.rubros'))
+        return _redir_next(url_for('presupuesto.rubros'))
 
     return render_template('presupuesto/paso1_obra.html',
                            hoy=date.today().isoformat(),
@@ -824,7 +840,7 @@ def rubros():
             if it.get('cantidad', 0) > 0
         }
         session['presup'] = p_cookie
-        return redirect(url_for('presupuesto.subcontratos'))
+        return _redir_next(url_for('presupuesto.subcontratos'))
 
     # GET: reconstruir cantidades desde DB si el cookie no trae rubros completos
     cantidades = {}
@@ -849,8 +865,13 @@ def rubros():
                 for r in p_db.get('rubros', []):
                     for it in r.get('items', []):
                         cantidades[it['id']] = it['cantidad']
-                # Actualizar session con datos frescos de DB (compacto)
-                session['presup'] = _session_compact({**p_db, '_pid': p['_pid']})
+                # Actualizar session con datos frescos de DB (compacto).
+                # Fix 05/07/2026: mergear con el cookie actual (p gana en
+                # conflictivas) en vez de reemplazarlo entero por el snapshot
+                # de DB — antes esto podía pisar valores más nuevos que
+                # todavía no se habían vuelto a guardar en DB (ej. la
+                # frecuencia de pago elegida en paso 7).
+                session['presup'] = _session_compact({**p_db, **p})
         except Exception as e_reload:
             print(f"[rubros GET] error recargando desde DB: {e_reload}")
 
@@ -902,7 +923,7 @@ def subcontratos():
         p['subcontratos'] = subc_data
         p = _guardar_borrador(p, 3)
         session['presup'] = _session_compact(p)
-        return redirect(url_for('presupuesto.indirectos'))
+        return _redir_next(url_for('presupuesto.indirectos'))
 
     return render_template('presupuesto/paso3_subcontratos.html',
                            sugeridos=SUBCONTRATOS_SUGERIDOS, simbolo=simbolo,
@@ -933,7 +954,7 @@ def indirectos():
         p['indirectos'] = ind
         p = _guardar_borrador(p, 4)
         session['presup'] = _session_compact(p)
-        return redirect(url_for('presupuesto.modo_tiempo'))
+        return _redir_next(url_for('presupuesto.modo_tiempo'))
 
     return render_template('presupuesto/paso4_indirectos.html',
                            simbolo=simbolo, p=p, user=g.user)
@@ -1032,9 +1053,9 @@ def modo_tiempo():
         p = _guardar_borrador(p, 5)
         session['presup'] = _session_compact(p)
         if modo == 'solo_mo':
-            return redirect(url_for('presupuesto.forma_pago'))
+            return _redir_next(url_for('presupuesto.forma_pago'))
         else:
-            return redirect(url_for('presupuesto.materiales'))
+            return _redir_next(url_for('presupuesto.materiales'))
 
     hh_total     = p.get('hh_total', 0)
     hh_oficiales = p.get('hh_oficiales', 0)
@@ -1052,20 +1073,22 @@ def modo_tiempo():
         p['jornal_oficial'] = jornal_of_def
     if not p.get('jornal_ayudante'):
         p['jornal_ayudante'] = jornal_ay_def
-    # Calcular base fresca desde rubros/subc/ind para el JS
-    rubros_list = p.get('rubros', [])
+    # Fix 05/07/2026: usar la MISMA función que el guardado final
+    # (_calcular_totales_finales) para armar el contexto que ve el usuario acá
+    # y alimenta el JS de esta página — antes este bloque reimplementaba el
+    # cálculo a mano (cd_rubros = total_mo_analisis + mat_total) y podía
+    # quedar levemente distinto del valor que finalmente se guarda/aparece en
+    # el PDF, mostrando un TOTAL FINAL diferente en pantalla que en el PDF.
     subc_list   = p.get('subcontratos', [])
     ind_dict    = p.get('indirectos', {})
-    # Costo Directo: total_mo_analisis + materiales (analisis_sub). Ver nota del fix
-    # 04/07/2026 más abajo (modo_tiempo POST) — ya no se usa items_obra.precio_ars.
-    _mat_total  = sum(m.get('subtotal', 0) for m in p.get('materiales', []))
-    cd_rubros   = p.get('total_mo_analisis', 0) + (_mat_total or p.get('total_materiales', 0))
-    total_subc  = sum(s.get('mo_local', 0) + s.get('mat_local', 0) for s in subc_list)
-    total_ind   = sum(v for v in ind_dict.values() if isinstance(v, (int, float)))
-    totales_ctx = p.get('totales', {})
-    totales_ctx['costo_directo'] = round(cd_rubros)
-    totales_ctx['total_subc']    = round(total_subc)
-    totales_ctx['total_ind']     = round(total_ind)
+    totales_ctx = _calcular_totales_finales(
+        p.get('modo', 'mo_mat'),
+        p.get('total_mo_analisis', 0),
+        p.get('total_materiales', 0),
+        subc_list, ind_dict,
+        p.get('pct_gg', pct_gg_def), p.get('pct_imp', pct_imp_def),
+        p.get('operarios_reales', 0),
+    )
     return render_template('presupuesto/paso5_modo_tiempo.html',
                            p=p, hh_total=hh_total, hh_oficiales=hh_oficiales,
                            simbolo=simbolo, user=g.user,
@@ -1115,7 +1138,7 @@ def materiales():
         p['total_materiales'] = total_mat
         p = _guardar_borrador(p, 6)
         session['presup'] = _session_compact(p)
-        return redirect(url_for('presupuesto.forma_pago'))
+        return _redir_next(url_for('presupuesto.forma_pago'))
 
     # GET: recalcular materiales desde rubros (pueden estar en DB, no en cookie)
     p_full = p
@@ -1168,16 +1191,10 @@ def forma_pago():
         })
         p = _guardar_borrador(p, 7)
         session['presup'] = _session_compact(p)
-        # Fix 04/07/2026: antes "Anterior" era un <a href> que NO pasaba por acá,
-        # así que si el usuario elegía "semanal" y volvía a paso 5/6 sin tocar
-        # "Ver resumen", esa elección nunca se guardaba (al volver a paso 7 se
-        # veía "mensual" de nuevo, el último valor realmente guardado). Ahora
-        # "Anterior" también es un submit de este mismo form (name="ir_atras"),
-        # así que primero se guarda y recién después se redirige hacia atrás.
-        if request.form.get('ir_atras'):
-            destino = 'presupuesto.modo_tiempo' if p.get('modo') == 'solo_mo' else 'presupuesto.materiales'
-            return redirect(url_for(destino))
-        return redirect(url_for('presupuesto.resumen'))
+        # Fix 05/07/2026: unificado con _redir_next() — "Anterior" ahora manda
+        # su destino en el campo genérico "_next" (antes era el flag propio
+        # "ir_atras", solo cubría este botón y no los íconos del wizard).
+        return _redir_next(url_for('presupuesto.resumen'))
 
     dias_obra = p.get('dias_obra', 0)
     n_cuotas_prev = calcular_cuotas(dias_obra, p.get('frecuencia', 'mensual'))
@@ -1194,6 +1211,38 @@ def forma_pago():
 def resumen():
     p = session.get('presup', {})
     simbolo = p.get('simbolo', '$')
+
+    # Fix 05/07/2026: recargar rubros/materiales desde DB si faltan en el
+    # cookie (heavy keys) y recalcular p['totales'] SIEMPRE fresco acá (mismo
+    # criterio que el guardado final más abajo) — así lo que se ve en esta
+    # pantalla coincide exactamente con lo que se guarda y con lo que
+    # después lee el PDF, sin importar si se editaron materiales en paso 6
+    # después de que paso 5 calculó por última vez.
+    if (not p.get('rubros') or not p.get('materiales')) and p.get('_pid'):
+        try:
+            db_r = get_db()
+            row_r = db_r.execute(
+                "SELECT session_json FROM presupuestos WHERE id=?", (p['_pid'],)
+            ).fetchone()
+            db_r.close()
+            if row_r and row_r['session_json']:
+                p = {**json.loads(row_r['session_json']), **p}
+        except Exception as e_r:
+            print(f"[resumen] error recargando desde DB: {e_r}")
+
+    _mat_resumen = sum(m.get('subtotal', 0) for m in p.get('materiales', [])) \
+                   or p.get('total_materiales', 0)
+    p['total_materiales'] = _mat_resumen
+    p['totales'] = _calcular_totales_finales(
+        p.get('modo', 'mo_mat'),
+        p.get('total_mo', 0),
+        _mat_resumen,
+        p.get('subcontratos', []),
+        p.get('indirectos', {}),
+        p.get('pct_gg', 20),
+        p.get('pct_imp', 7),
+        p.get('operarios_reales', 0),
+    )
 
     if request.method == 'POST':
         # Permite editar descripcion_trabajos desde el resumen

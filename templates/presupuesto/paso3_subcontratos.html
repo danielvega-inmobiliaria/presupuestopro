@@ -11,7 +11,7 @@
   <div class="card-body">
     <p class="text-muted small mb-3">Marca los rubros que vas a subcontratar e ingresa los montos en {{ simbolo }}.</p>
 
-    <form method="post" id="formSubc">
+    <form method="post" id="formSubc" data-wizard-form>
 
       <!-- Sugeridos -->
       {% for s in sugeridos %}
@@ -51,9 +51,9 @@
       </button>
 
       <div class="d-flex justify-content-between mt-4">
-        <a href="{{ url_for('presupuesto.rubros') }}" class="btn btn-outline-secondary">
+        <button type="submit" name="_next" value="{{ url_for('presupuesto.rubros') }}" class="btn btn-outline-secondary">
           <i class="bi bi-arrow-left"></i> Anterior
-        </a>
+        </button>
         <button type="submit" class="btn btn-warning fw-bold px-5">
           Siguiente <i class="bi bi-arrow-right"></i>
         </button>

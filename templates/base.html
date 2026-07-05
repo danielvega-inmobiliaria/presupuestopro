@@ -75,6 +75,32 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Fix 05/07/2026: navegación del wizard vía los íconos de _wizard_steps.html.
+// Antes eran <a href> planos — si la página tenía cambios sin guardar (ej.
+// elegir "semanal" en paso 7 sin apretar "Siguiente"), se perdían al saltar
+// de paso con el ícono. Ahora, si la página tiene un <form data-wizard-form>,
+// se lo guarda (submit) primero indicando el destino real en el campo oculto
+// "_next" — cada ruta del wizard revisa ese campo (ver _redir_next() en
+// routes/presupuesto.py) y redirige ahí en vez de al paso siguiente por
+// defecto. Si no hay formulario en la página, navega directo como antes.
+function wizardGoto(url) {
+  var form = document.querySelector('form[data-wizard-form]');
+  if (form) {
+    var inp = form.querySelector('input[name="_next"]');
+    if (!inp) {
+      inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = '_next';
+      form.appendChild(inp);
+    }
+    inp.value = url;
+    if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+    return false;
+  }
+  return true;
+}
+</script>
 {% block scripts %}{% endblock %}
 <script>
 if ('serviceWorker' in navigator) {

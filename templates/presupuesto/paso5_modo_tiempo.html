@@ -3,9 +3,11 @@
 
 {% block sticky_nav %}
 <div class="wizard-sticky-nav">
-  <a href="{{ url_for('presupuesto.indirectos') }}" class="btn btn-sm btn-outline-secondary">
+  <!-- Fix 05/07/2026: "Anterior" ahora guarda este paso antes de volver (ver
+       _redir_next en routes/presupuesto.py) en vez de descartar cambios. -->
+  <button type="submit" form="formModo" name="_next" value="{{ url_for('presupuesto.indirectos') }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i> Anterior
-  </a>
+  </button>
   <button type="submit" form="formModo" class="btn btn-sm btn-warning fw-bold">
     Siguiente <i class="bi bi-arrow-right"></i>
   </button>
@@ -22,7 +24,7 @@
         <i class="bi bi-clock-history"></i> Paso 5 — Modo de cotizacion y tiempo de obra
       </div>
       <div class="card-body">
-        <form method="post" id="formModo">
+        <form method="post" id="formModo" data-wizard-form>
 
           <!-- Modo -->
           <h6 class="text-muted mb-3">Que incluye el presupuesto?</h6>
@@ -194,9 +196,9 @@
           </div>
 
           <div class="d-flex justify-content-between">
-            <a href="{{ url_for('presupuesto.indirectos') }}" class="btn btn-outline-secondary">
+            <button type="submit" name="_next" value="{{ url_for('presupuesto.indirectos') }}" class="btn btn-outline-secondary">
               <i class="bi bi-arrow-left"></i> Anterior
-            </a>
+            </button>
             <button type="submit" class="btn btn-warning fw-bold px-5">
               Siguiente <i class="bi bi-arrow-right"></i>
             </button>

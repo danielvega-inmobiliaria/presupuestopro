@@ -3,9 +3,11 @@
 
 {% block sticky_nav %}
 <div class="wizard-sticky-nav">
-  <a href="{{ url_for('presupuesto.nuevo') }}" class="btn btn-sm btn-outline-secondary">
+  <!-- Fix 05/07/2026: "Anterior" ahora guarda este paso antes de volver (ver
+       _redir_next en routes/presupuesto.py) en vez de descartar cambios. -->
+  <button type="submit" form="formComputo" name="_next" value="{{ url_for('presupuesto.nuevo') }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i> Anterior
-  </a>
+  </button>
   <button type="submit" form="formComputo" class="btn btn-sm btn-warning fw-bold">
     Siguiente <i class="bi bi-arrow-right"></i>
   </button>
@@ -46,7 +48,7 @@
     </div>
   </div>
 
-  <form method="post" id="formComputo">
+  <form method="post" id="formComputo" data-wizard-form>
 
     <!-- Superficie -->
     <div class="card mb-3 border-0 shadow-sm">
@@ -192,9 +194,9 @@
 
     <!-- Botones -->
     <div class="d-flex justify-content-between pb-4">
-      <a href="{{ url_for('presupuesto.nuevo') }}" class="btn btn-outline-secondary">
+      <button type="submit" name="_next" value="{{ url_for('presupuesto.nuevo') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Anterior
-      </a>
+      </button>
       <button type="submit" class="btn btn-warning fw-bold px-4">
         Siguiente <i class="bi bi-arrow-right"></i>
       </button>

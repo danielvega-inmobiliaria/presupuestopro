@@ -237,8 +237,13 @@ def generar_pdf_propietario(p, empresa=None):
 
     pdf.seccion('Datos del cliente y la obra')
     pdf.fila_kv('Cliente:',   p.get('cliente_nombre', ''))
-    pdf.fila_kv('Telefono:',  p.get('cliente_tel', ''))
-    pdf.fila_kv('Email:',     p.get('cliente_email', ''))
+    # Fix 05/07/2026: omitir filas vacías (Telefono/Email) — antes siempre se
+    # imprimían aunque no hubiera dato, gastando espacio de página sin
+    # necesidad (ver nota de "hoja en blanco" más abajo, junto a Forma de pago).
+    if (p.get('cliente_tel') or '').strip():
+        pdf.fila_kv('Telefono:', p.get('cliente_tel', ''))
+    if (p.get('cliente_email') or '').strip():
+        pdf.fila_kv('Email:', p.get('cliente_email', ''))
     pdf.fila_kv('Obra:',      p.get('obra_descripcion', ''))
     pdf.fila_kv('Direccion:', p.get('obra_direccion', ''))
     pdf.fila_kv('Tipo:',      p.get('obra_tipo', ''))
@@ -253,7 +258,7 @@ def generar_pdf_propietario(p, empresa=None):
         pdf.set_font('Helvetica', '', 9)
         pdf.set_text_color(0, 0, 0)
         pdf.multi_cell(0, 5, desc_trab)
-    pdf.ln(4)
+    pdf.ln(3)
 
     pdf.seccion('Resumen economico')
     pdf.set_font('Helvetica', '', 9)
@@ -286,7 +291,7 @@ def generar_pdf_propietario(p, empresa=None):
     pdf.cell(0, 5,
         f"Tiempo estimado: {p.get('dias_obra', 0)} dias  |  Equiv. USD: USD {usd_equiv:,}  |  Precios al {fecha_fmt}".replace(',', '.'),
         ln=1)
-    pdf.ln(5)
+    pdf.ln(3)
 
     # Fix 05/07/2026: detalle de items de obra a realizar, por item (no por
     # rubro como en el resumen interno) — solo unidades presupuestadas, sin
@@ -304,14 +309,19 @@ def generar_pdf_propietario(p, empresa=None):
                 (it.get('unidad', ''), 35, 'C'),
             ], fill=fill)
             fill = not fill
-        pdf.ln(4)
+        pdf.ln(3)
 
-    # Fix 05/07/2026: lista de materiales a comprar (cantidad, precio, total),
-    # solo cuando el modo es "Solo mano de obra" — en ese caso los materiales
-    # los compra el propietario y necesita saber qué y cuánto comprar. En modo
-    # "Mano de obra + materiales" ya están incluidos en el TOTAL de arriba.
-    if modo == 'solo_mo' and p.get('materiales'):
-        pdf.seccion('Materiales a comprar (a cargo del propietario)')
+    # Fix 05/07/2026: lista de materiales — antes solo se mostraba en modo
+    # "Solo mano de obra". Ahora se muestra siempre que haya datos (también
+    # en "MO + Materiales", donde el propietario igual quiere ver el detalle
+    # de qué materiales y cantidades componen el total, tal como ya se
+    # mostraba en pantalla en paso 8 — resumen interno). El título cambia
+    # según el modo: en solo_mo el propietario los compra él mismo; en
+    # mo_mat es solo a título informativo (ya están incluidos en el TOTAL).
+    if p.get('materiales'):
+        titulo_mat = ('Materiales a comprar (a cargo del propietario)' if modo == 'solo_mo'
+                      else 'Materiales incluidos en el presupuesto (detalle)')
+        pdf.seccion(titulo_mat)
         pdf.tabla_header([('Material', 75, 'L'), ('Cant.', 25, 'C'), ('Unidad', 25, 'C'),
                            ('Precio unit.', 30, 'R'), ('Subtotal', 25, 'R')])
         fill = False
@@ -327,8 +337,19 @@ def generar_pdf_propietario(p, empresa=None):
             fill = not fill
             total_mat_pdf += m.get('subtotal', 0)
         pdf.ln(1)
-        pdf.tabla_total('TOTAL MATERIALES A COMPRAR:', fmt(total_mat_pdf, simbolo))
+        label_total_mat = 'TOTAL MATERIALES A COMPRAR:' if modo == 'solo_mo' else 'TOTAL MATERIALES (incluido en el TOTAL):'
+        pdf.tabla_total(label_total_mat, fmt(total_mat_pdf, simbolo))
         pdf.ln(4)
+
+    # Fix 05/07/2026: evitar que el bloque "Forma de pago" + firma quede
+    # partido entre 2 páginas (ej. el título y 1 fila en una hoja, el resto y
+    # las firmas en la siguiente, con la hoja nueva casi vacía). Se calcula
+    # la altura aproximada de todo el bloque y si no entra en lo que queda de
+    # la página actual, se fuerza un salto de página ANTES de empezar, para
+    # que el bloque completo quede junto (y prolijo) en una sola página.
+    _alto_bloque_pago = 9 + 8*3 + 2 + 5 + 8 + 15   # seccion + 3 filas + notas + firma
+    if pdf.get_y() + _alto_bloque_pago > (pdf.h - pdf.b_margin):
+        pdf.add_page()
 
     pdf.seccion('Forma de pago')
     pdf.set_font('Helvetica', '', 9)

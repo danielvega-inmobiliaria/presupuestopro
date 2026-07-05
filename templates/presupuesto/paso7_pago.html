@@ -1,11 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}Forma de pago — Paso 7{% endblock %}
 
+{% set _paso_anterior = 'presupuesto.modo_tiempo' if p.get('modo') == 'solo_mo' else 'presupuesto.materiales' %}
 {% block sticky_nav %}
 <div class="wizard-sticky-nav">
-  <!-- Fix 04/07/2026: antes era <a href> y no guardaba la frecuencia elegida
-       antes de volver a paso 5/6 (ver nota en routes/presupuesto.py::forma_pago). -->
-  <button type="submit" form="formPago" name="ir_atras" value="1" class="btn btn-sm btn-outline-secondary">
+  <!-- Fix 04/07/2026 / unificado 05/07/2026: "Anterior" guarda este paso (via
+       _redir_next en routes/presupuesto.py) antes de volver, así la frecuencia
+       elegida nunca se pierde. -->
+  <button type="submit" form="formPago" name="_next" value="{{ url_for(_paso_anterior) }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i> Anterior
   </button>
   <button type="submit" form="formPago" class="btn btn-sm btn-warning fw-bold">
@@ -31,7 +33,7 @@
           </div>
         </div>
 
-        <form method="post" id="formPago">
+        <form method="post" id="formPago" data-wizard-form>
           <div class="row g-3 mb-4">
             <div class="col-md-4">
               <label class="form-label">% Anticipo</label>
@@ -76,7 +78,7 @@
           <div id="verif-pago" class="text-end text-muted small mt-1"></div>
 
           <div class="d-flex justify-content-between mt-4">
-            <button type="submit" name="ir_atras" value="1" class="btn btn-outline-secondary">
+            <button type="submit" name="_next" value="{{ url_for(_paso_anterior) }}" class="btn btn-outline-secondary">
               <i class="bi bi-arrow-left"></i> Anterior
             </button>
             <button type="submit" class="btn btn-primary px-5">

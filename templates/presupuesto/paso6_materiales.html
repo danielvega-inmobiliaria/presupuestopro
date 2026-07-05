@@ -3,9 +3,11 @@
 
 {% block sticky_nav %}
 <div class="wizard-sticky-nav">
-  <a href="{{ url_for('presupuesto.modo_tiempo') }}" class="btn btn-sm btn-outline-secondary">
+  <!-- Fix 05/07/2026: "Anterior" ahora guarda este paso antes de volver (ver
+       _redir_next en routes/presupuesto.py) en vez de descartar cambios. -->
+  <button type="submit" form="formMateriales" name="_next" value="{{ url_for('presupuesto.modo_tiempo') }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i> Anterior
-  </a>
+  </button>
   <button type="submit" form="formMateriales" class="btn btn-sm btn-warning fw-bold">
     Siguiente <i class="bi bi-arrow-right"></i>
   </button>
@@ -34,7 +36,7 @@
     </div>
     {% endif %}
 
-    <form method="post" id="formMateriales">
+    <form method="post" id="formMateriales" data-wizard-form>
       <div class="mx-3 mt-3">
         <table class="table table-sm table-hover w-100" id="tbl-mats">
           <thead class="table-light">
@@ -105,9 +107,9 @@
       </div>
 
       <div class="d-flex justify-content-between p-3">
-        <a href="{{ url_for('presupuesto.modo_tiempo') }}" class="btn btn-outline-secondary">
+        <button type="submit" name="_next" value="{{ url_for('presupuesto.modo_tiempo') }}" class="btn btn-outline-secondary">
           <i class="bi bi-arrow-left"></i> Anterior
-        </a>
+        </button>
         <button type="submit" class="btn btn-primary px-5">
           Siguiente <i class="bi bi-arrow-right"></i>
         </button>
