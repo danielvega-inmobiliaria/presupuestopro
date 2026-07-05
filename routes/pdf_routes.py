@@ -5,6 +5,7 @@ from flask import Blueprint, send_file, g, redirect, url_for, flash, render_temp
 from utils.auth import login_required
 from utils.pdf_generator import generar_pdf_propietario, generar_pdf_constructor
 from utils.calculations import calcular_cuotas, calcular_cuadro_pago
+from routes.presupuesto import _calcular_materiales_desde_rubros
 from database import get_db
 
 bp = Blueprint('pdf', __name__, url_prefix='/pdf')
@@ -27,6 +28,15 @@ def cargar_presupuesto(pid, user_id):
     p['cuadro_pago'] = calcular_cuadro_pago(
         p['total_presupuesto'], p['pct_anticipo'], p['pct_final'], n_cuotas
     )
+    # Fix 05/07/2026: en modo "Solo mano de obra" el wizard salta paso 6
+    # (materiales) — p['materiales'] queda vacío. Para el PDF propietario,
+    # el dueño necesita igual la lista de qué comprar, así que se calcula acá
+    # en vivo desde los rubros (misma fuente que usa el paso 6 normalmente).
+    if p.get('modo') == 'solo_mo' and not p.get('materiales'):
+        try:
+            p['materiales'] = _calcular_materiales_desde_rubros(p)
+        except Exception:
+            p['materiales'] = []
     empresa = dict(empresa_row) if empresa_row else {}
     return p, empresa
 

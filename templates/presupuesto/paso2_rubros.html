@@ -13,6 +13,9 @@
 {% endblock %}
 
 {% block content %}
+<!-- Fix 05/07/2026: faltaba el include de _wizard_steps.html — paso 2 era la
+     única ventana del wizard sin la barra de pasos (INICIO/COMPUTO/SUBCONT/...). -->
+{% include 'presupuesto/_wizard_steps.html' with context %}
 <div class="container-fluid px-2 px-md-3" style="max-width:960px; margin:0 auto;">
 
   <!-- Encabezado -->

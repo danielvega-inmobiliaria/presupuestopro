@@ -18,13 +18,54 @@ def fmt(n, simbolo='$'):
         return f"{simbolo} 0"
 
 
+def fmt_cant(n):
+    """Formatea una cantidad (no moneda) con separador decimal AR (coma) y
+    sin decimales innecesarios cuando el valor es entero."""
+    try:
+        n = float(n)
+    except Exception:
+        return str(n)
+    if n == int(n):
+        return f"{int(n):,}".replace(',', '.')
+    txt = f"{n:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    return txt
+
+
+def _iniciales_empresa(nombre):
+    """2 iniciales a partir del nombre de la empresa (ej. 'Vega Construcciones' -> 'VC'),
+    usadas como placeholder de logo cuando la empresa no cargó uno (fix 05/07/2026)."""
+    palabras = [w for w in (nombre or '').strip().split() if w]
+    if not palabras:
+        return ''
+    if len(palabras) == 1:
+        return palabras[0][:2].upper()
+    return (palabras[0][0] + palabras[1][0]).upper()
+
+
+def _conectar_ultima(lista):
+    """Une una lista de palabras con comas y 'y'/'e' antes de la última
+    (regla gramatical: 'e' si la última palabra empieza con sonido 'i')."""
+    lista = [x for x in lista if x]
+    if not lista:
+        return ''
+    if len(lista) == 1:
+        return lista[0]
+    conectivo = 'e' if lista[-1][:1].lower() == 'i' else 'y'
+    return ', '.join(lista[:-1]) + f' {conectivo} ' + lista[-1]
+
+
 class PDF(FPDF):
-    def __init__(self, titulo, nro, simbolo='$', empresa=None):
+    def __init__(self, titulo, nro, simbolo='$', empresa=None, banner_claro=False):
         super().__init__()
         self.simbolo = simbolo
         self.titulo  = titulo
         self.nro     = nro
         self.empresa = empresa or {}
+        # Fix 05/07/2026: banner_claro=True (PDF propietario) usa un tono de
+        # azul más claro (AZUL_M) para el banner de presentación en vez del
+        # azul oscuro original (AZUL) — pedido de Daniel, solo para el
+        # PDF de cara al cliente. El PDF constructor sigue con el tono original.
+        self.banner_claro = banner_claro
         # Pre-decodificar logo una sola vez
         self._logo_bytes = None
         logo_b64 = self.empresa.get('logo_data', '')
@@ -45,7 +86,8 @@ class PDF(FPDF):
         # Altura del banner: 22 sin empresa, 32 con nombre/logo (espacio para contacto/tel)
         banner_h = 32 if tiene_empresa else 22
 
-        self.set_fill_color(*AZUL)
+        color_banner = AZUL_M if self.banner_claro else AZUL
+        self.set_fill_color(*color_banner)
         self.rect(0, 0, 210, banner_h, 'F')
 
         x_texto = 15
@@ -61,13 +103,29 @@ class PDF(FPDF):
                 x_texto = 15 + logo_w + 4
             except Exception:
                 pass
+        elif empresa_nombre:
+            # Fix 05/07/2026: sin logo cargado → placeholder con las iniciales
+            # de la empresa (ej. "Vega Construcciones" -> "VC") en vez de
+            # dejar el espacio vacío.
+            iniciales = _iniciales_empresa(empresa_nombre)
+            if iniciales:
+                logo_h = banner_h - 6
+                logo_w = logo_h
+                self.set_fill_color(*AMAR)
+                self.rect(15, 3, logo_w, logo_h, 'F')
+                self.set_text_color(*AZUL)
+                self.set_font('Helvetica', 'B', logo_h * 2.1)
+                self.set_xy(15, 3 + logo_h * 0.24)
+                self.cell(logo_w, logo_h * 0.55, iniciales, align='C')
+                x_texto = 15 + logo_w + 4
 
-        # Nombre empresa (línea superior)
+        # Nombre empresa (línea superior) — fix 05/07/2026: tamaño de fuente
+        # aumentado de 11 a 14 (pedido "un poco más grande").
         if empresa_nombre:
-            self.set_font('Helvetica', 'B', 11)
+            self.set_font('Helvetica', 'B', 14)
             self.set_text_color(*AMAR)
-            self.set_xy(x_texto, 4)
-            self.cell(0, 5, empresa_nombre, ln=1)
+            self.set_xy(x_texto, 3.5)
+            self.cell(0, 6.5, empresa_nombre, ln=1)
             if empresa_slogan:
                 self.set_font('Helvetica', 'I', 8)
                 self.set_text_color(200, 210, 230)
@@ -171,8 +229,11 @@ def generar_pdf_propietario(p, empresa=None):
     simbolo = p.get('simbolo', '$')
     total   = p.get('total_presupuesto', 0)
     cuadro  = p.get('cuadro_pago', {})
+    modo    = p.get('modo', 'mo_mat')
 
-    pdf = PDF('PRESUPUESTO DE CONSTRUCCION', p.get('nro', ''), simbolo, empresa)
+    # Fix 05/07/2026: banner_claro=True — tono de banner más claro pedido por
+    # Daniel, solo para el PDF de cara al propietario/cliente.
+    pdf = PDF('PRESUPUESTO DE CONSTRUCCION', p.get('nro', ''), simbolo, empresa, banner_claro=True)
 
     pdf.seccion('Datos del cliente y la obra')
     pdf.fila_kv('Cliente:',   p.get('cliente_nombre', ''))
@@ -197,8 +258,19 @@ def generar_pdf_propietario(p, empresa=None):
     pdf.seccion('Resumen economico')
     pdf.set_font('Helvetica', '', 9)
     pdf.set_text_color(*GRIS)
+    # Fix 05/07/2026: texto dinámico según lo realmente presupuestado (antes era
+    # fijo y siempre mencionaba materiales/subcontratos aunque no correspondiera).
+    _partes_incluye = ['mano de obra']
+    if modo != 'solo_mo':
+        _partes_incluye.append('materiales')
+    if p.get('subcontratos'):
+        _partes_incluye.append('subcontratos')
+    if (p.get('pct_gg', 0) or 0) > 0:
+        _partes_incluye.append('gastos generales')
+    if (p.get('pct_impuestos', 0) or 0) > 0:
+        _partes_incluye.append('impuestos')
     pdf.multi_cell(0, 5,
-        'Incluye mano de obra, materiales, subcontratos, gastos generales e impuestos. No incluye IVA.')
+        f"Incluye {_conectar_ultima(_partes_incluye)}. No incluye IVA.")
     pdf.ln(3)
 
     pdf.set_fill_color(*AZUL)
@@ -215,6 +287,48 @@ def generar_pdf_propietario(p, empresa=None):
         f"Tiempo estimado: {p.get('dias_obra', 0)} dias  |  Equiv. USD: USD {usd_equiv:,}  |  Precios al {fecha_fmt}".replace(',', '.'),
         ln=1)
     pdf.ln(5)
+
+    # Fix 05/07/2026: detalle de items de obra a realizar, por item (no por
+    # rubro como en el resumen interno) — solo unidades presupuestadas, sin
+    # detalle de costo unitario (ese detalle queda para el PDF constructor).
+    items_pdf = [it for rubro in p.get('rubros', []) for it in rubro.get('items', [])
+                 if it.get('cantidad', 0) > 0]
+    if items_pdf:
+        pdf.seccion('Items de obra a realizar')
+        pdf.tabla_header([('Item', 110, 'L'), ('Cantidad', 35, 'C'), ('Unidad', 35, 'C')])
+        fill = False
+        for it in items_pdf:
+            pdf.tabla_fila([
+                (it.get('nombre', ''), 110, 'L'),
+                (fmt_cant(it.get('cantidad', 0)), 35, 'C'),
+                (it.get('unidad', ''), 35, 'C'),
+            ], fill=fill)
+            fill = not fill
+        pdf.ln(4)
+
+    # Fix 05/07/2026: lista de materiales a comprar (cantidad, precio, total),
+    # solo cuando el modo es "Solo mano de obra" — en ese caso los materiales
+    # los compra el propietario y necesita saber qué y cuánto comprar. En modo
+    # "Mano de obra + materiales" ya están incluidos en el TOTAL de arriba.
+    if modo == 'solo_mo' and p.get('materiales'):
+        pdf.seccion('Materiales a comprar (a cargo del propietario)')
+        pdf.tabla_header([('Material', 75, 'L'), ('Cant.', 25, 'C'), ('Unidad', 25, 'C'),
+                           ('Precio unit.', 30, 'R'), ('Subtotal', 25, 'R')])
+        fill = False
+        total_mat_pdf = 0
+        for m in p.get('materiales', []):
+            pdf.tabla_fila([
+                (m.get('nombre', ''), 75, 'L'),
+                (fmt_cant(m.get('cantidad', 0)), 25, 'C'),
+                (m.get('unidad', ''), 25, 'C'),
+                (fmt(m.get('precio_local', 0), simbolo), 30, 'R'),
+                (fmt(m.get('subtotal', 0), simbolo), 25, 'R'),
+            ], fill=fill)
+            fill = not fill
+            total_mat_pdf += m.get('subtotal', 0)
+        pdf.ln(1)
+        pdf.tabla_total('TOTAL MATERIALES A COMPRAR:', fmt(total_mat_pdf, simbolo))
+        pdf.ln(4)
 
     pdf.seccion('Forma de pago')
     pdf.set_font('Helvetica', '', 9)

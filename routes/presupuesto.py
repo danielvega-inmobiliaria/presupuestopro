@@ -446,6 +446,13 @@ def _guardar_borrador(p, step):
     db = get_db()
     pid = p.get('_pid')
 
+    # Fix 05/07/2026: _max_step guarda el paso MAS AVANZADO al que llegó este
+    # borrador (a diferencia de la columna wizard_step, que se pisa con el paso
+    # actual cada vez que se guarda y puede bajar si el usuario vuelve atrás).
+    # _wizard_steps.html lo usa para habilitar el salto directo hacia adelante
+    # (ej. estar en el paso 2 y poder ir al 6 si ya se llegó a cargar el 6 antes).
+    p['_max_step'] = max(int(p.get('_max_step', 0) or 0), step)
+
     if pid:
         # Consultar status actual para no degradar 'completo' a 'borrador'
         row = db.execute("SELECT status, session_json FROM presupuestos WHERE id=? AND user_id=?", (pid, user_id)).fetchone()
@@ -1161,6 +1168,15 @@ def forma_pago():
         })
         p = _guardar_borrador(p, 7)
         session['presup'] = _session_compact(p)
+        # Fix 04/07/2026: antes "Anterior" era un <a href> que NO pasaba por acá,
+        # así que si el usuario elegía "semanal" y volvía a paso 5/6 sin tocar
+        # "Ver resumen", esa elección nunca se guardaba (al volver a paso 7 se
+        # veía "mensual" de nuevo, el último valor realmente guardado). Ahora
+        # "Anterior" también es un submit de este mismo form (name="ir_atras"),
+        # así que primero se guarda y recién después se redirige hacia atrás.
+        if request.form.get('ir_atras'):
+            destino = 'presupuesto.modo_tiempo' if p.get('modo') == 'solo_mo' else 'presupuesto.materiales'
+            return redirect(url_for(destino))
         return redirect(url_for('presupuesto.resumen'))
 
     dias_obra = p.get('dias_obra', 0)

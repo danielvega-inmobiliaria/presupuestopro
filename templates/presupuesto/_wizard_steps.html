@@ -1,39 +1,60 @@
 {% set steps = [
-  ('1','Datos de obra',  'nuevo'),
-  ('2','Rubros',         'rubros'),
-  ('3','Subcontratos',   'subcontratos'),
-  ('4','Indirectos',     'indirectos'),
-  ('5','Modo / Tiempo',  'modo_tiempo'),
-  ('6','Materiales',     'materiales'),
-  ('7','Forma de pago',  'forma_pago'),
-  ('8','Resumen',        'resumen'),
+  ('1','Datos de obra',  'nuevo',         'INICIO'),
+  ('2','Rubros',         'rubros',        'COMPUTO'),
+  ('3','Subcontratos',   'subcontratos',  'SUBCONT'),
+  ('4','Indirectos',     'indirectos',    'INDIR'),
+  ('5','Modo / Tiempo',  'modo_tiempo',   'MODO'),
+  ('6','Materiales',     'materiales',    'MATER'),
+  ('7','Forma de pago',  'forma_pago',    'F PAGO'),
+  ('8','Resumen',        'resumen',       'RESUMEN'),
 ] %}
 {% set current_ep = request.endpoint.replace('presupuesto.','') %}
 {% set ns = namespace(paso=0, label='') %}
-{% for num, label, ep in steps %}
+{% for num, label, ep, corto in steps %}
   {% if ep == current_ep %}
     {% set ns.paso = loop.index %}
     {% set ns.label = label %}
   {% endif %}
 {% endfor %}
-{# Al editar un presupuesto completo, todos los pasos son navegables #}
-{% set max_step = 8 if (p is defined and p.get('_editando_nro')) else (p.get('wizard_step', ns.paso) if p is defined else ns.paso) %}
+
+{# Fix 05/07/2026: navegación libre (adelante Y atrás) entre pasos ya
+   visitados. Antes solo se habilitaba en edición de un presupuesto 'completo'
+   (_editando_nro) — para un borrador en progreso, _max_step (ver
+   _guardar_borrador en routes/presupuesto.py) guarda el paso más avanzado
+   alcanzado, así que si estás en el paso 2 pero ya llegaste antes al 6,
+   podés clickear directo al 6. #}
+{% set ns2 = namespace(max_step=0) %}
+{% if p is defined and p.get('_editando_nro') %}
+  {% set ns2.max_step = 8 %}
+{% elif p is defined %}
+  {% set ns2.max_step = p.get('_max_step', 0) or 0 %}
+{% endif %}
+{% if ns2.max_step < ns.paso %}
+  {% set ns2.max_step = ns.paso %}
+{% endif %}
 
 <div class="wizard-steps mb-0">
-{% for num, label, ep in steps %}
+{% for num, label, ep, corto in steps %}
   {% set is_active = (loop.index == ns.paso) %}
   {% set is_done   = (loop.index < ns.paso) %}
-  {% set is_nav    = (loop.index <= max_step and not is_active) %}
+  {% set is_nav    = (loop.index <= ns2.max_step and not is_active) %}
 
   {% if is_nav %}
     <a href="{{ url_for('presupuesto.' ~ ep) }}"
        class="step done" title="Paso {{ num }}: {{ label }}">
       <i class="bi bi-check"></i>
+      <span class="step-label">{{ corto }}</span>
     </a>
   {% elif is_active %}
-    <div class="step active">{{ num }}</div>
+    <div class="step active" title="Paso {{ num }}: {{ label }}">
+      {{ num }}
+      <span class="step-label">{{ corto }}</span>
+    </div>
   {% else %}
-    <div class="step">{{ num }}</div>
+    <div class="step" title="Paso {{ num }}: {{ label }}">
+      {{ num }}
+      <span class="step-label">{{ corto }}</span>
+    </div>
   {% endif %}
 {% endfor %}
 </div>
