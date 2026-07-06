@@ -1,24 +1,42 @@
 """
 Blueprint: costo_m2
-Calculadora de Costo por M2/M3 — seleccionás un ítem, ingresás jornales,
-obtenés el costo por unidad con desglose de materiales y mano de obra.
+Calculadora de Costo por M2/M3 — seleccionás un ítem y obtenés el costo por
+unidad con desglose de materiales y mano de obra.
+
+Fix 05/07/2026: antes esta calculadora tenía su PROPIA lógica de cálculo,
+independiente de la del presupuesto real — daba números distintos para ítems
+compuestos (Hormigón/Armadura/Encofrado) y usaba % de GG/Impuestos fijos en
+el código (10%/5% sobre MO solamente) en vez de los configurables de Admin
+(sobre MO+Materiales). Ahora reutiliza EXACTAMENTE las mismas funciones que
+routes/presupuesto.py usa para el presupuesto real:
+  - _calcular_materiales_desde_rubros(): misma expansión recursiva de ítems
+    compuestos, mismos sinónimos, misma conversión a bolsas de compra.
+  - items_obra.precio_mo_ars: mismo costo de MO de referencia ya congelado
+    que se usa en el presupuesto (dejó de recalcularse con un jornal editable
+    en pantalla, para que el número sea siempre el mismo que se termina
+    cobrando en un presupuesto real).
+  - get_config_pct(): mismos % de Gastos generales/Beneficio e Impuestos y
+    seguros configurados en Admin, aplicados sobre MO+Materiales (antes eran
+    10%/5% fijos en el código, sobre MO solamente).
 
 Rutas:
   GET  /costo-m2              → lista de ítems con checkbox
-  GET  /costo-m2/resultado    → ventana de resultado (item_id + jornales en query)
+  GET  /costo-m2/resultado    → ventana de resultado (item_id en query)
 """
 
 from flask import Blueprint, render_template, request, session, redirect, url_for
 from functools import wraps
 from database import get_db
+from routes.presupuesto import _calcular_materiales_desde_rubros, get_config_pct
+
+# 05/07/2026: se registra cada consulta a esta calculadora en costo_m2_consultas,
+# para que el panel admin de usuarios pueda mostrar cuántas veces consultó cada uno.
 
 bp = Blueprint('costo_m2', __name__, url_prefix='/costo-m2')
 
-# Jornal horario usado en la app para calcular precio_mo_ars (fallback)
-JORNAL_HORA_OF_APP = 10000   # $10.000/hr oficial
-JORNAL_HORA_AY_APP = 5000    # $5.000/hr ayudante = $40.000/día
-JORNAL_DIA_OF_DEF  = 80000   # default display
-JORNAL_DIA_AY_DEF  = 40000   # default display
+# Defaults de jornal (solo para mostrar de referencia — ya no recalculan la MO)
+JORNAL_DIA_OF_DEF = 80000
+JORNAL_DIA_AY_DEF = 40000
 
 
 def _login_required(f):
@@ -52,15 +70,11 @@ def index():
 @bp.route('/resultado')
 @_login_required
 def resultado():
-    item_id      = request.args.get('item_id', type=int)
-    jornal_of_dia = request.args.get('jornal_of', type=float, default=0)
-    jornal_ay_dia = request.args.get('jornal_ay', type=float, default=0)
-
+    item_id = request.args.get('item_id', type=int)
     if not item_id:
         return redirect(url_for('costo_m2.index'))
 
     db = get_db()
-
     item = db.execute(
         "SELECT id, rubro_nombre, nombre, unidad, precio_ars, precio_mo_ars, "
         "hof, hay, m2_factor "
@@ -71,73 +85,58 @@ def resultado():
         db.close()
         return redirect(url_for('costo_m2.index'))
 
-    # Materiales para 1 unidad desde analisis_sub
-    materiales = db.execute(
-        "SELECT sub_nombre, cant_por_unit, precio_ars "
-        "FROM analisis_sub WHERE item_nombre=? AND es_material=1 ORDER BY rowid",
-        (item['nombre'],)
-    ).fetchall()
+    # Registrar la consulta (para el contador del panel admin)
+    try:
+        db.execute("INSERT INTO costo_m2_consultas (user_id, item_id) VALUES (?, ?)",
+                   (session.get('user_id'), item_id))
+        db.commit()
+    except Exception as e:
+        print(f"[costo_m2] error registrando consulta: {e}")
 
-    if jornal_of_dia == 0 and jornal_ay_dia == 0:
-        cfg_jo = db.execute("SELECT valor FROM config WHERE clave='jornal_oficial_dia'").fetchone()
-        cfg_ja = db.execute("SELECT valor FROM config WHERE clave='jornal_ayudante_dia'").fetchone()
-        jornal_of_dia = float(cfg_jo['valor']) if cfg_jo else JORNAL_DIA_OF_DEF
-        jornal_ay_dia = float(cfg_ja['valor']) if cfg_ja else JORNAL_DIA_AY_DEF
-
+    # Jornales de referencia — solo informativos (misma fuente que paso 5 del
+    # presupuesto), ya no se usan para recalcular la MO.
+    cfg_jo = db.execute("SELECT valor FROM config WHERE clave='jornal_oficial_dia'").fetchone()
+    cfg_ja = db.execute("SELECT valor FROM config WHERE clave='jornal_ayudante_dia'").fetchone()
+    jornal_of_dia = float(cfg_jo['valor']) if cfg_jo else JORNAL_DIA_OF_DEF
+    jornal_ay_dia = float(cfg_ja['valor']) if cfg_ja else JORNAL_DIA_AY_DEF
     db.close()
 
-    # ── Factor de conversión m3 → m2 ───────────────────────────────────────
-    factor = item['m2_factor']  # None = sin conversión, float = espesor en m
+    # ── Factor de conversión m3 → m2 (igual que antes) ─────────────────────
+    factor = item['m2_factor']
     unidad_orig = item['unidad']
     if factor and unidad_orig == 'm3':
         display_unit = 'm2'
-        # Ajustar cant/precio de materiales: por cada m3 × factor = cantidad por m2
-        # Los precios de materiales ya vienen por unidad de material, no cambian
         factor_conv = factor
     else:
         display_unit = unidad_orig
-        factor_conv = 1.0  # sin conversión
+        factor_conv = 1.0
 
-    # ── Cálculo para 1 unidad display (m2 o la unidad original) ────────────
-    jornal_hora_of = jornal_of_dia / 8
-    jornal_hora_ay = jornal_ay_dia / 8
+    # ── MO: mismo costo de referencia congelado que usa el presupuesto real ──
+    mo_por_unit_display = round((item['precio_mo_ars'] or 0) * factor_conv, 2)
 
-    # MO por unidad original (m3 o lo que sea)
-    mo_por_unit_orig = item['hof'] * jornal_hora_of + item['hay'] * jornal_hora_ay
-    # MO por unidad display (si convierte m3→m2: multiplica por factor = m3/m2)
-    mo_por_unit_display = mo_por_unit_orig * factor_conv
+    # ── Materiales: MISMA función recursiva que el presupuesto (fix 05/07/2026).
+    # Se arma un "presupuesto sintético" de 1 solo ítem con cantidad=factor_conv,
+    # así la expansión de compuestos, sinónimos y conversión a bolsas es idéntica
+    # a la que ve el usuario en el paso 6 (Materiales) de un presupuesto real.
+    p_sintetico = {'rubros': [{'items': [{'nombre': item['nombre'], 'cantidad': factor_conv}]}]}
+    mat_items_raw = _calcular_materiales_desde_rubros(p_sintetico)
+    mat_items = [{
+        'nombre':          m['nombre'],
+        'cantidad':        m['cantidad'],
+        'costo_comercial': m['precio_local'],
+        'costo_necesario': m['subtotal'],
+    } for m in mat_items_raw]
+    total_mat_display = sum(m['subtotal'] for m in mat_items_raw)
 
-    # Materiales: cant y costo por unidad display
-    mat_items = []
-    total_mat_display = 0.0
-    for m in materiales:
-        cant_display   = round(m['cant_por_unit'] * factor_conv, 4)
-        costo_com      = m['precio_ars']          # precio comercial por unidad de material
-        costo_necesario = round(cant_display * costo_com, 2)
-        total_mat_display += costo_necesario
-        mat_items.append({
-            'nombre':          m['sub_nombre'],
-            'cantidad':        cant_display,
-            'costo_comercial': costo_com,
-            'costo_necesario': costo_necesario,
-        })
+    hs_oficial  = round(item['hof'] * factor_conv, 2)
+    hs_ayudante = round(item['hay'] * factor_conv, 2)
 
-    # Si no hay analisis_sub, usar precio_ars - precio_mo_ars como referencia
-    # Clampear a 0 para evitar materiales negativos cuando precio_mo_ars > precio_ars
-    if not mat_items and item['precio_ars']:
-        precio_mo_ref = item['precio_mo_ars'] or 0
-        total_mat_display = max(0.0, (item['precio_ars'] - precio_mo_ref) * factor_conv)
-
-    # Horas para 1 unidad display
-    hs_oficial   = round(item['hof'] * factor_conv, 2)
-    hs_ayudante  = round(item['hay'] * factor_conv, 2)
-
-    PCT_GG  = 0.10
-    PCT_IMP = 0.05
-
-    # Adicionales aplicados solo sobre MO
-    gg_monto  = round(mo_por_unit_display * PCT_GG,  2)
-    imp_monto = round(mo_por_unit_display * PCT_IMP, 2)
+    # ── GG/Impuestos: mismos % configurables del presupuesto (Admin > Precios),
+    # aplicados sobre MO + Materiales (antes eran 10%/5% fijos, solo sobre MO).
+    pct_gg, pct_imp = get_config_pct()
+    base = mo_por_unit_display + total_mat_display
+    gg_monto  = round(base * pct_gg / 100, 2)
+    imp_monto = round(base * pct_imp / 100, 2)
 
     return render_template('costo_m2/resultado.html',
         item=item,
@@ -151,8 +150,8 @@ def resultado():
         hs_ayudante=hs_ayudante,
         jornal_of_dia=jornal_of_dia,
         jornal_ay_dia=jornal_ay_dia,
-        pct_gg=int(PCT_GG * 100),
-        pct_imp=int(PCT_IMP * 100),
+        pct_gg=pct_gg,
+        pct_imp=pct_imp,
         gg_monto=gg_monto,
         imp_monto=imp_monto,
         factor_conv=factor_conv,

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
+from utils.calculations import PAISES
 from database import get_db
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -31,12 +32,46 @@ def dashboard():
 @bp.route('/usuarios')
 @admin_required
 def usuarios():
+    """Fix 05/07/2026: agregado conteo de presupuestos completos/borradores y
+    consultas de Costo/m2 por usuario, + filtros por localidad/provincia/pais
+    (pedido de Daniel para tener a mano el uso real de cada usuario)."""
+    f_ciudad    = (request.args.get('f_ciudad') or '').strip()
+    f_provincia = (request.args.get('f_provincia') or '').strip()
+    f_pais      = (request.args.get('f_pais') or '').strip()
+
+    where = ["is_admin=0"]
+    params = []
+    if f_ciudad:
+        where.append("ciudad LIKE ?")
+        params.append(f"%{f_ciudad}%")
+    if f_provincia:
+        where.append("provincia LIKE ?")
+        params.append(f"%{f_provincia}%")
+    if f_pais:
+        where.append("pais = ?")
+        params.append(f_pais)
+
     db = get_db()
     users = db.execute(
-        "SELECT * FROM users WHERE is_admin=0 ORDER BY created_at DESC"
+        f"""SELECT u.*,
+                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
+                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
+            FROM users u
+            WHERE {' AND '.join(where)}
+            ORDER BY u.created_at DESC""",
+        params
     ).fetchall()
+
+    # Listas para los combos de filtro (ciudades/provincias ya cargadas, para autocompletar)
+    provincias = [r['provincia'] for r in db.execute(
+        "SELECT DISTINCT provincia FROM users WHERE is_admin=0 AND provincia IS NOT NULL AND provincia != '' ORDER BY provincia"
+    ).fetchall()]
     db.close()
-    return render_template('admin/usuarios.html', users=users, user=g.user)
+
+    return render_template('admin/usuarios.html', users=users, user=g.user,
+                            provincias=provincias, paises=PAISES,
+                            f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais)
 
 @bp.route('/usuarios/nuevo', methods=['GET', 'POST'])
 @admin_required

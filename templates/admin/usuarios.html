@@ -2,12 +2,46 @@
 {% block title %}Usuarios — Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0"><i class="bi bi-people"></i> Usuarios</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-people"></i> Usuarios <span class="badge bg-secondary">{{ users|length }}</span></h4>
   <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn btn-success">
     <i class="bi bi-person-plus"></i> Nuevo usuario
   </a>
 </div>
+
+{# ── Filtros por localidad / provincia / pais (fix 05/07/2026) ── #}
+<form method="GET" class="card mb-3">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label form-label-sm mb-0 text-muted">Localidad</label>
+        <input type="text" name="f_ciudad" class="form-control form-control-sm"
+               value="{{ f_ciudad }}" placeholder="Ej: Rosario">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label form-label-sm mb-0 text-muted">Provincia</label>
+        <input type="text" name="f_provincia" class="form-control form-control-sm"
+               value="{{ f_provincia }}" placeholder="Ej: Santa Fe" list="lista-provincias">
+        <datalist id="lista-provincias">
+          {% for p in provincias %}<option value="{{ p }}">{% endfor %}
+        </datalist>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label form-label-sm mb-0 text-muted">País</label>
+        <select name="f_pais" class="form-select form-select-sm">
+          <option value="">Todos</option>
+          {% for code, info in paises.items() %}
+          <option value="{{ code }}" {{ 'selected' if f_pais == code }}>{{ info.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary flex-fill"><i class="bi bi-funnel"></i> Filtrar</button>
+        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+      </div>
+    </div>
+  </div>
+</form>
 
 <div class="card">
   <div class="table-responsive">
@@ -17,6 +51,9 @@
           <th>Nombre</th>
           <th>Email / Teléfono</th>
           <th>País</th>
+          <th class="text-center">Presup.</th>
+          <th class="text-center">Borr.</th>
+          <th class="text-center">Costo/m²</th>
           <th>Estado</th>
           <th>Vence</th>
           <th>Creado</th>
@@ -37,6 +74,9 @@
             {% endif %}
           </td>
           <td><span class="badge bg-secondary badge-pais">{{ u.pais }}</span></td>
+          <td class="text-center"><span class="badge bg-primary">{{ u.n_presupuestos }}</span></td>
+          <td class="text-center"><span class="badge bg-warning text-dark">{{ u.n_borradores }}</span></td>
+          <td class="text-center"><span class="badge bg-info text-dark">{{ u.n_costo_m2 }}</span></td>
           <td>
             {% if u.active %}
               <span class="badge bg-success">Activo</span>
@@ -75,7 +115,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted py-4">Sin usuarios registrados</td></tr>
+        <tr><td colspan="10" class="text-center text-muted py-4">Sin usuarios que coincidan con el filtro</td></tr>
         {% endfor %}
       </tbody>
     </table>

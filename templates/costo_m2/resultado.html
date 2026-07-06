@@ -85,19 +85,14 @@
   </div>
 </div>
 
-{# ── JORNALES ── #}
-<div class="jornales-row d-flex flex-column gap-2 no-print">
-  <div class="d-flex align-items-center gap-2">
-    <span class="text-muted" style="font-size:.8rem;width:62px">Oficial:</span>
-    <span style="font-size:.8rem">$</span>
-    <input type="text" id="inp_jo" class="jornal-input"
-           value="{{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}" inputmode="decimal">
-  </div>
-  <div class="d-flex align-items-center gap-2">
-    <span class="text-muted" style="font-size:.8rem;width:62px">Ayudante:</span>
-    <span style="font-size:.8rem">$</span>
-    <input type="text" id="inp_ja" class="jornal-input"
-           value="{{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}" inputmode="decimal">
+{# ── JORNALES DE REFERENCIA (fix 05/07/2026: informativos, ya no editables —
+     la MO usa el mismo costo congelado que el presupuesto real, ver
+     routes/costo_m2.py) ── #}
+<div class="jornales-row no-print">
+  <div class="text-muted" style="font-size:.78rem">
+    <i class="bi bi-info-circle"></i> Jornales de referencia (los mismos del presupuesto):
+    Oficial <strong>$ {{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}</strong>/día ·
+    Ayudante <strong>$ {{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}</strong>/día
   </div>
 </div>
 
@@ -189,9 +184,13 @@
 {% endif %}
 
 <script>
-var HOF_ORIG    = {{ hof_orig }};
-var HAY_ORIG    = {{ hay_orig }};
-var FACTOR_CONV = {{ factor_conv }};
+// Fix 05/07/2026: la MO ya NO se recalcula desde un jornal editable — usa el
+// mismo costo de MO congelado que el presupuesto real (MO_FIJO, calculado en
+// el servidor con items_obra.precio_mo_ars). Lo único editable acá es el
+// precio unitario de cada material (para simular variaciones de precio) y
+// los % de GG/Impuestos — igual que en el presupuesto, se aplican sobre
+// MO + Materiales.
+var MO_FIJO = {{ mo_por_unit }};
 
 function fmt(n) {
   return Math.round(n).toLocaleString('es-AR').replace(/,/g,'.');
@@ -211,47 +210,40 @@ function normNum(s) {
   return parseFloat(str) || 0;
 }
 
-/* ── Recalcula solo MO + adicionales sobre MO ── */
-function recalc() {
-  var jo_dia  = normNum(document.getElementById('inp_jo').value);
-  var ja_dia  = normNum(document.getElementById('inp_ja').value);
-  var pct_gg  = normNum(document.getElementById('inp_gg').value)  / 100;
-  var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
-
-  var mo  = (HOF_ORIG * (jo_dia / 8) + HAY_ORIG * (ja_dia / 8)) * FACTOR_CONV;
-  var gg  = mo * pct_gg;
-  var imp = mo * pct_imp;
-
-  document.getElementById('c_mo').textContent   = '$ ' + fmt(mo);
-  document.getElementById('a_gg').textContent   = '$ ' + fmt(gg);
-  document.getElementById('a_imp').textContent  = '$ ' + fmt(imp);
-}
-
-/* ── Recalcula materiales cuando se edita un precio unitario ── */
-function recalcMat() {
-  var total = 0;
+/* ── Recalcula materiales (precio editable) y GG/Impuestos sobre MO+Materiales ── */
+function recalcAll() {
+  var totalMat = 0;
   document.querySelectorAll('.precio-inp').forEach(function(inp) {
-    var cant  = parseFloat(inp.dataset.cant) || 0;
+    var cant   = parseFloat(inp.dataset.cant) || 0;
     var precio = normNum(inp.value);
     var costo  = cant * precio;
-    total += costo;
+    totalMat  += costo;
     var cel = document.getElementById('fila_' + inp.dataset.row);
-    if (cel) cel.textContent = fmt(costo);   // sin $
+    if (cel) cel.textContent = fmt(costo);
   });
   var cv = document.getElementById('cv_mat');
-  if (cv) cv.textContent = '$ ' + fmt(total);
+  if (cv) cv.textContent = '$ ' + fmt(totalMat);
   var tv = document.getElementById('tfoot_val');
-  if (tv) tv.textContent = fmt(total);       // $ ya está en el span hermano
+  if (tv) tv.textContent = fmt(totalMat);
+
+  var pct_gg  = normNum(document.getElementById('inp_gg').value)  / 100;
+  var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
+  var base = MO_FIJO + totalMat;
+  var gg   = base * pct_gg;
+  var imp  = base * pct_imp;
+
+  document.getElementById('a_gg').textContent  = '$ ' + fmt(gg);
+  document.getElementById('a_imp').textContent = '$ ' + fmt(imp);
 }
 
-['inp_jo','inp_ja','inp_gg','inp_imp'].forEach(function(id) {
+['inp_gg','inp_imp'].forEach(function(id) {
   var el = document.getElementById(id);
-  if (el) { el.addEventListener('input', recalc); el.addEventListener('change', recalc); }
+  if (el) { el.addEventListener('input', recalcAll); el.addEventListener('change', recalcAll); }
 });
 
 document.querySelectorAll('.precio-inp').forEach(function(el) {
-  el.addEventListener('input',  recalcMat);
-  el.addEventListener('change', recalcMat);
+  el.addEventListener('input',  recalcAll);
+  el.addEventListener('change', recalcAll);
 });
 
 /* ── Generar PDF desde el DOM (iOS y desktop) ── */

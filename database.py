@@ -397,6 +397,18 @@ def migrate_db():
                 db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo} DEFAULT ''")
         db.commit()
 
+        # Crear tabla costo_m2_consultas si no existe (05/07/2026 — para el panel
+        # admin: cuántas veces cada usuario consultó la calculadora Costo/m2)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS costo_m2_consultas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                item_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+
         # Crear tabla sugerencias si no existe (05/07/2026 — feedback de usuarios logueados)
         db.execute("""
             CREATE TABLE IF NOT EXISTS sugerencias (
