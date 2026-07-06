@@ -483,7 +483,8 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:14px;border-bottom:2.5px solid #1E3A5F;margin-bottom:14px;">
             <div style="display:flex;align-items:flex-start;gap:14px;">
               <div id="pdf-logo-wrap" style="width:64px;height:64px;background:#e8f0f8;border-radius:8px;border:2px dashed #b0c4de;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
-                <i class="bi bi-image" style="font-size:1.5rem;color:#7a9cbf;" id="pdf-logo-icon"></i>
+                <i class="bi bi-image" style="font-size:1.5rem;color:#7a9cbf;display:none;" id="pdf-logo-icon"></i>
+                <div id="pdf-logo-initials" style="font-weight:700;font-size:1.3rem;color:#1E3A5F;letter-spacing:.5px;">CG</div>
                 <img id="pdf-logo-img" src="" alt="logo" style="display:none;width:100%;height:100%;object-fit:contain;">
               </div>
               <div>
@@ -846,6 +847,7 @@ function startAutoRotate() {
 // Arrancar cuando carga la página
 document.addEventListener('DOMContentLoaded', function() {
   startAutoRotate();
+  updatePreview();
 });
 </script>
 <style>
@@ -901,6 +903,15 @@ function mostrarExito() {
 }
 
 /* ── PDF DEMO INTERACTIVO ── */
+var logoUploaded = false;
+
+function getIniciales(nombre) {
+  var palabras = (nombre || '').trim().split(/\s+/).filter(Boolean);
+  if (palabras.length === 0) return '';
+  if (palabras.length === 1) return palabras[0].substring(0, 2).toUpperCase();
+  return (palabras[0][0] + palabras[1][0]).toUpperCase();
+}
+
 function updatePreview() {
   var empresa = document.getElementById('dem-empresa').value || 'Tu constructora';
   var cuit    = document.getElementById('dem-cuit').value    || '20-12345678-9';
@@ -911,6 +922,21 @@ function updatePreview() {
   document.getElementById('preview-tel').textContent            = tel;
   document.getElementById('preview-ciudad').textContent         = ciudad;
   document.getElementById('preview-footer-empresa').textContent = empresa + ' · ' + tel;
+
+  // Si todavía no subió logo: mostrar las iniciales de la empresa en vez del ícono genérico
+  if (!logoUploaded) {
+    var iniciales = getIniciales(empresa);
+    var initialsEl = document.getElementById('pdf-logo-initials');
+    var iconEl = document.getElementById('pdf-logo-icon');
+    if (iniciales) {
+      initialsEl.textContent = iniciales;
+      initialsEl.style.display = 'block';
+      iconEl.style.display = 'none';
+    } else {
+      initialsEl.style.display = 'none';
+      iconEl.style.display = 'block';
+    }
+  }
 }
 
 function loadLogo(event) {
@@ -922,8 +948,10 @@ function loadLogo(event) {
     document.getElementById('logo-preview-area').innerHTML =
       '<img src="' + e.target.result + '" style="max-height:60px;max-width:100%;border-radius:4px;">' +
       '<div style="font-size:.7rem;color:#6b7280;margin-top:4px;">Logo cargado ✓</div>';
-    // PDF preview: reemplazar icono por la imagen
+    // PDF preview: reemplazar iniciales/icono por la imagen
+    logoUploaded = true;
     document.getElementById('pdf-logo-icon').style.display = 'none';
+    document.getElementById('pdf-logo-initials').style.display = 'none';
     var img = document.getElementById('pdf-logo-img');
     img.src = e.target.result;
     img.style.display = 'block';
