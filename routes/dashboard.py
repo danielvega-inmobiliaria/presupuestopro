@@ -78,11 +78,16 @@ https://web-production-0c9c1.up.railway.app/admin/leads
 """
     try:
         resend.api_key = api_key
-        resend.Emails.send({
+        payload = {
             "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
             "to": [admin_email],
             "subject": f"Nuevo inscripto: {nombre} {apellido} — PresupuestoPRO",
             "text": cuerpo,
-        })
+        }
+        # Fix 05/07/2026: Reply-To al email del inscripto, para responder
+        # directo con un Reply en vez de a noreply@.
+        if email:
+            payload["reply_to"] = [email]
+        resend.Emails.send(payload)
     except Exception as e:
         print(f"[inscripcion] Error enviando email: {e}")

@@ -6,7 +6,7 @@
 
 ---
 
-_Última actualización: 05/07/2026 — 22:15 ART_
+_Última actualización: 06/07/2026 — 11:05 ART_
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -43,7 +43,25 @@ git push
 | `MP_PRECIO_ARS` | ✅ Configurada (12500) |
 | `APP_BASE_URL` | ✅ Configurada |
 | `SECRET_KEY` | ✅ Configurada |
-| `ADMIN_EMAIL` | ⚠️ Verificar (default: `danve61@gmail.com`) |
+| `ADMIN_EMAIL` | ✅ Seteada a `presupuestopro.app@gmail.com` en Railway (confirmado por Daniel, ya le llegó) |
+
+### Sesión 06/07/2026 — Borrado de la landing vieja (código muerto en routes/landing.py)
+- Instrucción que venía del hilo de marketing (mismo repo, chat aparte): confirmar que el Reply-To seguía sin commitear (confirmado: sí, seguía pendiente) y borrar la landing vieja obsoleta en `routes/landing.py` — la variable `LANDING_HTML` (~300 líneas de HTML embebido) + la vista `landing()` (`GET/POST /landing`) + el helper `_render()`, con un formulario de pago directo por Mercado Pago que no corresponde al modelo actual (lanzamiento gratis). Visible en `web-production-0c9c1.up.railway.app/landing`, sin ningún link real del sitio apuntando ahí — la landing real y en uso es `templates/landing.html`, servida por `dashboard.index()`.
+- **Hecho:** eliminados `LANDING_HTML`, `_render()`, `landing()` y `PROVINCIAS_AR` (solo se usaba ahí). Limpiados los imports que quedaban sin uso (`current_app`, `render_template_string`, `session`, `url_for`, `generate_password_hash` de werkzeug, `login_user` de utils.auth). Se conservó `contacto()` intacta, sin tocar una sola línea, tal como se pidió explícitamente. Confirmado con grep en toda la app que nada más referencia `PROVINCIAS_AR`, `LANDING_HTML` ni el endpoint `landing.landing` — el borrado es seguro.
+- **⚠️ Punto pendiente de confirmar con Daniel (no se tocó, por respetar "no tocar contacto()"):** `contacto()` termina con `return redirect('/landing?contacto_ok=1#contacto')` — esa ruta ya no existe. Hoy no importa porque ningún template llama a `/contacto` (se confirmó con grep que `templates/landing.html` actual NO tiene ningún formulario apuntando ahí), pero el día que se conecte un formulario de contacto real a este endpoint, ese redirect va a dar 404 en vez de volver a la home con el cartel de "mensaje enviado". Fix de una línea cuando se confirme: cambiar el redirect a `/?contacto_ok=1#contacto` (la home real).
+- **Archivo tocado:** `routes/landing.py` (reescrito completo, de ~457 a 84 líneas).
+- **Pendiente:** commitear (junto con el Reply-To de la sesión anterior, que sigue sin subir) y deployar; probar que `web-production-0c9c1.up.railway.app/landing` ya no responde (404 o vacío) y que el resto del sitio (`/`, `/contacto` si se usa) sigue funcionando igual.
+
+### Sesión 05/07/2026 (cont. 10) — Reply-To en notificaciones por email
+- Daniel confirmó que `ADMIN_EMAIL=presupuestopro.app@gmail.com` ya funciona. Preguntó si al responder una notificación la respuesta le llega al usuario o a noreply@ — no llegaba a nadie útil: ninguno de los 6 envíos de email (`sugerencias.py`, `landing.py::contacto`, `dashboard.py::_enviar_notificacion` leads, `pagos.py` x2, `auth.py` recuperar contraseña) tenía `reply_to` seteado, así que un Reply iba a `noreply@presupuestopro.com.ar` (nadie lo lee).
+- **Fix aplicado (Reply-To al email del usuario/contacto/inscripto) en las 3 notificaciones que tienen sentido:**
+  - `routes/sugerencias.py::_enviar_notificacion()`: `reply_to = [user['email']]` si existe.
+  - `routes/landing.py::contacto()`: `reply_to = [email]` (el que cargó en el form de contacto) si existe.
+  - `routes/dashboard.py::_enviar_notificacion()` (leads/inscriptos): `reply_to = [email]` si existe.
+  - No se tocó `pagos.py` ni `auth.py` (esos mails van del sistema al usuario, no son notificaciones al admin que tenga sentido "responder").
+  - Aclarado a Daniel: el Reply-To solo autocompleta el "Para" al tocar Responder — el mail de respuesta sale igual desde su casilla real (`presupuestopro.app@gmail.com`), no desde noreply@.
+- **Archivos tocados:** `routes/sugerencias.py`, `routes/landing.py`, `routes/dashboard.py`.
+- **Pendiente:** commitear y deployar; probar: escribir un mensaje de contacto/sugerencia con un email de prueba, y confirmar que al tocar "Responder" en el mail de notificación el campo "Para" ya viene con ese email (no con noreply@).
 
 ---
 

@@ -43,7 +43,7 @@ def _enviar_notificacion(user, mensaje):
         return
     try:
         resend.api_key = api_key
-        resend.Emails.send({
+        payload = {
             "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
             "to": [admin_email],
             "subject": f"💡 Nueva sugerencia de {user['nombre'] or user['email']}",
@@ -55,6 +55,12 @@ def _enviar_notificacion(user, mensaje):
                 f"Ver todas las sugerencias:\n"
                 f"https://web-production-0c9c1.up.railway.app/admin/sugerencias"
             ),
-        })
+        }
+        # Fix 05/07/2026: Reply-To al email del usuario, para que al responder
+        # este mail de notificación la respuesta le llegue directo a él (en vez
+        # de a noreply@, que nadie lee).
+        if user['email']:
+            payload["reply_to"] = [user['email']]
+        resend.Emails.send(payload)
     except Exception as e:
         print(f"[sugerencias] Error enviando email: {e}")
