@@ -428,9 +428,9 @@
                  onmouseover="this.style.borderColor='var(--naranja)'"
                  onmouseout="this.style.borderColor='#b0c4de'">
               <div id="logo-preview-area">
-                <i class="bi bi-cloud-upload" style="font-size:1.6rem;color:#7a9cbf;display:block;margin-bottom:4px;"></i>
+                <div id="logo-drop-initials" style="width:40px;height:40px;margin:0 auto 6px;background:#1E3A5F;color:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;letter-spacing:.5px;">CG</div>
                 <div style="font-size:.85rem;color:#374151;font-weight:600;">Subí tu logo</div>
-                <div style="font-size:.75rem;color:#9ca3af;">PNG, JPG (recomendado cuadrado)</div>
+                <div style="font-size:.75rem;color:#9ca3af;">Así se ve mientras tanto — PNG, JPG (recomendado cuadrado)</div>
               </div>
             </div>
             <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="loadLogo(event)">
@@ -935,6 +935,17 @@ function updatePreview() {
     } else {
       initialsEl.style.display = 'none';
       iconEl.style.display = 'block';
+    }
+
+    // Mismo criterio en el recuadro "Subí tu logo" del panel de la izquierda
+    var dropInitialsEl = document.getElementById('logo-drop-initials');
+    if (dropInitialsEl) {
+      if (iniciales) {
+        dropInitialsEl.textContent = iniciales;
+        dropInitialsEl.style.display = 'flex';
+      } else {
+        dropInitialsEl.style.display = 'none';
+      }
     }
   }
 }
