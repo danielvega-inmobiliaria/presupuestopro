@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PresupuestoPRO — Demo Video</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { width:100%; height:100%; background:#0d1e3c; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+
+/* ── STAGE ── */
+.stage {
+  width:100vw; height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+}
+
+/* Fondo animado sutil */
+.bg-dots {
+  position:absolute; inset:0;
+  background-image: radial-gradient(circle, rgba(249,115,22,.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: bgshift 20s linear infinite;
+}
+@keyframes bgshift { from{background-position:0 0} to{background-position:48px 48px} }
+
+/* Glow superior */
+.bg-glow {
+  position:absolute; top:-200px; left:50%; transform:translateX(-50%);
+  width:800px; height:400px;
+  background:radial-gradient(ellipse, rgba(249,115,22,.12) 0%, transparent 70%);
+  pointer-events:none;
+}
+
+/* ── INTRO FRAME ── */
+#frame-intro {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:10; opacity:1; transition:opacity .8s ease;
+}
+.intro-logo {
+  font-size: clamp(48px,7vw,96px);
+  font-weight:900; color:#fff; letter-spacing:-.5px; margin-bottom:24px;
+}
+.intro-logo span { color:#F97316; }
+.intro-slogan {
+  font-size: clamp(22px,3vw,42px);
+  color:#a8c4e0; font-weight:400; text-align:center; margin-bottom:48px;
+}
+.intro-slogan b { color:#eab308; }
+/* start overlay */
+#start-overlay {
+  position:fixed; inset:0; z-index:100;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:rgba(8,18,40,.88); backdrop-filter:blur(4px);
+  cursor:pointer;
+}
+.start-btn {
+  width:100px; height:100px; border-radius:50%;
+  background:#F97316; display:flex; align-items:center; justify-content:center;
+  font-size:44px; margin-bottom:24px;
+  animation: pulsebtn 1.5s ease-in-out infinite;
+}
+@keyframes pulsebtn { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+.start-hint { font-size:clamp(16px,2vw,24px); color:#a8c4e0; }
+
+/* ── MAIN FRAME ── */
+#frame-main {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  gap:5vw; opacity:0; transition:opacity .6s ease;
+  padding:0 4vw;
+}
+
+/* Panel izquierdo: descripción de la etapa */
+.info-panel {
+  flex:0 0 38%; max-width:480px;
+}
+.info-step-tag {
+  display:inline-block;
+  background:rgba(249,115,22,.18); border:1.5px solid rgba(249,115,22,.35);
+  border-radius:30px; padding:6px 22px;
+  font-size: clamp(12px,1.2vw,18px); color:#F97316; font-weight:700;
+  margin-bottom:20px; opacity:0; transform:translateX(-20px);
+  transition:all .5s ease .3s;
+}
+.info-title {
+  font-size: clamp(24px,3.2vw,52px);
+  font-weight:900; color:#fff; line-height:1.15; margin-bottom:16px;
+  opacity:0; transform:translateX(-20px);
+  transition:all .5s ease .45s;
+}
+.info-title span { color:#F97316; }
+.info-sub {
+  font-size: clamp(14px,1.5vw,22px);
+  color:#7a9cbf; line-height:1.5; margin-bottom:28px;
+  opacity:0; transform:translateX(-20px);
+  transition:all .5s ease .6s;
+}
+.info-detail {
+  opacity:0; transform:translateX(-20px);
+  transition:all .5s ease .75s;
+}
+.detail-row {
+  display:flex; align-items:center; gap:12px; margin-bottom:12px;
+}
+.detail-icon {
+  width:36px; height:36px; background:rgba(249,115,22,.15); border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; flex-shrink:0;
+}
+.detail-txt { font-size: clamp(13px,1.3vw,19px); color:#cbd5e1; }
+.detail-txt strong { color:#fff; }
+
+/* Activar animaciones cuando el frame es visible */
+#frame-main.visible .info-step-tag,
+#frame-main.visible .info-title,
+#frame-main.visible .info-sub,
+#frame-main.visible .info-detail {
+  opacity:1; transform:translateX(0);
+}
+
+/* ── PHONE ── */
+.phone-wrap {
+  flex:0 0 auto; position:relative;
+}
+.phone {
+  width: clamp(220px,18vw,290px);
+  background:#0f1629; border-radius:38px; padding:12px;
+  border:2.5px solid #2a2a4a;
+}
+.phone-speaker {
+  width:52px; height:5px; background:#2a3050; border-radius:3px; margin:0 auto 10px;
+}
+.phone-screen {
+  width:100%; height: clamp(390px,32vw,490px);
+  background:#f0f1f5; border-radius:24px; overflow:hidden; position:relative;
+}
+.phone-home {
+  width:68px; height:4px; background:#2a3050; border-radius:2px; margin:10px auto 0;
+}
+
+/* Pantallas dentro del celu */
+.pscreen {
+  position:absolute; inset:0; opacity:0;
+  transition:opacity .5s ease;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  overflow:hidden;
+}
+.pscreen.active { opacity:1; }
+
+/* Tap ripple animado */
+.tap-ripple {
+  position:absolute; width:36px; height:36px;
+  border-radius:50%; background:rgba(249,115,22,.45);
+  animation:ripple .7s ease-out forwards; z-index:99;
+  pointer-events:none;
+}
+@keyframes ripple {
+  0% { transform:scale(0); opacity:.8; }
+  100% { transform:scale(3); opacity:0; }
+}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap {
+  position:absolute; bottom:32px; left:50%; transform:translateX(-50%);
+  display:flex; gap:8px; align-items:center; z-index:20;
+}
+.prog-dot {
+  width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.2);
+  transition:all .4s ease;
+}
+.prog-dot.active { width:28px; border-radius:4px; background:#F97316; }
+.prog-dot.done { background:rgba(249,115,22,.4); }
+
+/* ── OUTRO ── */
+#frame-outro {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:10; opacity:0; transition:opacity .8s ease; text-align:center; padding:40px;
+}
+.outro-logo { font-size: clamp(36px,5vw,72px); font-weight:900; color:#fff; margin-bottom:8px; }
+.outro-logo span { color:#F97316; }
+.outro-slogan { font-size: clamp(20px,2.8vw,44px); color:#a8c4e0; font-weight:300; margin-bottom:48px; }
+.outro-cta-box {
+  background:#F97316; border-radius:20px; padding:24px 64px; margin-bottom:40px;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03)} }
+.outro-cta-label { font-size: clamp(14px,1.5vw,20px); color:rgba(255,255,255,.8); font-weight:600; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.outro-cta-txt { font-size: clamp(28px,3.5vw,52px); font-weight:900; color:#fff; }
+.outro-url { font-size: clamp(22px,2.5vw,38px); color:#eab308; font-weight:700; margin-bottom:32px; }
+.outro-checks {
+  display:flex; gap:32px; flex-wrap:wrap; justify-content:center;
+}
+.outro-check {
+  display:flex; align-items:center; gap:10px;
+  font-size: clamp(14px,1.4vw,20px); color:#cbd5e1;
+  background:rgba(255,255,255,.06); border-radius:30px; padding:8px 20px;
+}
+.outro-check span { color:#22c55e; font-weight:700; font-size:1.2em; }
+
+/* Branding permanente */
+.corner-brand {
+  position:absolute; top:24px; left:32px; z-index:30;
+  font-size: clamp(14px,1.5vw,20px); font-weight:700; color:rgba(255,255,255,.4);
+}
+.corner-brand em { color:rgba(249,115,22,.5); font-style:normal; }
+
+/* Tiempo restante */
+.timer-bar {
+  position:absolute; bottom:0; left:0; height:3px;
+  background:#F97316; width:0%; transition:width linear;
+  z-index:30;
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="bg-dots"></div>
+  <div class="bg-glow"></div>
+  <div class="timer-bar" id="timerBar"></div>
+
+  <!-- Branding permanente -->
+  <div class="corner-brand">Presupuesto<em>PRO</em></div>
+
+  <!-- ── INTRO ── -->
+  <div id="frame-intro">
+    <div class="intro-logo">Presupuesto<span>PRO</span></div>
+    <div class="intro-slogan">De los metros a los <b>pesos</b>, en minutos.</div>
+    <div style="font-size:clamp(16px,1.8vw,26px);color:#6b9cc4;margin-top:8px;">Para constructores y contratistas 👷</div>
+  </div>
+
+  <!-- ── MAIN (celu + texto) ── -->
+  <div id="frame-main">
+    <!-- Panel info -->
+    <div class="info-panel">
+      <div class="info-step-tag" id="info-tag">Dashboard</div>
+      <div class="info-title" id="info-title">Título</div>
+      <div class="info-sub" id="info-sub">Subtítulo</div>
+      <div class="info-detail" id="info-detail"></div>
+    </div>
+
+    <!-- Phone -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-speaker"></div>
+        <div class="phone-screen" id="phoneScreen">
+
+          <!-- Screen 0: Dashboard -->
+          <div class="pscreen active" id="ps0">
+            <div style="background:#0d1e3c;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;display:flex;align-items:center;gap:6px;"><span style="color:#eab308;">■</span> PresupuestoPRO</div>
+            <div style="background:#0d1e3c;color:#fff;padding:5px 8px;display:flex;gap:5px;font-size:8px;">
+              <span style="background:#f97316;border-radius:10px;padding:2px 8px;color:#fff;font-weight:700;">Mis presupuestos</span>
+              <span style="background:rgba(255,255,255,.15);border-radius:10px;padding:2px 8px;">Costo/m²</span>
+              <span style="background:#eab308;border-radius:10px;padding:2px 8px;color:#000;font-weight:700;">+ Nuevo</span>
+            </div>
+            <div style="padding:8px;display:flex;flex-direction:column;gap:7px;">
+              <div style="background:#fff;border-radius:8px;padding:10px;border:1px solid #dee2e6;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <span style="background:#6c757d;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;">2026-002</span>
+                  <span style="font-size:12px;font-weight:700;color:#198754;">$10.681.712</span>
+                </div>
+                <div style="font-weight:600;font-size:10px;color:#0d1e3c;">Juan</div>
+                <div style="color:#6c757d;font-size:8px;margin-bottom:7px;">Tapial y vereda · 30-06-2026</div>
+                <div style="display:flex;gap:3px;">
+                  <div style="background:#0d6efd22;color:#0d6efd;font-size:8px;font-weight:700;padding:3px 7px;border-radius:4px;text-align:center;">Ver</div>
+                  <div style="background:#19875422;color:#198754;font-size:8px;font-weight:700;padding:3px 7px;border-radius:4px;text-align:center;">Editar</div>
+                  <div style="background:#6c757d22;color:#6c757d;font-size:8px;padding:3px 7px;border-radius:4px;text-align:center;">PDF</div>
+                  <div style="background:#33333322;color:#333;font-size:8px;padding:3px 7px;border-radius:4px;text-align:center;">Constr.</div>
+                </div>
+              </div>
+              <div style="background:#fff;border-radius:8px;padding:10px;border:1px solid #dee2e6;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <span style="background:#6c757d;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;">2026-001</span>
+                  <span style="font-size:12px;font-weight:700;color:#198754;">$10.550.194</span>
+                </div>
+                <div style="font-weight:600;font-size:10px;color:#0d1e3c;">Daniel Crespo</div>
+                <div style="color:#6c757d;font-size:8px;margin-bottom:7px;">Ampliación dormitorio · 25-06-2026</div>
+                <div style="display:flex;gap:3px;">
+                  <div style="background:#0d6efd22;color:#0d6efd;font-size:8px;font-weight:700;padding:3px 7px;border-radius:4px;">Ver</div>
+                  <div style="background:#19875422;color:#198754;font-size:8px;font-weight:700;padding:3px 7px;border-radius:4px;">Editar</div>
+                  <div style="background:#6c757d22;color:#6c757d;font-size:8px;padding:3px 7px;border-radius:4px;">PDF</div>
+                  <div style="background:#33333322;color:#333;font-size:8px;padding:3px 7px;border-radius:4px;">Constr.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Screen 1: Datos cliente -->
+          <div class="pscreen" id="ps1">
+            <div style="background:#0d1e3c;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;"><span style="color:#eab308;">■</span> PresupuestoPRO</div>
+            <div style="display:flex;height:22px;">
+              <div style="flex:1;background:#0d1e3c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">1</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">2</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">3</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">4</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">5</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">6</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">7</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">8</div>
+            </div>
+            <div style="padding:10px 12px;">
+              <div style="font-size:9px;font-weight:700;color:#6c757d;text-transform:uppercase;margin-bottom:8px;">Paso 1 — Cliente y obra</div>
+              <div style="margin-bottom:8px;"><div style="font-size:8px;color:#6c757d;margin-bottom:2px;">Nombre completo *</div><div style="background:#fff;border:1.5px solid #0d1e3c;border-radius:5px;padding:5px 8px;font-size:10px;">Juan</div></div>
+              <div style="margin-bottom:8px;"><div style="font-size:8px;color:#6c757d;margin-bottom:2px;">Teléfono</div><div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:5px 8px;font-size:10px;color:#6c757d;">3413876543</div></div>
+              <div style="margin-bottom:8px;"><div style="font-size:8px;color:#6c757d;margin-bottom:2px;">Descripción de la obra *</div><div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:5px 8px;font-size:10px;color:#6c757d;">Tapial y vereda</div></div>
+              <div style="margin-bottom:8px;"><div style="font-size:8px;color:#6c757d;margin-bottom:2px;">Dirección</div><div style="background:#fff;border:1px solid #dee2e6;border-radius:5px;padding:5px 8px;font-size:10px;color:#6c757d;">Casilda 432</div></div>
+              <div style="background:#eab308;color:#000;font-size:10px;font-weight:700;padding:8px;border-radius:6px;text-align:center;margin-top:12px;">Siguiente →</div>
+            </div>
+          </div>
+
+          <!-- Screen 2: Rubros -->
+          <div class="pscreen" id="ps2">
+            <div style="background:#0d1e3c;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;"><span style="color:#eab308;">■</span> PresupuestoPRO</div>
+            <div style="display:flex;height:22px;">
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#0d1e3c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">2</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">3</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">4</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">5</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">6</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">7</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">8</div>
+            </div>
+            <div style="background:#0d1e3c;color:#fff;display:flex;justify-content:space-around;padding:8px;font-size:9px;text-align:center;">
+              <div><div style="opacity:.7;font-size:8px;">COSTO DIRECTO</div><div style="font-size:14px;font-weight:700;color:#eab308;">$8.979.668</div></div>
+              <div><div style="opacity:.7;font-size:8px;">HH CALCULADAS</div><div style="font-size:14px;font-weight:700;color:#eab308;">415,1 hs</div></div>
+            </div>
+            <div style="padding:6px 8px;font-size:9px;">
+              <div style="background:#343a40;color:#fff;font-weight:700;padding:5px 8px;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;"><span>04 Mampostería</span><span style="color:#eab308;">$702.930</span></div>
+              <div style="background:#fff;border:1px solid #dee2e6;border-top:none;padding:5px 8px;margin-bottom:5px;border-radius:0 0 4px 4px;">
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:3px 0;font-size:8px;"><span>Mamp. ladrillo 15cm</span><div style="display:flex;gap:6px;align-items:center;"><span style="color:#6c757d;">m2</span><div style="background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px 6px;font-size:8px;width:28px;text-align:center;">3</div><span style="font-weight:600;color:#0d1e3c;">$702.930</span></div></div>
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:3px 0;font-size:8px;"><span style="color:#6c757d;">Mamp. ladrillo 30cm</span><div style="display:flex;gap:6px;align-items:center;"><span style="color:#6c757d;">m2</span><div style="background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px 6px;font-size:8px;width:28px;"></div></div></div>
+              </div>
+              <div style="background:#fff;border:1px solid #dee2e6;border-radius:4px;padding:5px 8px;font-size:8px;">
+                <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #eee;"><span>02 Fundaciones</span><span style="font-weight:700;">$7.138.200</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #eee;"><span>04 Mampostería</span><span style="font-weight:700;">$702.930</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;font-weight:700;color:#0d1e3c;"><span>TOTAL</span><span>$8.979.668</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Screen 3: Materiales -->
+          <div class="pscreen" id="ps3">
+            <div style="background:#0d1e3c;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;"><span style="color:#eab308;">■</span> PresupuestoPRO</div>
+            <div style="display:flex;height:22px;">
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#0d1e3c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">6</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">7</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">8</div>
+            </div>
+            <div style="background:#cff4fc;border-bottom:1px solid #b6effb;padding:5px 8px;font-size:8px;color:#055160;">ℹ Lista calculada automáticamente</div>
+            <div style="padding:6px 8px;font-size:8px;">
+              <div style="font-weight:700;color:#6c757d;text-transform:uppercase;padding:3px 0 2px;border-bottom:2px solid #dee2e6;margin-bottom:3px;">Corralón / General</div>
+              <div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid #eee;"><div style="flex:1;font-size:8px;">Arena común<div style="color:#6c757d;font-size:7px;">M3</div></div><div style="width:26px;background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px;font-size:8px;text-align:right;">11,25</div><div style="width:52px;font-size:8px;text-align:right;font-weight:600;">$348.750</div></div>
+              <div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid #eee;"><div style="flex:1;font-size:8px;">Cemento Albañilería<div style="color:#6c757d;font-size:7px;">Bolsas</div></div><div style="width:26px;background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px;font-size:8px;text-align:right;">3</div><div style="width:52px;font-size:8px;text-align:right;font-weight:600;">$555.000</div></div>
+              <div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid #eee;"><div style="flex:1;font-size:8px;">Cemento portland<div style="color:#6c757d;font-size:7px;">Bolsas</div></div><div style="width:26px;background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px;font-size:8px;text-align:right;">1</div><div style="width:52px;font-size:8px;text-align:right;font-weight:600;">$207.500</div></div>
+              <div style="display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid #eee;"><div style="flex:1;font-size:8px;">Ladrillos comunes<div style="color:#6c757d;font-size:7px;">U</div></div><div style="width:26px;background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px;font-size:8px;text-align:right;">8</div><div style="width:52px;font-size:8px;text-align:right;font-weight:600;">$1.840.000</div></div>
+              <div style="display:flex;align-items:center;gap:4px;padding:4px 0;"><div style="flex:1;font-size:8px;">Granza<div style="color:#6c757d;font-size:7px;">M3</div></div><div style="width:26px;background:#fff;border:1px solid #dee2e6;border-radius:3px;padding:2px;font-size:8px;text-align:right;">2,4</div><div style="width:52px;font-size:8px;text-align:right;font-weight:600;">$86.400</div></div>
+            </div>
+            <div style="background:#e8f5e9;border-top:2px solid #c8e6c9;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:9px;font-weight:600;color:#6c757d;">Total materiales:</span>
+              <span style="font-size:13px;font-weight:700;color:#0d6efd;">$3.039.930</span>
+            </div>
+          </div>
+
+          <!-- Screen 4: Pagos -->
+          <div class="pscreen" id="ps4">
+            <div style="background:#0d1e3c;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;"><span style="color:#eab308;">■</span> PresupuestoPRO</div>
+            <div style="display:flex;height:22px;">
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#198754;color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;">✓</div>
+              <div style="flex:1;background:#0d1e3c;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">7</div>
+              <div style="flex:1;background:#dee2e6;color:#6c757d;display:flex;align-items:center;justify-content:center;font-size:9px;">8</div>
+            </div>
+            <div style="background:#0d1e3c;color:#fff;text-align:center;padding:12px 8px;">
+              <div style="font-size:8px;opacity:.7;">Total del presupuesto</div>
+              <div style="font-size:22px;font-weight:700;color:#eab308;">$10.681.712</div>
+            </div>
+            <div style="padding:8px 10px;font-size:9px;">
+              <div style="font-size:8px;font-weight:700;color:#6c757d;margin-bottom:6px;text-transform:uppercase;">Cuadro de pagos</div>
+              <div style="background:#d4edda;border-radius:6px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                <div><div style="font-size:8px;font-weight:700;color:#155724;">ANTICIPO · Al inicio</div></div>
+                <div style="font-size:13px;font-weight:700;color:#166534;">$3.204.514</div>
+              </div>
+              <div style="background:#f8fafc;border:1px solid #dee2e6;border-radius:6px;padding:7px 10px;margin-bottom:5px;">
+                <div style="font-size:8px;color:#374151;margin-bottom:2px;">3 cuotas semanales de</div>
+                <div style="font-size:13px;font-weight:700;color:#0d1e3c;">$1.780.285 c/u</div>
+              </div>
+              <div style="background:#fff3ea;border:1px solid #fed7aa;border-radius:6px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;">
+                <div><div style="font-size:8px;font-weight:700;color:#92400e;">SALDO FINAL · Al terminar</div></div>
+                <div style="font-size:13px;font-weight:700;color:#ea580c;">$2.136.843</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Screen 5: Ver presupuesto -->
+          <div class="pscreen" id="ps5">
+            <div style="background:#0d1e3c;color:#fff;padding:8px 10px;font-size:10px;font-weight:700;"><span style="color:#eab308;">■</span> PresupuestoPRO</div>
+            <div style="padding:7px 10px 4px;">
+              <div style="font-size:10px;font-weight:700;">Presupuesto <span style="background:#6c757d;color:#fff;font-size:9px;padding:2px 7px;border-radius:10px;">2026-002</span></div>
+              <div style="font-size:8px;color:#6c757d;">2026-06-30 · Juan</div>
+            </div>
+            <div style="display:flex;gap:4px;padding:0 10px 7px;">
+              <div style="background:#6c757d22;color:#6c757d;font-size:8px;font-weight:700;padding:3px 7px;border-radius:4px;">Volver</div>
+              <div style="background:#19875422;color:#198754;font-size:8px;font-weight:700;padding:3px 7px;border-radius:4px;">Editar</div>
+              <div style="background:#0d6efd22;color:#0d6efd;font-size:8px;padding:3px 7px;border-radius:4px;">PDF Propietario</div>
+              <div style="background:#33333322;color:#333;font-size:8px;padding:3px 7px;border-radius:4px;">PDF Constr.</div>
+            </div>
+            <div style="background:#0d1e3c;color:#fff;text-align:center;padding:10px 8px;border-radius:8px;margin:0 8px;">
+              <div style="font-size:8px;opacity:.7;">TOTAL DEL PRESUPUESTO</div>
+              <div style="font-size:22px;font-weight:700;color:#eab308;">$10.681.712</div>
+            </div>
+            <div style="padding:7px 10px;font-size:8px;">
+              <div style="font-weight:700;color:#6c757d;border-bottom:1px solid #dee2e6;padding-bottom:3px;margin-bottom:5px;font-size:8px;">Datos de obra</div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#6c757d;">Cliente</span><span style="font-weight:700;">Juan</span></div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#6c757d;">Obra</span><span>Tapial y vereda</span></div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#6c757d;">Tiempo</span><span style="font-weight:700;">26 días</span></div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;"><span style="color:#6c757d;">Equipo</span><span>1 of. + 1 ay.</span></div>
+              <div style="background:#d4edda;border-radius:5px;padding:5px 8px;display:flex;justify-content:space-between;margin-top:6px;">
+                <span style="font-weight:600;">Anticipo</span><span style="font-weight:700;color:#166534;">$3.204.514</span>
+              </div>
+              <div style="font-size:7px;color:#6c757d;padding:3px 8px;">3 cuotas semanales de $1.780.285 c/u</div>
+              <div style="background:#fff3ea;border-radius:5px;padding:5px 8px;display:flex;justify-content:space-between;">
+                <span>Saldo final</span><span style="font-weight:700;color:#ea580c;">$2.136.843</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /phone-screen -->
+        <div class="phone-home"></div>
+      </div><!-- /phone -->
+    </div><!-- /phone-wrap -->
+  </div><!-- /frame-main -->
+
+  <!-- ── OUTRO ── -->
+  <div id="frame-outro">
+    <div class="outro-logo">Presupuesto<span>PRO</span></div>
+    <div class="outro-slogan">De los metros a los pesos, en minutos.</div>
+    <div class="outro-url">presupuestopro.com.ar</div>
+    <div class="outro-checks">
+      <div class="outro-check"><span>✓</span> Materiales calculados solos</div>
+      <div class="outro-check"><span>✓</span> Precios actualizados</div>
+      <div class="outro-check"><span>✓</span> PDF con tu logo</div>
+      <div class="outro-check"><span>✓</span> Desde el celu</div>
+    </div>
+  </div>
+
+  <!-- Progress dots -->
+  <div class="progress-wrap" id="progressWrap" style="display:none;">
+    <div class="prog-dot active" id="dot0"></div>
+    <div class="prog-dot" id="dot1"></div>
+    <div class="prog-dot" id="dot2"></div>
+    <div class="prog-dot" id="dot3"></div>
+    <div class="prog-dot" id="dot4"></div>
+    <div class="prog-dot" id="dot5"></div>
+  </div>
+
+  <!-- Start overlay -->
+  <div id="start-overlay">
+    <div class="start-btn">▶</div>
+    <div class="start-hint">Clic para iniciar el demo</div>
+  </div>
+
+</div><!-- /stage -->
+
+<script>
+/* ── MÚSICA ── Web Audio API ── */
+var audioCtx = null;
+var masterGain = null;
+
+function startMusic() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+  masterGain.gain.linearRampToValueAtTime(0.35, audioCtx.currentTime + 2);
+  masterGain.connect(audioCtx.destination);
+
+  var BPM = 118;
+  var beat = 60 / BPM;
+  var bar  = beat * 4;
+  var t0   = audioCtx.currentTime + 0.05;
+
+  /* Progresión A mayor: I-IV-I-V */
+  var prog = [
+    { pad:[220,277,330], bass:110 },  /* A maj  */
+    { pad:[147,185,220], bass:73  },  /* D maj  */
+    { pad:[220,277,330], bass:110 },  /* A maj  */
+    { pad:[165,208,247], bass:82  },  /* E maj  */
+  ];
+
+  /* helper: crear buffer de ruido */
+  function noise(dur) {
+    var buf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * dur), audioCtx.sampleRate);
+    var d   = buf.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  /* PAD: acorde sostenido */
+  function pad(freqs, t, dur) {
+    freqs.forEach(function(f, i) {
+      var osc = audioCtx.createOscillator();
+      var flt = audioCtx.createBiquadFilter();
+      var env = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = f;
+      osc.detune.value = (i - 1) * 7;
+      flt.type = 'lowpass'; flt.frequency.value = 900; flt.Q.value = 0.6;
+      osc.connect(flt); flt.connect(env); env.connect(masterGain);
+      env.gain.setValueAtTime(0, t);
+      env.gain.linearRampToValueAtTime(0.055, t + 0.35);
+      env.gain.setValueAtTime(0.055, t + dur - 0.25);
+      env.gain.linearRampToValueAtTime(0, t + dur);
+      osc.start(t); osc.stop(t + dur + 0.1);
+    });
+  }
+
+  /* BASS: nota pulsante */
+  function bass(freq, t, dur) {
+    var osc = audioCtx.createOscillator();
+    var flt = audioCtx.createBiquadFilter();
+    var env = audioCtx.createGain();
+    osc.type = 'sawtooth'; osc.frequency.value = freq;
+    flt.type = 'lowpass'; flt.frequency.value = 260;
+    osc.connect(flt); flt.connect(env); env.connect(masterGain);
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.22, t + 0.025);
+    env.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.75);
+    osc.start(t); osc.stop(t + dur);
+  }
+
+  /* KICK */
+  function kick(t) {
+    var osc = audioCtx.createOscillator();
+    var env = audioCtx.createGain();
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(0.001, t + 0.28);
+    env.gain.setValueAtTime(1.0, t);
+    env.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    osc.connect(env); env.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.3);
+  }
+
+  /* SNARE */
+  function snare(t) {
+    /* ruido */
+    var src = audioCtx.createBufferSource();
+    src.buffer = noise(0.12);
+    var flt = audioCtx.createBiquadFilter();
+    flt.type = 'bandpass'; flt.frequency.value = 3200; flt.Q.value = 0.8;
+    var env = audioCtx.createGain();
+    env.gain.setValueAtTime(0.28, t); env.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    src.connect(flt); flt.connect(env); env.connect(masterGain);
+    src.start(t); src.stop(t + 0.15);
+    /* tono */
+    var ton = audioCtx.createOscillator();
+    var tEnv = audioCtx.createGain();
+    ton.frequency.value = 190;
+    tEnv.gain.setValueAtTime(0.12, t); tEnv.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    ton.connect(tEnv); tEnv.connect(masterGain);
+    ton.start(t); ton.stop(t + 0.12);
+  }
+
+  /* HI-HAT */
+  function hat(t, vol) {
+    var src = audioCtx.createBufferSource();
+    src.buffer = noise(0.04);
+    var flt = audioCtx.createBiquadFilter();
+    flt.type = 'highpass'; flt.frequency.value = 9000;
+    var env = audioCtx.createGain();
+    env.gain.setValueAtTime(vol, t); env.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    src.connect(flt); flt.connect(env); env.connect(masterGain);
+    src.start(t); src.stop(t + 0.06);
+  }
+
+  /* Melodía simple (arpeggio A major pentatonic) */
+  var melody = [220,247,277,330,370,330,277,247];
+  function arpNote(freq, t, dur) {
+    var osc = audioCtx.createOscillator();
+    var env = audioCtx.createGain();
+    osc.type = 'triangle'; osc.frequency.value = freq * 2;
+    env.gain.setValueAtTime(0.04, t); env.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.9);
+    osc.connect(env); env.connect(masterGain);
+    osc.start(t); osc.stop(t + dur);
+  }
+
+  /* ── SECUENCIAR 3 REPETICIONES (96 segundos) ── */
+  var BARS_PER_REP = 8;
+  var REPS = 3;
+
+  for (var rep = 0; rep < REPS; rep++) {
+    for (var b = 0; b < BARS_PER_REP; b++) {
+      var ch   = prog[b % 4];
+      var bStr = t0 + (rep * BARS_PER_REP + b) * bar;
+
+      /* Pad */
+      pad(ch.pad, bStr, bar);
+
+      /* Bass: 1, 2, 2.5, 3, 4 */
+      bass(ch.bass, bStr,                   beat * 0.8);
+      bass(ch.bass, bStr + beat,             beat * 0.8);
+      bass(ch.bass, bStr + beat * 2,         beat * 0.4);
+      bass(ch.bass, bStr + beat * 2.5,       beat * 0.4);
+      bass(ch.bass, bStr + beat * 3,         beat * 0.8);
+
+      /* Kick: tiempos 1 y 3 */
+      kick(bStr);
+      kick(bStr + beat * 2);
+
+      /* Snare: tiempos 2 y 4 */
+      snare(bStr + beat);
+      snare(bStr + beat * 3);
+
+      /* Hi-hat: 8vas */
+      for (var h = 0; h < 8; h++) {
+        hat(bStr + h * beat * 0.5, h % 2 === 0 ? 0.18 : 0.09);
+      }
+
+      /* Melodía a partir del compás 3 */
+      if (b >= 2) {
+        for (var m = 0; m < 8; m++) {
+          arpNote(melody[m], bStr + m * beat * 0.5, beat * 0.45);
+        }
+      }
+    }
+  }
+
+  /* Fade out al final */
+  masterGain.gain.setValueAtTime(0.35, t0 + REPS * BARS_PER_REP * bar - 3);
+  masterGain.gain.linearRampToValueAtTime(0, t0 + REPS * BARS_PER_REP * bar);
+}
+
+var SCREEN_DURATION = 5000; // ms por pantalla
+var screens = [
+  {
+    id:'ps0', tag:'Dashboard', tapX:'55%', tapY:'68%',
+    title:'Tus presupuestos <span>guardados</span>.',
+    sub:'Entrás con tu usuario y encontrás todo desde el celu o la PC.',
+    details:[
+      {icon:'📋', txt:'<strong>Cada obra guardada</strong> con su total y fecha'},
+      {icon:'🔍', txt:'Ver, editar o generar PDF <strong>con un toque</strong>'},
+      {icon:'☁️', txt:'Guardado en la nube, <strong>siempre disponible</strong>'}
+    ]
+  },
+  {
+    id:'ps1', tag:'Paso 1 — Cliente', tapX:'50%', tapY:'80%',
+    title:'Datos del cliente <span>y la obra</span>.',
+    sub:'Nombre, teléfono y dirección. Sin formularios complicados.',
+    details:[
+      {icon:'👤', txt:'Nombre, teléfono y email del cliente'},
+      {icon:'🏗️', txt:'Descripción y dirección de la obra'},
+      {icon:'📅', txt:'Todo queda guardado para el <strong>PDF final</strong>'}
+    ]
+  },
+  {
+    id:'ps2', tag:'Paso 2 — Rubros', tapX:'50%', tapY:'50%',
+    title:'Ponés los metros. <span>Calcula todo solo.</span>',
+    sub:'Mampostería, hormigón, revoques — ingresás las cantidades y listo.',
+    details:[
+      {icon:'📐', txt:'<strong>Costo directo total: $8.979.668</strong>'},
+      {icon:'⏱️', txt:'415,1 horas hombre calculadas'},
+      {icon:'🧮', txt:'Rubro por rubro, <strong>sin que te olvides ninguno</strong>'}
+    ]
+  },
+  {
+    id:'ps3', tag:'Paso 6 — Materiales', tapX:'50%', tapY:'45%',
+    title:'Te dice <span>qué comprar</span> en el corralón.',
+    sub:'Sin estimaciones. Sin quedarte corto a mitad de obra.',
+    details:[
+      {icon:'🧱', txt:'Cemento · Arena · Ladrillos · Hierro'},
+      {icon:'📦', txt:'Cantidades exactas: <strong>bolsas, m³, kg</strong>'},
+      {icon:'💰', txt:'Total materiales: <strong>$3.039.930</strong>'}
+    ]
+  },
+  {
+    id:'ps4', tag:'Paso 7 — Pagos', tapX:'50%', tapY:'55%',
+    title:'Anticipo, cuotas <span>y saldo final</span>.',
+    sub:'El cliente ve exactamente cuándo paga y cuánto.',
+    details:[
+      {icon:'🟢', txt:'Anticipo al inicio: <strong>$3.204.514</strong>'},
+      {icon:'📅', txt:'3 cuotas semanales de <strong>$1.780.285 c/u</strong>'},
+      {icon:'🏁', txt:'Saldo final al terminar: <strong>$2.136.843</strong>'}
+    ]
+  },
+  {
+    id:'ps5', tag:'Presupuesto final', tapX:'50%', tapY:'30%',
+    title:'Total: <span>$10.681.712</span>.<br>Listo para el cliente.',
+    sub:'PDF con tu logo, descripción de trabajos y cuadro de pagos.',
+    details:[
+      {icon:'📄', txt:'<strong>PDF Propietario</strong>: con precios y cuotas'},
+      {icon:'🔨', txt:'<strong>PDF Constructor</strong>: cantidades de materiales'},
+      {icon:'✅', txt:'26 días · 1 of. + 1 ay. · <strong>Sin quedar corto</strong>'}
+    ]
+  }
+];
+
+var cur = -1; // -1 = intro, 0-5 = screens, 6 = outro
+var timer = null;
+
+function showIntro() {
+  document.getElementById('frame-intro').style.opacity = '1';
+  document.getElementById('frame-main').style.opacity = '0';
+  document.getElementById('frame-main').classList.remove('visible');
+  document.getElementById('frame-outro').style.opacity = '0';
+  document.getElementById('progressWrap').style.display = 'none';
+  startTimerBar(3000);
+  timer = setTimeout(function(){ nextFrame(); }, 3000);
+}
+
+function showScreen(idx) {
+  var s = screens[idx];
+
+  // Texto panel
+  document.getElementById('info-tag').textContent  = s.tag;
+  document.getElementById('info-title').innerHTML  = s.title;
+  document.getElementById('info-sub').textContent  = s.sub;
+  document.getElementById('info-detail').innerHTML = s.details.map(function(d){
+    return '<div class="detail-row"><div class="detail-icon">'+d.icon+'</div><div class="detail-txt">'+d.txt+'</div></div>';
+  }).join('');
+
+  // Transición del panel
+  document.getElementById('frame-main').classList.remove('visible');
+  void document.getElementById('frame-main').offsetWidth; // reflow
+  document.getElementById('frame-main').classList.add('visible');
+
+  // Ocultar todas las screens del celu, mostrar la correcta
+  screens.forEach(function(sc){ document.getElementById(sc.id).classList.remove('active'); });
+  document.getElementById(s.id).classList.add('active');
+
+  // Frame main visible
+  document.getElementById('frame-intro').style.opacity  = '0';
+  document.getElementById('frame-outro').style.opacity  = '0';
+  document.getElementById('frame-main').style.opacity   = '1';
+  document.getElementById('progressWrap').style.display = 'flex';
+
+  // Dots
+  for (var i=0;i<screens.length;i++){
+    var d = document.getElementById('dot'+i);
+    d.className = 'prog-dot' + (i===idx?' active':(i<idx?' done':''));
+  }
+
+  // Ripple tap
+  setTimeout(function(){
+    var ph = document.getElementById('phoneScreen');
+    var r  = document.createElement('div');
+    r.className = 'tap-ripple';
+    r.style.left = 'calc('+s.tapX+' - 18px)';
+    r.style.top  = 'calc('+s.tapY+' - 18px)';
+    ph.appendChild(r);
+    setTimeout(function(){ if(r.parentNode) r.parentNode.removeChild(r); }, 800);
+  }, 800);
+
+  startTimerBar(SCREEN_DURATION);
+  timer = setTimeout(function(){ nextFrame(); }, SCREEN_DURATION);
+}
+
+function showOutro() {
+  document.getElementById('frame-main').style.opacity = '0';
+  document.getElementById('frame-intro').style.opacity= '0';
+  document.getElementById('frame-outro').style.opacity= '1';
+  document.getElementById('progressWrap').style.display= 'none';
+  startTimerBar(6000);
+  // Loop al intro después de 6s
+  timer = setTimeout(function(){
+    cur = -1;
+    showIntro();
+  }, 6000);
+}
+
+function nextFrame() {
+  clearTimeout(timer);
+  cur++;
+  if (cur < 0)         { showIntro(); }
+  else if (cur < screens.length) { showScreen(cur); }
+  else                  { showOutro(); }
+}
+
+// Timer bar
+var timerInterval = null;
+function startTimerBar(duration){
+  var bar = document.getElementById('timerBar');
+  bar.style.transition = 'none'; bar.style.width = '0%';
+  void bar.offsetWidth;
+  clearInterval(timerInterval);
+  var start = Date.now();
+  timerInterval = setInterval(function(){
+    var pct = Math.min(100, (Date.now()-start)/duration*100);
+    bar.style.transition = 'none'; bar.style.width = pct+'%';
+    if(pct>=100) clearInterval(timerInterval);
+  }, 50);
+}
+
+var started = false;
+
+/* Click en overlay: arrancar música + presentación */
+document.getElementById('start-overlay').addEventListener('click', function() {
+  var ov = document.getElementById('start-overlay');
+  ov.style.transition = 'opacity .5s ease';
+  ov.style.opacity = '0';
+  setTimeout(function(){ ov.style.display = 'none'; }, 500);
+  if (!started) {
+    started = true;
+    startMusic();
+    showIntro();
+  }
+});
+
+/* Click en stage (fuera del overlay): saltar al siguiente */
+document.querySelector('.stage').addEventListener('click', function(e) {
+  if (!started) return;
+  clearTimeout(timer);
+  clearInterval(timerInterval);
+  nextFrame();
+});
+</script>
+</body>
+</html>

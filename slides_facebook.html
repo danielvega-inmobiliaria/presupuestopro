@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Slides Facebook — PresupuestoPRO</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1a1a2e; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+
+  .instrucciones {
+    background:#2a2a3e; color:#ccc; padding:16px 24px;
+    font-size:13px; border-bottom:2px solid #F97316; text-align:center;
+  }
+  .instrucciones strong { color:#F97316; }
+  .instrucciones code { background:#333; padding:2px 8px; border-radius:4px; color:#fff; font-size:12px; }
+
+  .slide-wrap {
+    display:flex; flex-direction:column; align-items:center; padding:32px 0; gap:32px;
+  }
+
+  /* Cada slide es exactamente 1080x1080 */
+  .slide {
+    width:1080px; height:1080px;
+    position:relative; overflow:hidden;
+    flex-shrink:0;
+  }
+
+  /* Número de slide (para referencia, no aparece en screenshot del contenido) */
+  .slide-label {
+    color:#888; font-size:12px; text-align:center; margin-bottom:8px;
+    width:1080px;
+  }
+
+  /* ── SLIDE 1 — HOOK ── */
+  .s1 { background:#0d1e3c; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:80px; }
+  .s1 .emoji { font-size:96px; margin-bottom:32px; }
+  .s1 h1 { font-size:72px; font-weight:900; color:#fff; line-height:1.1; margin-bottom:28px; }
+  .s1 h1 span { color:#F97316; }
+  .s1 .sub { font-size:38px; color:#a8c4e0; font-weight:400; line-height:1.3; margin-bottom:48px; }
+  .s1 .respuesta { font-size:48px; font-weight:800; color:#eab308; background:rgba(234,179,8,.12); border:2px solid rgba(234,179,8,.3); border-radius:16px; padding:16px 40px; }
+
+  /* ── SLIDE 2 — EL PROCESO ── */
+  .s2 { background:#0f2744; display:flex; flex-direction:column; justify-content:center; padding:80px; }
+  .s2 .tag { display:inline-block; background:#F97316; color:#fff; font-size:22px; font-weight:800; padding:8px 28px; border-radius:30px; margin-bottom:48px; letter-spacing:.5px; }
+  .s2 h1 { font-size:64px; font-weight:900; color:#fff; line-height:1.1; margin-bottom:16px; }
+  .s2 h1 span { color:#F97316; }
+  .s2 .sub { font-size:32px; color:#a8c4e0; margin-bottom:56px; line-height:1.4; }
+  .step-row { display:flex; align-items:center; gap:24px; margin-bottom:28px; }
+  .step-num { width:56px; height:56px; background:#F97316; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; color:#fff; flex-shrink:0; }
+  .step-txt { font-size:32px; color:#fff; font-weight:500; }
+  .step-txt span { color:#eab308; font-weight:800; }
+
+  /* ── SLIDE 3 — MATERIALES ── */
+  .s3 { background:#0d1e3c; display:flex; flex-direction:column; justify-content:center; padding:72px 80px; }
+  .s3 .title-tag { font-size:22px; color:#F97316; font-weight:800; letter-spacing:1px; text-transform:uppercase; margin-bottom:24px; }
+  .s3 h1 { font-size:58px; font-weight:900; color:#fff; line-height:1.15; margin-bottom:16px; }
+  .s3 .sub { font-size:28px; color:#a8c4e0; margin-bottom:48px; line-height:1.4; }
+  .mat-card { background:rgba(255,255,255,.06); border-left:5px solid #F97316; border-radius:0 12px 12px 0; padding:20px 28px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; }
+  .mat-card .nombre { font-size:28px; color:#fff; font-weight:600; }
+  .mat-card .cant { font-size:32px; font-weight:900; color:#eab308; }
+  .s3 .nota { font-size:24px; color:#6b9cc4; margin-top:32px; font-style:italic; }
+
+  /* ── SLIDE 4 — PRECIO ── */
+  .s4 { background:#0f1e33; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:72px; }
+  .s4 h1 { font-size:56px; font-weight:900; color:#fff; line-height:1.2; margin-bottom:40px; }
+  .s4 h1 span { color:#F97316; }
+  .precio-vs { display:flex; gap:40px; align-items:center; justify-content:center; margin-bottom:48px; }
+  .precio-item { background:rgba(255,255,255,.06); border-radius:20px; padding:32px 40px; text-align:center; }
+  .precio-item .emoji { font-size:72px; display:block; margin-bottom:12px; }
+  .precio-item .desc { font-size:24px; color:#a8c4e0; margin-bottom:8px; }
+  .precio-item .val { font-size:34px; font-weight:800; color:#fff; }
+  .precio-vs .igual { font-size:64px; color:#F97316; font-weight:900; }
+  .s4 .highlight { background:#F97316; color:#fff; font-size:40px; font-weight:900; padding:20px 60px; border-radius:16px; margin-bottom:28px; }
+  .s4 .sub { font-size:28px; color:#a8c4e0; line-height:1.4; }
+  .s4 .gratis { font-size:36px; font-weight:900; color:#eab308; margin-top:24px; }
+
+  /* ── SLIDE 5 — CTA ── */
+  .s5 { background:linear-gradient(135deg,#0d1e3c 0%,#1a3a6b 50%,#0d1e3c 100%); display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:80px; }
+  .s5 .logo { font-size:48px; font-weight:900; color:#fff; margin-bottom:16px; letter-spacing:-.5px; }
+  .s5 .logo span { color:#F97316; }
+  .s5 .slogan { font-size:48px; font-weight:700; color:#fff; line-height:1.2; margin-bottom:12px; }
+  .s5 .slogan span { color:#eab308; }
+  .s5 .sub { font-size:30px; color:#a8c4e0; margin-bottom:56px; }
+  .s5 .cta-box { background:#F97316; border-radius:20px; padding:28px 64px; margin-bottom:32px; }
+  .s5 .cta-box .label { font-size:22px; color:rgba(255,255,255,.8); font-weight:600; margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+  .s5 .cta-box .cta-txt { font-size:44px; font-weight:900; color:#fff; }
+  .s5 .url { font-size:36px; color:#eab308; font-weight:700; margin-bottom:16px; }
+  .s5 .checks { display:flex; flex-direction:column; gap:12px; text-align:left; margin-top:16px; }
+  .s5 .check-row { display:flex; align-items:center; gap:14px; font-size:26px; color:#fff; }
+  .s5 .check-row .ico { color:#22c55e; font-size:28px; }
+
+  /* Branding corner en todos los slides */
+  .branding {
+    position:absolute; bottom:32px; right:40px;
+    font-size:20px; font-weight:700; color:rgba(255,255,255,.35);
+    letter-spacing:.3px;
+  }
+  .branding span { color:rgba(249,115,22,.5); }
+</style>
+</head>
+<body>
+
+<div class="instrucciones">
+  <strong>Cómo usar estas imágenes:</strong>
+  Hacé zoom al 67% del navegador con <code>Ctrl + -</code> para ver bien cada slide ·
+  Para capturar: <code>Win + Shift + S</code> y seleccioná cada slide por separado ·
+  Subí las 5 fotos juntas en el grupo de Facebook (las carga como álbum desplazable) ·
+  <strong>Para el celu interactivo:</strong> grabá la pantalla con <code>Win + G</code> y subilo como video.
+</div>
+
+<div class="slide-wrap">
+
+  <!-- SLIDE 1 — HOOK -->
+  <div class="slide-label">SLIDE 1 — HOOK (primera imagen)</div>
+  <div class="slide s1">
+    <div class="emoji">👷</div>
+    <h1>¿Cuánto tardaste<br>en el último<br><span>presupuesto?</span></h1>
+    <div class="sub">Horas calculando, y encima quedás corto.</div>
+    <div class="respuesta">Con PresupuestoPRO: 3 minutos ⚡</div>
+    <div class="branding">Presupuesto<span>PRO</span></div>
+  </div>
+
+  <!-- SLIDE 2 — EL PROCESO -->
+  <div class="slide-label">SLIDE 2 — CÓMO FUNCIONA</div>
+  <div class="slide s2">
+    <div class="tag">Así funciona</div>
+    <h1>Ponés los <span>metros</span>.<br>La app calcula todo.</h1>
+    <div class="sub">Sin Excel. Sin calculadora. Sin quedarte corto.</div>
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-txt">Ingresás los m² de cada rubro</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-txt">Calcula <span>materiales y jornales</span> solo</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-txt">PDF con tu logo listo para el cliente</div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">4</div>
+      <div class="step-txt">Total: <span>$10.681.712</span> · 26 días · 3 cuotas</div>
+    </div>
+    <div class="branding">Presupuesto<span>PRO</span></div>
+  </div>
+
+  <!-- SLIDE 3 — MATERIALES -->
+  <div class="slide-label">SLIDE 3 — LISTA DE MATERIALES</div>
+  <div class="slide s3">
+    <div class="title-tag">📦 Lista calculada automáticamente</div>
+    <h1>Te dice exactamente<br>qué comprar en el corralón.</h1>
+    <div class="sub">Sin estimaciones. Sin "más o menos". Sin que te falte material a mitad de obra.</div>
+    <div class="mat-card">
+      <span class="nombre">Cemento Albañilería</span>
+      <span class="cant">3 bolsas</span>
+    </div>
+    <div class="mat-card">
+      <span class="nombre">Arena común</span>
+      <span class="cant">11,25 m³</span>
+    </div>
+    <div class="mat-card">
+      <span class="nombre">Ladrillos comunes</span>
+      <span class="cant">8 unidades</span>
+    </div>
+    <div class="mat-card">
+      <span class="nombre">Cemento portland 25kg</span>
+      <span class="cant">1 bolsa</span>
+    </div>
+    <div class="nota">* Lista completa con precios actualizados al día de hoy.</div>
+    <div class="branding">Presupuesto<span>PRO</span></div>
+  </div>
+
+  <!-- SLIDE 4 — PRECIO -->
+  <div class="slide-label">SLIDE 4 — PRECIO</div>
+  <div class="slide s4">
+    <h1>¿Cuánto cuesta la herramienta<br>que te evita <span>quedar corto</span>?</h1>
+    <div class="precio-vs">
+      <div class="precio-item">
+        <span class="emoji">🧱🧱</span>
+        <div class="desc">2 bolsas de cemento 25kg</div>
+        <div class="val">$13.000</div>
+      </div>
+      <div class="igual">=</div>
+      <div class="precio-item">
+        <span class="emoji">📱</span>
+        <div class="desc">PresupuestoPRO / mes</div>
+        <div class="val">$12.500</div>
+      </div>
+    </div>
+    <div class="sub">Si con un presupuesto bien armado no quedás corto<br>en $100.000 pesos o más, ya pagaste el año entero.</div>
+    <div class="gratis">👉 presupuestopro.com.ar</div>
+    <div class="branding">Presupuesto<span>PRO</span></div>
+  </div>
+
+  <!-- SLIDE 5 — CTA -->
+  <div class="slide-label">SLIDE 5 — CTA FINAL</div>
+  <div class="slide s5">
+    <div class="logo">Presupuesto<span>PRO</span></div>
+    <div class="slogan">De los metros<br>a los <span>pesos</span>, en minutos.</div>
+    <div class="sub">Para albaniles, constructores y contratistas</div>
+    <div class="cta-box">
+      <div class="label">Primeros usuarios</div>
+      <div class="cta-txt">Acceso GRATUITO</div>
+    </div>
+    <div class="url">presupuestopro.com.ar</div>
+    <div class="checks">
+      <div class="check-row"><span class="ico">✓</span> Lista de materiales calculada sola</div>
+      <div class="check-row"><span class="ico">✓</span> Precios actualizados constantemente</div>
+      <div class="check-row"><span class="ico">✓</span> PDF con tu logo listo para el cliente</div>
+    </div>
+    <div class="branding">Presupuesto<span>PRO</span></div>
+  </div>
+
+</div>
+</body>
+</html>

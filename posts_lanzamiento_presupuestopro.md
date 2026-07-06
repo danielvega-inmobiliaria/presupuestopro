@@ -14,6 +14,21 @@
 
 ---
 
+## 🟢 POST 0 — FACEBOOK (historia — primera publicación)
+**Formato**: texto + foto de perfil o Daniel en obra | Publicar primero, antes que el resto del calendario
+
+En 1980 empecé en la construcción como Maestro Mayor de Obras.
+
+Desde entonces no paré de aprender a presupuestar mejor: a no quedarme corto, a cuidar cada peso de mano de obra y cada bolsa de material. Con esos años armé una herramienta que uso yo mismo desde hace tiempo para no errarle en los números finales de una obra.
+
+Hoy, con más de 45 años en el oficio y cerca de retirarme, quiero dejarla como regalo. Para los colegas del rubro. Y sobre todo para quien hace que una obra sea realidad: el albañil.
+
+De los metros a los pesos, en minutos.
+
+Espero que la puedan aprovechar. **PROBALA GRATIS** → presupuestopro.com.ar
+
+---
+
 ## 🟠 POST 1 — INSTAGRAM/FACEBOOK (antes/después)
 **Formato**: carrusel 5 slides | Imagen sugerida: Excel caótico vs app limpia
 
