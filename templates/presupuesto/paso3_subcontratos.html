@@ -28,13 +28,21 @@
             </div>
             <div class="col subc-fields-{{ s.id }}" style="display:none">
               <div class="row g-2">
-                <div class="col-6">
+                <div class="col-3">
                   <input type="number" name="subc_{{ s.id }}_mo" class="form-control form-control-sm"
                          min="0" step="1000" placeholder="MO ({{ simbolo }})">
                 </div>
-                <div class="col-6">
+                <div class="col-3">
                   <input type="number" name="subc_{{ s.id }}_mat" class="form-control form-control-sm"
                          min="0" step="1000" placeholder="Materiales ({{ simbolo }})">
+                </div>
+                <div class="col-3">
+                  <input type="number" name="subc_{{ s.id }}_cant" class="form-control form-control-sm"
+                         min="0" step="1" value="1" placeholder="Cantidad">
+                </div>
+                <div class="col-3">
+                  <input type="text" name="subc_{{ s.id }}_unidad" class="form-control form-control-sm"
+                         value="Global" placeholder="Unidad">
                 </div>
               </div>
             </div>
@@ -78,16 +86,20 @@ window.addEventListener('DOMContentLoaded', function(){
       toggleSubc(s.id);
       const moIn = document.querySelector('[name="subc_' + s.id + '_mo"]');
       const matIn = document.querySelector('[name="subc_' + s.id + '_mat"]');
+      const cantIn = document.querySelector('[name="subc_' + s.id + '_cant"]');
+      const unidadIn = document.querySelector('[name="subc_' + s.id + '_unidad"]');
       if(moIn)  moIn.value  = s.mo_local  || 0;
       if(matIn) matIn.value = s.mat_local || 0;
+      if(cantIn) cantIn.value = (s.cantidad === undefined || s.cantidad === null) ? 1 : s.cantidad;
+      if(unidadIn) unidadIn.value = s.unidad || 'Global';
     } else if(s.id && s.id.startsWith('custom')){
       // Subcontrato personalizado — agregar fila
-      agregarSubcPrellenado(s.nombre, s.mo_local, s.mat_local);
+      agregarSubcPrellenado(s.nombre, s.mo_local, s.mat_local, s.cantidad, s.unidad);
     }
   });
 });
 
-function agregarSubcPrellenado(nombre, mo, mat){
+function agregarSubcPrellenado(nombre, mo, mat, cant, unidad){
   const n = customIdx++;
   const div = document.createElement('div');
   div.className = 'card mb-2 mt-2';
@@ -99,13 +111,21 @@ function agregarSubcPrellenado(nombre, mo, mat){
           <input type="text" name="custom_${n}_nombre" class="form-control form-control-sm"
                  value="${nombre || ''}" placeholder="Nombre del subcontrato" required>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <input type="number" name="custom_${n}_mo" class="form-control form-control-sm"
                  min="0" step="1000" value="${mo || 0}" placeholder="MO (${SIM})">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <input type="number" name="custom_${n}_mat" class="form-control form-control-sm"
                  min="0" step="1000" value="${mat || 0}" placeholder="Materiales (${SIM})">
+        </div>
+        <div class="col-md-2">
+          <input type="number" name="custom_${n}_cant" class="form-control form-control-sm"
+                 min="0" step="1" value="${(cant === undefined || cant === null) ? 1 : cant}" placeholder="Cantidad">
+        </div>
+        <div class="col-md-1">
+          <input type="text" name="custom_${n}_unidad" class="form-control form-control-sm"
+                 value="${unidad || 'Global'}" placeholder="Unidad">
         </div>
         <div class="col-auto">
           <button type="button" class="btn btn-sm btn-outline-danger"
@@ -136,13 +156,21 @@ function agregarSubc(){
           <input type="text" name="custom_${n}_nombre" class="form-control form-control-sm"
                  placeholder="Nombre del subcontrato" required>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <input type="number" name="custom_${n}_mo" class="form-control form-control-sm"
                  min="0" step="1000" placeholder="MO (${SIM})">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <input type="number" name="custom_${n}_mat" class="form-control form-control-sm"
                  min="0" step="1000" placeholder="Materiales (${SIM})">
+        </div>
+        <div class="col-md-2">
+          <input type="number" name="custom_${n}_cant" class="form-control form-control-sm"
+                 min="0" step="1" value="1" placeholder="Cantidad">
+        </div>
+        <div class="col-md-1">
+          <input type="text" name="custom_${n}_unidad" class="form-control form-control-sm"
+                 value="Global" placeholder="Unidad">
         </div>
         <div class="col-auto">
           <button type="button" class="btn btn-sm btn-outline-danger"

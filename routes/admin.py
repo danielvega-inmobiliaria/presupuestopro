@@ -19,6 +19,7 @@ def dashboard():
         'vencidos':      db.execute("SELECT COUNT(*) as c FROM users WHERE subscription_expires < date('now') AND is_admin=0").fetchone()['c'],
         'presupuestos':  db.execute("SELECT COUNT(*) as c FROM presupuestos").fetchone()['c'],
         'mensajes_nuevos': db.execute("SELECT COUNT(*) as c FROM contactos WHERE leido=0").fetchone()['c'],
+        'sugerencias_nuevas': db.execute("SELECT COUNT(*) as c FROM sugerencias WHERE leido=0").fetchone()['c'],
     }
     proximos = db.execute(
         "SELECT * FROM users WHERE subscription_expires >= date('now') AND is_admin=0 ORDER BY subscription_expires LIMIT 5"
@@ -218,6 +219,83 @@ def contacto_contestado(mid):
         db.commit()
     db.close()
     return redirect(url_for('admin.contactos'))
+
+# SUGERENCIAS (05/07/2026)
+@bp.route('/sugerencias')
+@admin_required
+def sugerencias():
+    db = get_db()
+    msgs = db.execute("""
+        SELECT s.*, u.nombre as user_nombre, u.email as user_email
+        FROM sugerencias s LEFT JOIN users u ON u.id = s.user_id
+        ORDER BY s.created_at DESC
+    """).fetchall()
+    db.execute("UPDATE sugerencias SET leido=1 WHERE leido=0")
+    db.commit()
+    db.close()
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sugerencias - Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  .card-nuevo  { border-left: 4px solid #0d6efd; }
+  .card-leido  { border-left: 4px solid #dee2e6; }
+  .card-resp   { border-left: 4px solid #198754; }
+</style>
+</head><body class="bg-light">
+<div class="container py-4" style="max-width:760px">
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">Volver</a>
+  <h4 class="fw-bold mb-1">Sugerencias de usuarios</h4>
+  <p class="text-muted small mb-3">
+    <span class="badge bg-primary">{{ msgs|length }} total</span>
+    <span class="badge bg-success ms-1">{{ msgs|selectattr('respondida','equalto',1)|list|length }} respondidas</span>
+    <span class="badge bg-warning text-dark ms-1">{{ msgs|selectattr('leido','equalto',0)|list|length }} nuevas</span>
+  </p>
+  {% if not msgs %}<p class="text-muted">No hay sugerencias aun.</p>{% endif %}
+  {% for m in msgs %}
+  {% set card_class = 'card-resp' if m.respondida else ('card-nuevo' if not m.leido else 'card-leido') %}
+  <div class="card mb-3 shadow-sm {{ card_class }}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <div>
+          <strong>{{ m.user_nombre or m.user_email or 'Usuario #' ~ m.user_id }}</strong>
+          {% if not m.leido %}<span class="badge bg-primary ms-2">NUEVA</span>{% endif %}
+          {% if m.respondida %}<span class="badge bg-success ms-2">Respondida</span>{% endif %}
+        </div>
+        <small class="text-muted text-nowrap ms-2">{{ m.created_at[:16] }}</small>
+      </div>
+      <div class="text-muted small mb-2">
+        {% if m.user_email %}<a href="mailto:{{ m.user_email }}">{{ m.user_email }}</a>{% endif %}
+      </div>
+      <p class="mb-3 border rounded p-2 bg-white">{{ m.mensaje }}</p>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if m.user_email %}
+        <a href="mailto:{{ m.user_email }}" class="btn btn-sm btn-outline-primary">Responder</a>
+        {% endif %}
+        <form method="POST" action="/admin/sugerencias/{{ m.id }}/respondida" style="display:inline">
+          <button type="submit" class="btn btn-sm {{ 'btn-success' if m.respondida else 'btn-outline-success' }}">
+            {% if m.respondida %}Respondida{% else %}Marcar respondida{% endif %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div></body></html>
+""", msgs=msgs, user=g.user)
+
+@bp.route('/sugerencias/<int:mid>/respondida', methods=['POST'])
+@admin_required
+def sugerencia_respondida(mid):
+    db = get_db()
+    row = db.execute("SELECT respondida FROM sugerencias WHERE id=?", (mid,)).fetchone()
+    if row:
+        nuevo = 0 if row['respondida'] else 1
+        db.execute("UPDATE sugerencias SET respondida=? WHERE id=?", (nuevo, mid))
+        db.commit()
+    db.close()
+    return redirect(url_for('admin.sugerencias'))
 
 # PRECIOS MATERIALES
 _LISTA_PRECIOS = [

@@ -6,7 +6,7 @@
 
 ---
 
-_Última actualización: 04/07/2026 — 12:55 ART_
+_Última actualización: 05/07/2026 — 20:52 ART_
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -298,6 +298,35 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
   - POST de `modo_tiempo()`: default de `n_oficiales` cambiado de 2 a 1 (fallback si el form no lo manda).
   - `templates/presupuesto/paso5_modo_tiempo.html`: fallback Jinja de `n_oficiales` cambiado de 2 a 1 (los campos de jornal ya toman el valor real desde `p`, no hace falta tocar su fallback).
 - **Pendiente:** commitear `routes/presupuesto.py`, `templates/presupuesto/paso2_rubros.html`, `templates/presupuesto/paso5_modo_tiempo.html` y este `PROYECTO.md`. Probar en un presupuesto nuevo: paso 2 con botones visibles al hacer scroll, y paso 5 mostrando 1 Oficial/1 Ayudante + jornales precargados (no 0,0) al entrar por primera vez.
+
+### Sesión 05/07/2026 (cont. 7) — Fix portada del Manual, tildes, WAL, mail de notificaciones
+- Daniel reportó que en la página 1 del Manual el título y subtítulo estaban superpuestos, y que `presupuestopro.com.ar` parecía salir dos veces cortado en la misma línea. Pidió también restaurar tildes/caracteres especiales (el manual anterior los había evitado por precaución, quedando sin acentos) y preguntó por el mail que recibe las notificaciones de la app, y pidió pasar a WAL.
+- **Causa real de la portada:** la línea de dominios tenía `stopro.com.ar · presupuestopro.com.ar` — `stopro.com.ar` comparte el sufijo `pro.com.ar` con `presupuestopro.com.ar`, así que a simple vista parecía el mismo dominio duplicado y cortado. Además, `stopro.com.ar` NO es un dominio oficial verificado en el proyecto (solo aparece mencionado una vez en un reporte de bug de Daniel) — se sacó de la portada, quedando solo `presupuestopro.com.ar`. El título/subtítulo se separaron con `Spacer` explícitos (antes dependían de `spaceAfter` insuficiente para una fuente de 28pt) — ya no se superponen.
+- **Tildes:** el manual se reescribió completo con acentos y caracteres especiales correctos (á é í ó ú ñ ¿ ¡ ² ³) — el font base Helvetica de reportlab los soporta sin problema (no había motivo real para haberlos evitado la primera vez).
+- **Nota de infraestructura:** el script de generación (`build_manual.py`, fuera del repo) volvió a mostrar el mismo síntoma de bash con contenido stale tras 2-3 ediciones seguidas en la misma sesión (`SyntaxError` falso en una línea que Read confirmó completa). Se resolvió escribiendo el contenido final en un archivo con nombre nuevo (`manual_final.py`, nunca antes tocado en la sesión) y ejecutando ese — bash lo leyó bien al no tener caché previa de ese nombre. Puede ser un atajo útil la próxima vez que esto pase con cualquier archivo.
+- **Mail de notificaciones (respondido):** todo el código (`routes/landing.py`, `routes/dashboard.py`, `routes/pagos.py`, `routes/sugerencias.py`) usa `os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')` — o sea, si la variable `ADMIN_EMAIL` no está seteada en Railway, todas las notificaciones (contacto, leads, sugerencias, activaciones) van a **danve61@gmail.com** por defecto. La tabla de variables de entorno más arriba ya marcaba esto como "⚠️ Verificar" — recomendado confirmar en Railway → Variables si `ADMIN_EMAIL` está explícitamente seteada (y a qué dirección) o si depende del default.
+- **WAL aplicado:** `database.py::get_db()` — `PRAGMA journal_mode=DELETE` → `PRAGMA journal_mode=WAL`. Permite lecturas concurrentes mientras hay una escritura en curso (antes cada escritura bloqueaba el archivo entero por un instante). Decisión de Daniel: aplicarlo ya de cara al lanzamiento.
+- **Logo agregado a la portada del Manual:** `IMAGENES/LOGO SOLO limpio v3.png` (confirmado visualmente que es el logo correcto), insertado centrado arriba del título en la portada.
+- **Aclarado (sin cambios de código):** pasar a WAL es un cambio puramente de almacenamiento/concurrencia de SQLite — no toca ninguna fórmula de cálculo (precios, MO, materiales, totales, márgenes siguen exactamente igual).
+- **Archivos tocados:** `database.py` (WAL), `Manual_Usuario_PresupuestoPRO.pdf` (regenerado, con logo).
+- **Pendiente:** commitear TODO lo acumulado sin commitear de esta sesión y de sesiones anteriores (ver lista completa de `git status` de esta sesión) y deployar; después del deploy, SQLite va a crear automáticamente los archivos `presupuestopro.db-wal` y `presupuestopro.db-shm` junto al `.db` en el volumen de Railway — es comportamiento normal de WAL, no un error.
+
+### Sesión 05/07/2026 (cont. 6) — Capacidad de usuarios, sección Sugerencias, Manual del Usuario
+- Daniel preguntó por capacidad de usuarios simultáneos/totales de cara al lanzamiento, y pidió un Manual del Usuario (PDF) y una sección de Sugerencias.
+- **Capacidad (respondido, sin cambios de código):** stack actual = gunicorn 2 workers sync + SQLite con `journal_mode=DELETE` (no WAL) — cada escritura bloquea el archivo entero brevemente; hay `timeout=20` en la conexión así que reintenta en vez de tirar error. Estimado con esta arquitectura: cómodo ~20-30 usuarios simultáneos activos, funcional con algo de latencia hasta ~50-80; usuarios totales registrados (no simultáneos) sin problema hasta varios miles, dado el patrón de uso espaciado. Recomendación de bajo costo antes del lanzamiento si se espera un pico de tráfico: pasar `journal_mode` a `WAL` y subir a 3-4 workers; si crece sostenido, evaluar migrar a Postgres (addon de Railway). **Pendiente de decisión de Daniel:** si aplicar el cambio a WAL antes del lanzamiento o dejarlo para después.
+- **Nueva sección "Sugerencias" implementada** (decisión de Daniel: formulario + panel admin + email automático):
+  - `database.py`: nueva tabla `sugerencias` (`id, user_id, mensaje, leido, respondida, created_at`), creada vía `CREATE TABLE IF NOT EXISTS` en `migrate_db()`.
+  - `routes/sugerencias.py` (nuevo blueprint): `/sugerencias` GET/POST, `@login_required`. POST guarda el mensaje y dispara email al admin (mismo patrón que `routes/landing.py::contacto()`, usando `RESEND_API_KEY`/`ADMIN_EMAIL`). GET muestra el formulario + lista de sugerencias propias del usuario con estado "Enviada"/"Respondida".
+  - `templates/sugerencias.html` (nuevo): formulario simple + historial propio.
+  - `routes/admin.py`: nueva vista `/admin/sugerencias` (mismo patrón visual que `/admin/contactos`) con botón "Marcar respondida"; nuevo stat `sugerencias_nuevas` en el dashboard admin.
+  - `templates/admin/dashboard.html`: nuevo botón de acceso rápido "💡 Sugerencias de usuarios" con badge de nuevas.
+  - `templates/base.html`: nuevo link "Sugerencias" en el menú principal (usuarios logueados).
+  - `app.py`: registrado `sugerencias.bp`.
+  - **Verificado con Read/Grep (no bash)** que las 3 funciones nuevas (`_redir_next`, `_actualizar_descripcion_con_faltantes`, tabla `sugerencias`) y los edits de `app.py`/`routes/admin.py` quedaron completos — `py_compile` vía bash volvió a mostrar un falso `SyntaxError` en `app.py` (paréntesis "sin cerrar" que sí está cerrado al leerlo con Read). **Se amplía la regla de infraestructura: agregar `app.py` a la lista de archivos que no hay que verificar con bash dentro de esta misma sesión de chat** (además de `database.py`, `routes/presupuesto.py`, `utils/pdf_generator.py`).
+  - **Pendiente:** commitear y deployar; probar en producción: cargar una sugerencia como usuario normal, confirmar que llega el email al admin y que aparece en `/admin/sugerencias`; marcarla "Respondida" y confirmar que el usuario la ve así en su propia lista.
+- **Manual del Usuario (PDF) creado:** `Manual_Usuario_PresupuestoPRO.pdf` (6 páginas), generado con reportlab a partir de una exploración real del código (templates de los 8 pasos del wizard, dashboard, perfil, costo/m2, sugerencias) — no es contenido genérico. Cubre: alta/suscripción, login/recuperar contraseña, Dashboard, los 8 pasos del asistente en detalle, navegación entre pasos y borradores, Ver/Editar/PDF Propietario/PDF Constructor, Costo/m², Mi Empresa, Sugerencias, y FAQ. Guardado en la carpeta del proyecto.
+- **Archivos nuevos:** `routes/sugerencias.py`, `templates/sugerencias.html`, `Manual_Usuario_PresupuestoPRO.pdf`.
+- **Archivos tocados:** `database.py` (tabla `sugerencias`), `routes/admin.py` (vista + stat), `templates/admin/dashboard.html`, `templates/base.html`, `app.py` (registro de blueprint).
 
 ### Sesión 05/07/2026 (cont. 5) — Fix navegación wizard, descripción no sumaba subcontratos, "Accesorios" genérico
 - Daniel reportó 3 bugs nuevos después de probar:

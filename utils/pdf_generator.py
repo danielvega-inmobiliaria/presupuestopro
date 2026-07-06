@@ -298,7 +298,11 @@ def generar_pdf_propietario(p, empresa=None):
     # detalle de costo unitario (ese detalle queda para el PDF constructor).
     items_pdf = [it for rubro in p.get('rubros', []) for it in rubro.get('items', [])
                  if it.get('cantidad', 0) > 0]
-    if items_pdf:
+    # Fix 05/07/2026: se suman los subcontratos a la misma tabla de items,
+    # identificados con prefijo "SC" — cantidad/unidad son las cargadas
+    # (editables) en paso 3, con default 1/Global.
+    subc_items_pdf = [sc for sc in p.get('subcontratos', []) if (sc.get('nombre') or '').strip()]
+    if items_pdf or subc_items_pdf:
         pdf.seccion('Items de obra a realizar')
         pdf.tabla_header([('Item', 110, 'L'), ('Cantidad', 35, 'C'), ('Unidad', 35, 'C')])
         fill = False
@@ -307,6 +311,13 @@ def generar_pdf_propietario(p, empresa=None):
                 (it.get('nombre', ''), 110, 'L'),
                 (fmt_cant(it.get('cantidad', 0)), 35, 'C'),
                 (it.get('unidad', ''), 35, 'C'),
+            ], fill=fill)
+            fill = not fill
+        for sc in subc_items_pdf:
+            pdf.tabla_fila([
+                ('SC {}'.format(sc.get('nombre', '')), 110, 'L'),
+                (fmt_cant(sc.get('cantidad', 1)), 35, 'C'),
+                (sc.get('unidad', 'Global'), 35, 'C'),
             ], fill=fill)
             fill = not fill
         pdf.ln(3)

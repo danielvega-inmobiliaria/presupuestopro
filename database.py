@@ -7,7 +7,11 @@ def get_db():
     os.makedirs(os.path.dirname(Config.DATABASE), exist_ok=True)
     db = sqlite3.connect(Config.DATABASE, timeout=20)
     db.row_factory = sqlite3.Row
-    db.execute("PRAGMA journal_mode=DELETE")
+    # Fix 05/07/2026: WAL en vez de DELETE — permite lecturas concurrentes
+    # mientras hay una escritura en curso (antes cada escritura bloqueaba el
+    # archivo entero por un instante). Pensado de cara a un pico de tráfico
+    # el día del lanzamiento.
+    db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA foreign_keys = ON")
     return db
 
@@ -391,6 +395,19 @@ def migrate_db():
         for col, tipo in [('apellido','TEXT'), ('telefono','TEXT'), ('ciudad','TEXT'), ('provincia','TEXT')]:
             if col not in cols_users2:
                 db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo} DEFAULT ''")
+        db.commit()
+
+        # Crear tabla sugerencias si no existe (05/07/2026 — feedback de usuarios logueados)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS sugerencias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                mensaje TEXT,
+                leido INTEGER DEFAULT 0,
+                respondida INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         db.commit()
 
         # 1a-extra. Crear tabla empresa_perfil si no existe (para DBs antiguas)
