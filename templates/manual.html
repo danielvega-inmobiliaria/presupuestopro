@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% block title %}Manual del Usuario — PresupuestoPRO{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h4 class="mb-1"><i class="bi bi-book"></i> Manual del Usuario</h4>
+  <p class="text-muted small mb-0">Guía completa de PresupuestoPRO: cómo empezar y cómo usar cada función.</p>
+</div>
+
+<div class="row">
+  <!-- Índice lateral -->
+  <div class="col-lg-3 d-none d-lg-block">
+    <div class="card shadow-sm" style="position:sticky; top:80px;">
+      <div class="card-body py-2">
+        <div class="small fw-bold text-muted text-uppercase mb-2" style="letter-spacing:.05em">Índice</div>
+        <nav class="nav flex-column small">
+          <a class="nav-link py-1 px-0" href="#empezar">1. Cómo empezar</a>
+          <a class="nav-link py-1 px-0" href="#login">2. Iniciar sesión</a>
+          <a class="nav-link py-1 px-0" href="#dashboard">3. Panel principal</a>
+          <a class="nav-link py-1 px-0" href="#wizard">4. Asistente de 8 pasos</a>
+          <a class="nav-link py-1 px-0" href="#navegacion">5. Navegar y borradores</a>
+          <a class="nav-link py-1 px-0" href="#ver-pdf">6. Ver / Editar / PDF</a>
+          <a class="nav-link py-1 px-0" href="#costo-m2">7. Costo por m²</a>
+          <a class="nav-link py-1 px-0" href="#mi-empresa">8. Mi Empresa</a>
+          <a class="nav-link py-1 px-0" href="#sugerencias-sec">9. Sugerencias</a>
+          <a class="nav-link py-1 px-0" href="#faq">10. Preguntas frecuentes</a>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenido -->
+  <div class="col-lg-9">
+
+    <div class="card mb-3" id="empezar">
+      <div class="card-header card-header-blue"><i class="bi bi-rocket-takeoff"></i> 1. Cómo empezar (registro y suscripción)</div>
+      <div class="card-body">
+        <p>PresupuestoPRO funciona por suscripción mensual. El alta se hace desde la página principal (landing) de <strong>presupuestopro.com.ar</strong>.</p>
+        <ol>
+          <li>Entrá a la landing y completá tus datos (nombre, apellido, teléfono, email, ciudad, provincia).</li>
+          <li>Elegí el plan mensual y confirmá tu cuenta.</li>
+          <li>Se abre Mercado Pago para dar de alta la suscripción automática (pago recurrente mensual).</li>
+          <li>Una vez acreditado el primer pago, tu cuenta queda activa y podés entrar con tu email y contraseña.</li>
+        </ol>
+        <div class="alert alert-success py-2 mb-0 small">
+          <i class="bi bi-lightbulb"></i> Si el pago no se acredita o tenés problemas para suscribirte, escribí desde el formulario de contacto de la landing.
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="login">
+      <div class="card-header card-header-blue"><i class="bi bi-box-arrow-in-right"></i> 2. Iniciar sesión y recuperar contraseña</div>
+      <div class="card-body">
+        <p>Con la cuenta activa, entrá en cualquier momento desde la página de inicio con tu email y contraseña.</p>
+        <h6 class="text-muted">Si olvidaste tu contraseña</h6>
+        <ol>
+          <li>En la pantalla de inicio de sesión, tocá "Olvidé mi contraseña".</li>
+          <li>Escribí el email con el que te registraste.</li>
+          <li>Te llega un email con un enlace para crear una contraseña nueva.</li>
+          <li>Abrí el enlace, elegí la nueva contraseña y volvé a iniciar sesión.</li>
+        </ol>
+        <p class="text-muted small mb-0">Por seguridad, iniciar sesión en un dispositivo nuevo cierra la sesión activa en otro dispositivo (no se puede estar logueado en dos lugares a la vez con la misma cuenta).</p>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="dashboard">
+      <div class="card-header card-header-blue"><i class="bi bi-grid"></i> 3. Panel principal (Dashboard)</div>
+      <div class="card-body">
+        <p>Es la pantalla que ves al iniciar sesión. Desde acá se maneja todo:</p>
+        <ul>
+          <li><strong>Borradores en progreso:</strong> presupuestos que empezaste pero no terminaste de guardar. Se muestra en qué paso del asistente quedaste. Tocá <strong>Retomar</strong> para seguir donde dejaste, o el tacho de basura para eliminarlo.</li>
+          <li><strong>Presupuestos completos:</strong> los ya guardados, con cliente, obra, fecha y total. Cada uno tiene 4 acciones: <strong>Ver</strong>, <strong>Editar</strong>, <strong>PDF</strong> (propietario/cliente) y <strong>Constr.</strong> (detallado para el constructor).</li>
+          <li><strong>Nuevo presupuesto:</strong> botón para arrancar el asistente de 8 pasos desde cero.</li>
+          <li><strong>Costo/m²:</strong> botón para entrar a la calculadora rápida de costo por metro cuadrado.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="wizard">
+      <div class="card-header card-header-blue"><i class="bi bi-list-ol"></i> 4. Crear un presupuesto: el asistente de 8 pasos</div>
+      <div class="card-body">
+        <p>Un presupuesto se arma respondiendo 8 pantallas en orden. Todo se va guardando automáticamente como <strong>borrador</strong> a medida que avanzás con "Siguiente", así que podés cerrar la app y retomarlo después desde el Dashboard sin perder nada.</p>
+
+        <div class="accordion" id="accordionPasos">
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p1">Paso 1 — Datos del cliente y la obra</button></h2>
+            <div id="p1" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                <ul class="mb-0">
+                  <li>Cliente: nombre completo (obligatorio), teléfono, email.</li>
+                  <li>Obra: descripción (obligatoria, ej. "Construcción de vivienda unifamiliar"), dirección, tipo de obra (vivienda nueva, ampliación, refacción, comercial, industrial u otro).</li>
+                  <li>Fecha del presupuesto y días de validez de la oferta (por defecto 15 días).</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p2">Paso 2 — Cómputo de obra</button></h2>
+            <div id="p2" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                Cargás las cantidades de cada ítem de la obra (m² de mampostería, m³ de hormigón, unidades de aberturas, etc.), agrupados por rubro en un acordeón desplegable. También se ingresa la <strong>superficie cubierta</strong> total en m². Una barra superior fija muestra en vivo el <strong>Costo Directo Total</strong> y las <strong>horas hombre (HH)</strong> calculadas.
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p3">Paso 3 — Subcontratos</button></h2>
+            <div id="p3" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                Si parte de la obra la hacen subcontratistas (electricidad, plomería, etc.), los agregás acá: sugeridos o personalizados con nombre propio. Para cada uno se ingresa mano de obra y/o materiales, más <strong>cantidad</strong> y <strong>unidad</strong> (ej. "1 Global" o "2 Cuadra").
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p4">Paso 4 — Costos indirectos</button></h2>
+            <div id="p4" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                Movilidad, alquiler de andamios, alquiler de herramientas, y renglones libres con "Agregar costo indirecto" (ej. "Fletes", "Permisos municipales").
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p5">Paso 5 — Modo de cotización y tiempo de obra</button></h2>
+            <div id="p5" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                <p>El paso central del cálculo:</p>
+                <ul>
+                  <li><strong>Qué incluye:</strong> "Mano de obra + Materiales" o "Solo mano de obra".</li>
+                  <li><strong>Equipo de trabajo:</strong> oficiales, ayudantes y jornal diario de cada uno.</li>
+                  <li><strong>Días de obra:</strong> sugeridos automáticamente según las HH y el equipo (botón "Aplicar"), editable a mano.</li>
+                  <li><strong>% Gastos generales/Beneficio</strong> y <strong>% Impuestos y seguros.</strong></li>
+                </ul>
+                <p class="mb-0">Tres barras en vivo: Base (Costo Directo + Subcontratos + Indirectos), Total Final (con GG e Impuestos), y <strong>Ganancia Real</strong>.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p6">Paso 6 — Materiales</button></h2>
+            <div id="p6" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                Lista de materiales calculada automáticamente desde el paso 2 (agrupada por categoría: Corralón, Desagües, Electricidad, Agua fría/caliente, Gas, Techos/Madera, Cerámicos/Pisos, Pintura). Cantidades editables. No aparece si elegiste "Solo mano de obra".
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p7">Paso 7 — Forma de pago</button></h2>
+            <div id="p7" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                % de anticipo, % de saldo final, y frecuencia de cuotas intermedias (semanal, quincenal o mensual). La app arma sola el cuadro de pagos con el monto exacto de cada cuota.
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#p8">Paso 8 — Resumen y guardado</button></h2>
+            <div id="p8" class="accordion-collapse collapse" data-bs-parent="#accordionPasos">
+              <div class="accordion-body">
+                Última pantalla antes de guardar: todo junto (cliente, obra, totales, descripción de trabajos autogenerada y editable, tiempo, forma de pago, materiales). Al tocar "Guardar presupuesto" se asigna un número y pasa a "completo".
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="navegacion">
+      <div class="card-header card-header-blue"><i class="bi bi-signpost-split"></i> 5. Navegar entre pasos y editar borradores</div>
+      <div class="card-body">
+        <p>En la parte superior de cada pantalla del asistente hay una barra con 8 íconos (INICIO, CÓMPUTO, SUBCONT, INDIR, MODO, MATER, F PAGO, RESUMEN). Los pasos ya visitados se habilitan en verde y podés saltar directamente a cualquiera, en el orden que quieras — la pantalla actual se guarda automáticamente antes de moverte.</p>
+        <p class="mb-0">Para retomar un borrador más tarde: Dashboard → <strong>Retomar</strong> en "Borradores en progreso".</p>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="ver-pdf">
+      <div class="card-header card-header-blue"><i class="bi bi-file-earmark-pdf"></i> 6. Ver, editar y descargar un presupuesto</div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered">
+            <thead class="table-light"><tr><th>Acción</th><th>Qué hace</th></tr></thead>
+            <tbody>
+              <tr><td>Ver</td><td>Pantalla de resumen interno con todos los números.</td></tr>
+              <tr><td>Editar</td><td>Vuelve a abrir el asistente de 8 pasos con los datos ya cargados.</td></tr>
+              <tr><td>PDF (Propietario)</td><td>Versión para el cliente, sin desglose de costos internos.</td></tr>
+              <tr><td>Constr.</td><td>Versión con el detalle interno de costos, para el constructor.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="costo-m2">
+      <div class="card-header card-header-blue"><i class="bi bi-rulers"></i> 7. Calculadora Costo por m²</div>
+      <div class="card-body">
+        <p>Herramienta rápida para cotizar UN ítem por m² o m³ sin armar un presupuesto completo (botón "Costo/m²" del Dashboard).</p>
+        <ol class="mb-0">
+          <li>Elegí el ítem de la lista.</li>
+          <li>Se abre el resultado: mano de obra, materiales y total.</li>
+          <li>Jornales editables ahí mismo, recalcula al instante.</li>
+          <li>% de Beneficio y % de Seguros también editables.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="mi-empresa">
+      <div class="card-header card-header-blue"><i class="bi bi-building"></i> 8. Mi Empresa (perfil y logo)</div>
+      <div class="card-body">
+        <p>Menú de usuario → "Mi empresa" — datos que aparecen en los PDFs enviados a los clientes:</p>
+        <ul class="mb-0">
+          <li>Logo (PNG, JPG o SVG, máx. 2 MB). Sin logo, el PDF muestra un cuadro con las iniciales.</li>
+          <li>Nombre de la empresa y eslogan (opcional).</li>
+          <li>Nombre de contacto, teléfono y email.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-3" id="sugerencias-sec">
+      <div class="card-header card-header-blue"><i class="bi bi-lightbulb"></i> 9. Sugerencias</div>
+      <div class="card-body mb-0">
+        <p class="mb-0">Menú principal → "Sugerencias": escribí cualquier idea o pedido de mejora. Queda registrada y el equipo la revisa; cuando se responde o implementa se marca "Respondida" en tu propia lista.</p>
+      </div>
+    </div>
+
+    <div class="card mb-4" id="faq">
+      <div class="card-header card-header-blue"><i class="bi bi-question-circle"></i> 10. Preguntas frecuentes</div>
+      <div class="card-body">
+        <div class="accordion" id="accordionFaq">
+          {% set faqs = [
+            ("Perdí la conexión a mitad de un paso, ¿se pierde lo que cargué?",
+             "No. Cada paso se guarda al tocar \"Siguiente\" o al saltar de paso con los íconos verdes. Solo se pierde lo que hayas escrito en la pantalla actual si todavía no la guardaste."),
+            ("¿Puedo tener la sesión abierta en el celular y la computadora a la vez?",
+             "No por ahora: iniciar sesión en un dispositivo nuevo cierra la sesión en el otro, por seguridad de la cuenta."),
+            ("¿Los precios de materiales se actualizan solos?",
+             "Los precios base los administra el equipo de PresupuestoPRO. Si notás un precio desactualizado, avisanos desde \"Sugerencias\"."),
+            ("¿Puedo editar un presupuesto después de guardarlo?",
+             "Sí, con el botón \"Editar\" desde el Dashboard."),
+            ("¿Qué diferencia hay entre el PDF para el propietario y el del constructor?",
+             "El Propietario es para el cliente (sin costos internos). El Constructor incluye mano de obra, materiales y márgenes.")
+          ] %}
+          {% for q, a in faqs %}
+          <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ loop.index }}">{{ q }}</button></h2>
+            <div id="faq{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#accordionFaq">
+              <div class="accordion-body">{{ a }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="text-muted small mt-3 mb-0">¿No encontraste la respuesta que buscás? Escribinos desde <a href="{{ url_for('sugerencias.index') }}">Sugerencias</a>.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

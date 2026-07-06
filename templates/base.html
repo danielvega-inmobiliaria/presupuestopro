@@ -36,6 +36,9 @@
           <a class="nav-link" href="{{ url_for('presupuesto.nuevo') }}"><i class="bi bi-plus-circle"></i> Nuevo presupuesto</a>
         </li>
         <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('manual.index') }}"><i class="bi bi-book"></i> Manual de uso</a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link" href="{{ url_for('sugerencias.index') }}"><i class="bi bi-lightbulb"></i> Sugerencias</a>
         </li>
         {% if user.is_admin %}

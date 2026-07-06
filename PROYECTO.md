@@ -6,7 +6,7 @@
 
 ---
 
-_Última actualización: 05/07/2026 — 20:52 ART_
+_Última actualización: 05/07/2026 — 21:20 ART_
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -298,6 +298,19 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
   - POST de `modo_tiempo()`: default de `n_oficiales` cambiado de 2 a 1 (fallback si el form no lo manda).
   - `templates/presupuesto/paso5_modo_tiempo.html`: fallback Jinja de `n_oficiales` cambiado de 2 a 1 (los campos de jornal ya toman el valor real desde `p`, no hace falta tocar su fallback).
 - **Pendiente:** commitear `routes/presupuesto.py`, `templates/presupuesto/paso2_rubros.html`, `templates/presupuesto/paso5_modo_tiempo.html` y este `PROYECTO.md`. Probar en un presupuesto nuevo: paso 2 con botones visibles al hacer scroll, y paso 5 mostrando 1 Oficial/1 Ayudante + jornales precargados (no 0,0) al entrar por primera vez.
+
+### Sesión 05/07/2026 (cont. 8) — Manual del Usuario como página web dentro de la app
+- Daniel preguntó si el Manual quedó dentro de la app o solo como PDF (quedó solo como PDF suelto). Preguntó si se puede armar como página web igual que la landing. Decisión: sí, página web (mejor que PDF: siempre actualizada, se ve bien en el celular, URL fija) + link en el menú principal junto a Sugerencias.
+- **Implementado:**
+  - `routes/manual.py` (nuevo blueprint): ruta `/manual`, `@login_required`, renderiza `templates/manual.html`.
+  - `templates/manual.html` (nuevo): mismo contenido del PDF pero en HTML con el estilo Bootstrap de la app (cards `card-header-blue`, acordeón para los 8 pasos del wizard y para el FAQ, índice lateral sticky con anchors en desktop).
+  - `templates/base.html`: nuevo link "Manual de uso" en el menú principal, junto a "Sugerencias".
+  - `app.py`: registrado `manual.bp`.
+  - Verificado con Read (`app.py`, `base.html`) y con un parseo real de Jinja2 (`env.get_template('manual.html')`) que el template no tiene errores de sintaxis.
+- **El PDF (`Manual_Usuario_PresupuestoPRO.pdf`) se mantiene** como archivo descargable aparte (por si Daniel lo quiere compartir por fuera de la app), pero la referencia "oficial" para los usuarios pasa a ser la página `/manual`.
+- **Archivos nuevos:** `routes/manual.py`, `templates/manual.html`.
+- **Archivos tocados:** `app.py`, `templates/base.html`.
+- **Pendiente:** commitear (sumar a la tanda pendiente) y deployar; probar `/manual` logueado, confirmar que el acordeón de los 8 pasos y el FAQ abren/cierran bien y que el índice lateral funciona.
 
 ### Sesión 05/07/2026 (cont. 7) — Fix portada del Manual, tildes, WAL, mail de notificaciones
 - Daniel reportó que en la página 1 del Manual el título y subtítulo estaban superpuestos, y que `presupuestopro.com.ar` parecía salir dos veces cortado en la misma línea. Pidió también restaurar tildes/caracteres especiales (el manual anterior los había evitado por precaución, quedando sin acentos) y preguntó por el mail que recibe las notificaciones de la app, y pidió pasar a WAL.
