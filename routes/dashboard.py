@@ -1,7 +1,8 @@
 import os
 import resend
-from flask import Blueprint, render_template, g, request, jsonify
-from utils.auth import get_current_user
+from flask import Blueprint, render_template, g, request, jsonify, redirect, url_for
+from utils.auth import get_current_user, login_required
+from utils.trial import get_trial_status
 from database import get_db
 
 bp = Blueprint('dashboard', __name__)
@@ -22,11 +23,32 @@ def index():
         "SELECT * FROM presupuestos WHERE user_id=? AND status='completo' ORDER BY created_at DESC LIMIT 20",
         (g.user['id'],)
     ).fetchall()
+
+    # Prueba gratis (06/07/2026): estado para el banner persistente + cartel
+    # de bienvenida una sola vez (primer login después de registrarse).
+    trial = get_trial_status(g.user)
+    mostrar_bienvenida_trial = False
+    if trial['es_trial'] and not g.user['trial_visto']:
+        mostrar_bienvenida_trial = True
+        db.execute("UPDATE users SET trial_visto=1 WHERE id=?", (g.user['id'],))
+        db.commit()
+
     db.close()
     return render_template('dashboard.html',
                            presupuestos=presupuestos,
                            borradores=borradores,
-                           user=g.user)
+                           user=g.user,
+                           trial=trial,
+                           mostrar_bienvenida_trial=mostrar_bienvenida_trial)
+
+
+@bp.route('/prueba-terminada')
+@login_required
+def trial_vencido():
+    trial = get_trial_status(g.user)
+    if not trial['vencido']:
+        return redirect(url_for('dashboard.index'))
+    return render_template('trial_vencido.html', user=g.user, trial=trial)
 
 
 @bp.route('/inscripcion', methods=['POST'])

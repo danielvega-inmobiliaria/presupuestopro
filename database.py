@@ -397,6 +397,19 @@ def migrate_db():
                 db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo} DEFAULT ''")
         db.commit()
 
+        # Campos de prueba gratis (06/07/2026 — campaña de lanzamiento).
+        # es_trial=1: cuenta con límite (3 presupuestos o 14 días, lo que se
+        # cumpla primero — ver utils/trial.py). Las cuentas creadas por admin
+        # antes de esta fecha, y las que admin cree sin marcar la casilla,
+        # quedan en 0 (sin límite) para no afectar retroactivamente a nadie.
+        # trial_visto=1: ya se le mostró el cartel de bienvenida con el límite.
+        cols_users3 = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+        if 'es_trial' not in cols_users3:
+            db.execute("ALTER TABLE users ADD COLUMN es_trial INTEGER DEFAULT 0")
+        if 'trial_visto' not in cols_users3:
+            db.execute("ALTER TABLE users ADD COLUMN trial_visto INTEGER DEFAULT 0")
+        db.commit()
+
         # Crear tabla costo_m2_consultas si no existe (05/07/2026 — para el panel
         # admin: cuántas veces cada usuario consultó la calculadora Costo/m2)
         db.execute("""

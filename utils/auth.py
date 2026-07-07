@@ -34,9 +34,13 @@ def get_current_user():
     if not uid or not token:
         return None
     db = get_db()
+    # Fix 06/07/2026: las cuentas de prueba gratis (es_trial=1) pueden entrar
+    # aunque su subscription_expires ya haya pasado — la prueba vencida se
+    # maneja con un bloqueo suave (ver utils/trial.py::trial_required), no con
+    # un corte total en el login como las suscripciones pagas vencidas.
     user = db.execute(
         """SELECT * FROM users WHERE id=? AND session_token=?
-           AND active=1 AND (subscription_expires IS NULL OR subscription_expires >= date('now'))""",
+           AND active=1 AND (subscription_expires IS NULL OR subscription_expires >= date('now') OR es_trial=1)""",
         (uid, token)
     ).fetchone()
     db.close()

@@ -3,6 +3,7 @@ import re
 from urllib.parse import quote
 from flask import Blueprint, send_file, g, redirect, url_for, flash, render_template
 from utils.auth import login_required
+from utils.trial import trial_required
 from utils.pdf_generator import generar_pdf_propietario, generar_pdf_constructor
 from utils.calculations import calcular_cuotas, calcular_cuadro_pago
 from routes.presupuesto import _calcular_materiales_desde_rubros
@@ -42,6 +43,7 @@ def cargar_presupuesto(pid, user_id):
 
 @bp.route('/<int:pid>/propietario-preview')
 @login_required
+@trial_required
 def propietario_preview(pid):
     p, empresa = cargar_presupuesto(pid, g.user['id'])
     if not p:
@@ -64,6 +66,7 @@ def propietario_preview(pid):
 
 @bp.route('/<int:pid>/propietario')
 @login_required
+@trial_required
 def propietario(pid):
     p, empresa = cargar_presupuesto(pid, g.user['id'])
     if not p:
@@ -76,6 +79,7 @@ def propietario(pid):
 
 @bp.route('/<int:pid>/constructor')
 @login_required
+@trial_required
 def constructor(pid):
     p, empresa = cargar_presupuesto(pid, g.user['id'])
     if not p:

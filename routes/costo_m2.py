@@ -25,9 +25,10 @@ Rutas:
 """
 
 from flask import Blueprint, render_template, request, session, redirect, url_for
-from functools import wraps
 from database import get_db
 from routes.presupuesto import _calcular_materiales_desde_rubros, get_config_pct
+from utils.auth import login_required
+from utils.trial import trial_required
 
 # 05/07/2026: se registra cada consulta a esta calculadora en costo_m2_consultas,
 # para que el panel admin de usuarios pueda mostrar cuántas veces consultó cada uno.
@@ -39,17 +40,9 @@ JORNAL_DIA_OF_DEF = 80000
 JORNAL_DIA_AY_DEF = 40000
 
 
-def _login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('auth.login'))
-        return f(*args, **kwargs)
-    return decorated
-
-
 @bp.route('/')
-@_login_required
+@login_required
+@trial_required
 def index():
     db = get_db()
     items = db.execute(
@@ -68,7 +61,8 @@ def index():
 
 
 @bp.route('/resultado')
-@_login_required
+@login_required
+@trial_required
 def resultado():
     item_id = request.args.get('item_id', type=int)
     if not item_id:

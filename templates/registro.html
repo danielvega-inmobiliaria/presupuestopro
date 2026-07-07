@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PresupuestoPRO — Probála gratis</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #0d1e3c; min-height: 100vh; padding: 24px 0; }
+    .reg-card { max-width: 480px; width: 100%; margin: auto; }
+    .brand { color: #eab308; font-size: 1.8rem; font-weight: 700; letter-spacing: -.5px; }
+    .brand small { color: #94a3b8; font-size: .85rem; font-weight: 400; display: block; }
+    .trial-box { background: #fef9c3; border: 1px solid #eab308; border-radius: 8px;
+                 padding: 10px 14px; font-size: .85rem; color: #713f12; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="reg-card">
+    <div class="text-center mb-4">
+      <div class="brand">
+        <i class="bi bi-calculator-fill"></i> PresupuestoPRO
+        <small>Presupuestos de construcción</small>
+      </div>
+    </div>
+    <div class="card shadow-lg">
+      <div class="card-body p-4">
+        <h5 class="card-title mb-1">Probá PresupuestoPRO gratis</h5>
+        <div class="trial-box mb-3">
+          <i class="bi bi-gift"></i>
+          Tenés <strong>{{ max_presupuestos }} presupuestos gratis</strong> o
+          <strong>{{ max_dias }} días</strong> para probar la app, lo que se cumpla primero.
+          Sin tarjeta, sin compromiso.
+        </div>
+
+        {% if error %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small">Nombre *</label>
+              <input type="text" name="nombre" class="form-control" required autofocus
+                     value="{{ prev.nombre if prev else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Apellido *</label>
+              <input type="text" name="apellido" class="form-control" required
+                     value="{{ prev.apellido if prev else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Teléfono / WhatsApp</label>
+              <input type="text" name="telefono" class="form-control"
+                     value="{{ prev.telefono if prev else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Email *</label>
+              <input type="email" name="email" class="form-control" required
+                     value="{{ prev.email if prev else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Ciudad</label>
+              <input type="text" name="ciudad" class="form-control"
+                     value="{{ prev.ciudad if prev else '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Provincia</label>
+              <input type="text" name="provincia" class="form-control"
+                     value="{{ prev.provincia if prev else '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label small">Contraseña * <span class="text-muted">(mín. 6 caracteres)</span></label>
+              <input type="password" name="password" class="form-control" required minlength="6">
+            </div>
+          </div>
+          <div class="d-grid mt-4">
+            <button type="submit" class="btn btn-warning fw-bold">
+              <i class="bi bi-rocket-takeoff"></i> Empezar gratis
+            </button>
+          </div>
+          <div class="text-center mt-3">
+            <span class="text-secondary small">¿Ya tenés cuenta?</span>
+            <a href="{{ url_for('auth.login') }}" class="small">Iniciar sesión</a>
+          </div>
+        </form>
+      </div>
+    </div>
+    <p class="text-center text-secondary small mt-3">
+      PresupuestoPRO &copy; 2026 — Para constructores de LATAM
+    </p>
+  </div>
+</div>
+</body>
+</html>

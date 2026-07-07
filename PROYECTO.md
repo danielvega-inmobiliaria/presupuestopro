@@ -6,7 +6,7 @@
 
 ---
 
-_Última actualización: 06/07/2026 — 11:05 ART_
+_Última actualización: 07/07/2026 — 20:45 ART_
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -242,6 +242,8 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 ## Pendientes / Ideas
 
 ### 🔴 CRÍTICO
+- [ ] **Commitear la feature de prueba gratis completa (sesión 07/07/2026)** — ver comandos git al final de esa sección. Es el cambio sin commitear más grande hasta ahora (11+ archivos).
+- [ ] **Verificar que el `.git/index.lock` no vuelva a trabar el commit de arriba** — venía repitiéndose ("No deployo", screenshots 06/07). Si pasa: `rm -f .git/index.lock` desde Git Bash, y si persiste, cerrar GitHub Desktop u otro programa que toque el repo.
 - [ ] **Configurar Webhook en MP Developers** → app PresupuestoPRO → Webhooks → URL: `https://web-production-0c9c1.up.railway.app/pagos/webhook` · Evento: `subscription_preapproval`
 - [ ] **Test flujo completo MP**: crear cuenta prueba "comprador" en MP Developers → Cuentas de prueba → suscribirse desde `/pagos/planes` → verificar activación en DB
 - [ ] **Pasar a producción MP**: cuando el test funcione, reemplazar `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY` por los de producción en Railway
@@ -266,6 +268,45 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 - [ ] **Permitir sesión simultánea celu + compu** — hoy `login_user()` en `utils/auth.py` invalida cualquier sesión anterior de la cuenta (sesión única). Decisión 04/07/2026: dejarlo como está por ahora, pero evaluar cambiarlo (guardar múltiples tokens por usuario en vez de uno solo) si vuelve a ser un problema.
 
 ## Cambios recientes comprometidos (HEAD actual en Railway)
+
+### Sesión 07/07/2026 — Campaña de lanzamiento: prueba gratis (SIN COMMITEAR)
+Feature completa implementada, verificada con Read tool, **pendiente de git** (la más grande de la app hasta ahora).
+
+**Regla de negocio:** 3 presupuestos completos guardados O 14 días desde el alta, lo que se cumpla primero. Solo afecta cuentas nuevas con `es_trial=1` (alta por `/registro`); cuentas existentes/admin quedan en `es_trial=0`, sin cambios.
+
+**Bloqueo:** suave, no total. El usuario en prueba vencida puede seguir entrando y viendo el dashboard/sus presupuestos ya hechos, pero no puede: crear/editar presupuestos, usar Costo/m², ni ver/descargar PDFs. Cada intento redirige a `/prueba-terminada` con invitación a suscribirse.
+
+**Archivos nuevos:**
+- `utils/trial.py` — `TRIAL_MAX_PRESUPUESTOS=3`, `TRIAL_MAX_DIAS=14`, `get_trial_status(user)`, decorator `trial_required`.
+- `templates/registro.html` — formulario público de alta gratis (nombre, apellido, teléfono, email, ciudad, provincia, contraseña).
+- `templates/trial_vencido.html` — pantalla de aviso al vencer la prueba, con botón a `/pagos/planes`.
+
+**Archivos modificados:**
+- `database.py` — columnas `users.es_trial` y `users.trial_visto` (default 0, migración condicional).
+- `utils/auth.py` — `get_current_user()` deja entrar a `es_trial=1` aunque `subscription_expires` haya vencido (el corte es soft, vía `trial_required`, no en el login).
+- `routes/landing.py` — nueva ruta `GET/POST /registro` (crea cuenta `es_trial=1`, loguea directo, sin pago) + `_notificar_registro()` (email admin con Reply-To al nuevo usuario).
+- `routes/presupuesto.py` — `@trial_required` en `nuevo()` y `editar()`.
+- `routes/costo_m2.py` — `@trial_required` en `index()` y `resultado()`; de paso se cambió su `_login_required` local (no seteaba `g.user`, hubiera roto `trial_required`) por `utils.auth.login_required`.
+- `routes/pdf_routes.py` — `@trial_required` en `propietario_preview()`, `propietario()`, `constructor()`.
+- `routes/dashboard.py` — `index()` calcula `trial` (estado) y `mostrar_bienvenida_trial` (solo primer login, marca `trial_visto=1`); nueva ruta `/prueba-terminada` (`dashboard.trial_vencido`).
+- `templates/dashboard.html` — cartel de bienvenida (primer login) + banner persistente de estado de prueba (presupuestos/días restantes, o aviso de vencida) con botón "Suscribirme".
+- `templates/login.html` — link "¿No tenés cuenta? Probá gratis" → `/registro`.
+- `templates/manual.html` — sección 1 reescrita (alta gratis + suscripción paga como 2 caminos separados); sección 7 (Costo/m²) corregida (ya no dice que los jornales son editables); nueva sección 10 "Agregar a pantalla de inicio del celular" (guía iOS Safari / Android Chrome, antes de FAQ que pasó a ser la 11).
+
+**Verificado (Read tool, no bash):**
+- `pagos.planes()` no depende de `g.user` (usa `_get_user(session['user_id'])` directo) → el CTA de `trial_vencido.html` funciona sin tocar `pagos.py`, pese a que también tiene un `_login_required` local que no setea `g.user` (mismo patrón que tenía `costo_m2.py`, pero acá no importa porque `planes()` no lo necesita).
+- Todas las columnas usadas en el INSERT de `/registro` (`apellido`, `telefono`, `ciudad`, `provincia`, `pais`, `es_trial`, `trial_visto`) existen en `users` vía migraciones ya confirmadas en `database.py`.
+- Decoradores `@trial_required` están después de `@login_required` en los 5 endpoints gateados (`nuevo`, `editar`, `costo_m2.index`, `costo_m2.resultado`, `pdf.propietario_preview`, `pdf.propietario`, `pdf.constructor` — 7 en total).
+
+**Pendiente:**
+- ⚠️ Commitear TODO lo de esta sesión (ver comandos git al final de esta actualización).
+- Confirmar en producción que `journal_mode=WAL` (sesión 06/07) no dio "disk I/O error" real en el volumen de Railway — si pasa, revertir a `DELETE` en `database.py`.
+- Sin resolver: el `.git/index.lock` recurrente que Daniel reportó ("No deployo") — verificar si sigue pasando al intentar este commit grande.
+- Ideal a futuro: mostrar `es_trial`/estado de prueba en `/admin/usuarios` (no pedido explícitamente todavía).
+
+### Sesión 06/07/2026 — Reply-To notificaciones + limpieza landing vieja
+- Confirmado y agregado Reply-To (email del remitente real) en las 3 funciones de notificación: Sugerencias, Contacto, Leads/Inscripción — así responder un email de notificación llega directo a esa persona en vez de a `noreply@`.
+- `routes/landing.py`: eliminado código muerto — variable `LANDING_HTML` (landing vieja de pago directo) y vista `landing()`, sin tocar `contacto()` (sigue viva). Ver nota pendiente dentro del archivo: el redirect de `contacto()` apunta a `/landing`, ruta ya eliminada — no es un bug activo hoy (nada la usa) pero hay que corregirlo si se reactiva ese formulario.
 
 ### Sesión 04/07/2026 (noche) — Investigación desvío MO/Materiales presupuesto Petrini (cochera)
 - Daniel reportó: Excel COCHERA "MO+MAT" = $12.155.162 vs App "todo junto" = $10.589.412. Excel MO sola = $5.902.594 vs App MO = $8.736.994. App Materiales = $6.113.898. Suma manual App (MO+MAT) = $14.850.892 — ni siquiera coincide con el "todo junto" de la propia app ($10.589.412).
