@@ -65,13 +65,26 @@ def inscripcion():
         return jsonify({'ok': False, 'error': 'Datos incompletos'}), 400
 
     # Guardar en DB
-    db = get_db()
-    db.execute(
-        "INSERT INTO leads (nombre, apellido, telefono, email, ciudad, provincia) VALUES (?,?,?,?,?,?)",
-        (nombre, apellido, telefono, email, ciudad, provincia)
-    )
-    db.commit()
-    db.close()
+    # Fix 08/07/2026: antes esto no tenía try/except — si algo fallaba acá
+    # (pasó en producción: la tabla `leads` no existía, ver database.py),
+    # esta vista devolvía 500 y el JS de templates/landing.html (modalInscripcion)
+    # IGNORA cualquier error a propósito y muestra "Registrado con éxito" igual.
+    # Resultado real (caso Ricardo Jordan, 08/07): el usuario veía el cartel de
+    # éxito, pero no se guardaba nada y nunca salía el mail de notificación.
+    # Con la tabla ya arreglada esto no debería volver a pasar, pero se agrega
+    # el try/except igual para que un problema futuro quede en los logs de
+    # Railway en vez de desaparecer en silencio.
+    try:
+        db = get_db()
+        db.execute(
+            "INSERT INTO leads (nombre, apellido, telefono, email, ciudad, provincia) VALUES (?,?,?,?,?,?)",
+            (nombre, apellido, telefono, email, ciudad, provincia)
+        )
+        db.commit()
+        db.close()
+    except Exception as e:
+        print(f"[inscripcion] Error guardando lead: {e}")
+        return jsonify({'ok': False, 'error': 'Error al guardar la inscripción'}), 500
 
     # Notificar por email
     _enviar_notificacion(nombre, apellido, telefono, email, ciudad, provincia)

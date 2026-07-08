@@ -505,6 +505,34 @@ def migrate_db():
         """)
         db.commit()
 
+        # Fix 08/07/2026: MISMO bug que password_reset_tokens de arriba —
+        # `leads` está en init_db() (solo corre en una DB nueva) pero NUNCA
+        # se creó acá en migrate_db(), así que en producción (DB ya existente
+        # desde antes de agregar esta tabla al código) la tabla simplemente
+        # no existe. routes/dashboard.py::inscripcion() hace un INSERT INTO
+        # leads sin try/except → tira 500 → el JS de templates/landing.html
+        # (modalInscripcion) IGNORA el error a propósito y muestra "Registrado
+        # con éxito" igual ("el endpoint puede no existir aún"). Resultado real:
+        # el usuario (caso Ricardo Jordan, 08/07) ve el cartel de éxito, pero
+        # no se guarda nada, no sale el mail a admin, y /admin/leads también
+        # rompía (u_ORDER BY sobre una tabla inexistente).
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS leads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT NOT NULL,
+                apellido TEXT NOT NULL,
+                telefono TEXT NOT NULL,
+                email TEXT DEFAULT '',
+                ciudad TEXT DEFAULT '',
+                provincia TEXT DEFAULT '',
+                estado TEXT DEFAULT 'nuevo',
+                notas TEXT DEFAULT '',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        db.commit()
+        print("[migrate_db] tabla leads verificada/creada")
+
         # 1b. Columnas nuevas en items_obra (precio_mo_ars, orden)
         cols_io = [r[1] for r in db.execute("PRAGMA table_info(items_obra)").fetchall()]
         if 'precio_mo_ars' not in cols_io:

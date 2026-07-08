@@ -21,6 +21,11 @@ def dashboard():
         'presupuestos':  db.execute("SELECT COUNT(*) as c FROM presupuestos").fetchone()['c'],
         'mensajes_nuevos': db.execute("SELECT COUNT(*) as c FROM contactos WHERE leido=0").fetchone()['c'],
         'sugerencias_nuevas': db.execute("SELECT COUNT(*) as c FROM sugerencias WHERE leido=0").fetchone()['c'],
+        # Fix 08/07/2026: badge de inscriptos nuevos — el botón "Inscriptos"
+        # ya existía en el dashboard pero sin ningún contador, así que un
+        # inscripto nuevo (ej. Ricardo Jordan) pasaba desapercibido salvo que
+        # Daniel entrara a revisar la lista sin motivo aparente.
+        'leads_nuevos': db.execute("SELECT COUNT(*) as c FROM leads WHERE estado='nuevo'").fetchone()['c'],
     }
     proximos = db.execute(
         "SELECT * FROM users WHERE subscription_expires >= date('now') AND is_admin=0 ORDER BY subscription_expires LIMIT 5"
