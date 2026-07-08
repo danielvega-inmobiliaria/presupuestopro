@@ -138,10 +138,20 @@
   </div>
 </div>
 
-{# ── TARJETA AZUL: COSTO MO / M2 ── #}
+{# ── TARJETA AZUL: COSTO MO / M2, NETO (incluye Beneficio + Seguros).
+     Fix 07/07/2026 (cont.): a pedido de Daniel, esta tarjeta ya no muestra
+     solo mano de obra pura — incorpora el 100% de Beneficio y Seguros (que
+     se siguen calculando sobre MO+Materiales, no sobre MO sola; ver
+     routes/costo_m2.py). El desglose de abajo muestra de dónde sale cada
+     parte para que no genere dudas. ── #}
 <div class="card-azul">
-  <div class="label">MO / {{ display_unit }}</div>
-  <div class="valor-grande" id="c_mo">$ {{ '{:,.0f}'.format(mo_por_unit).replace(',','.') }}</div>
+  <div class="label">MO / {{ display_unit }} (neto, con adicionales)</div>
+  <div class="valor-grande" id="c_mo">$ {{ '{:,.0f}'.format(mo_neto).replace(',','.') }}</div>
+  <div class="sub-row">
+    <span>MO pura: <strong id="c_mo_pura">$ {{ '{:,.0f}'.format(mo_por_unit).replace(',','.') }}</strong></span>
+    <span>+ Beneficio: <strong id="c_mo_gg">$ {{ '{:,.0f}'.format(gg_monto).replace(',','.') }}</strong></span>
+    <span>+ Seguros: <strong id="c_mo_imp">$ {{ '{:,.0f}'.format(imp_monto).replace(',','.') }}</strong></span>
+  </div>
 </div>
 
 {# ── TARJETA VERDE: MATERIALES ── #}
@@ -272,15 +282,17 @@ function normNum(s) {
 }
 
 /* ── Recalcula MO (jornal editable), materiales (precio editable) y
-   GG/Impuestos sobre MO+Materiales — todo en vivo, todo simulación local ── */
+   GG/Impuestos — todo en vivo, todo simulación local.
+   Fix 07/07/2026 (cont. 2): Beneficio/Seguros en esta calculadora se aplican
+   SOLO sobre la MO (no sobre MO+Materiales, a diferencia del presupuesto
+   real) — aclarado por Daniel: acá se referencia solo el costo de mano de
+   obra, los materiales son un dato aparte. La tarjeta de MO muestra el NETO
+   (MO pura + Beneficio + Seguros). ── */
 function recalcAll() {
-  // 1) MO en vivo a partir de los jornales editados
+  // 1) MO pura en vivo a partir de los jornales editados
   var jOf = normNum(document.getElementById('inp_jof').value);
   var jAy = normNum(document.getElementById('inp_jay').value);
   var moSim = (HOF_ORIG * (jOf / 8) + HAY_ORIG * (jAy / 8)) * FACTOR_CONV;
-
-  var cMo = document.getElementById('c_mo');
-  if (cMo) cMo.textContent = '$ ' + fmt(moSim);
 
   var badge = document.getElementById('badge-sim');
   if (badge) {
@@ -303,20 +315,34 @@ function recalcAll() {
   var tv = document.getElementById('tfoot_val');
   if (tv) tv.textContent = fmt(totalMat);
 
-  // 3) GG/Impuestos sobre MO (simulada) + Materiales
+  // 3) GG/Impuestos: se calculan SOLO sobre la MO (simulada) — no sobre
+  // Materiales. Distinto del presupuesto real (que sí los aplica sobre
+  // MO+Materiales); acá Daniel pidió que sea solo sobre la mano de obra.
   var pct_gg  = normNum(document.getElementById('inp_gg').value)  / 100;
   var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
-  var base = moSim + totalMat;
-  var gg   = base * pct_gg;
-  var imp  = base * pct_imp;
+  var gg   = moSim * pct_gg;
+  var imp  = moSim * pct_imp;
 
   document.getElementById('a_gg').textContent  = '$ ' + fmt(gg);
   document.getElementById('a_imp').textContent = '$ ' + fmt(imp);
 
-  // 4) TOTAL FINAL: MO + Materiales + Beneficio + Seguros — esto es lo que
-  // tiene que moverse si tocás jornales, precio de un material, o los % de
-  // Beneficio/Seguros (antes solo se veía el monto chico de "Adicionales").
-  var total = base + gg + imp;
+  // 4) Tarjeta de MO: ahora es el NETO = MO pura + Beneficio + Seguros
+  // (a pedido de Daniel — se le carga el 100% de esos adicionales a la MO,
+  // Materiales se muestra puro más abajo). Se pinta el desglose para que
+  // quede claro de dónde sale cada parte.
+  var moNeto = moSim + gg + imp;
+  var cMo = document.getElementById('c_mo');
+  if (cMo) cMo.textContent = '$ ' + fmt(moNeto);
+  var cMoPura = document.getElementById('c_mo_pura');
+  if (cMoPura) cMoPura.textContent = '$ ' + fmt(moSim);
+  var cMoGg = document.getElementById('c_mo_gg');
+  if (cMoGg) cMoGg.textContent = '$ ' + fmt(gg);
+  var cMoImp = document.getElementById('c_mo_imp');
+  if (cMoImp) cMoImp.textContent = '$ ' + fmt(imp);
+
+  // 5) TOTAL FINAL: MO neto + Materiales — esto es lo que tiene que moverse
+  // si tocás jornales, precio de un material, o los % de Beneficio/Seguros.
+  var total = moNeto + totalMat;
   var ct = document.getElementById('c_total');
   if (ct) ct.textContent = '$ ' + fmt(total);
 }

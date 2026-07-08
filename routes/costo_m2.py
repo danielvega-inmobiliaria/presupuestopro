@@ -16,8 +16,13 @@ routes/presupuesto.py usa para el presupuesto real:
     en pantalla, para que el número sea siempre el mismo que se termina
     cobrando en un presupuesto real).
   - get_config_pct(): mismos % de Gastos generales/Beneficio e Impuestos y
-    seguros configurados en Admin, aplicados sobre MO+Materiales (antes eran
-    10%/5% fijos en el código, sobre MO solamente).
+    seguros configurados en Admin.
+
+Fix 07/07/2026 (cont. 2): Beneficio/Seguros en ESTA calculadora se aplican
+SOLO sobre la MO (no sobre MO+Materiales) — a diferencia del presupuesto real,
+que sigue aplicándolos sobre MO+Materiales (Costo Directo) sin cambios. Costo/m2
+es una referencia de cuánto sale la mano de obra por unidad, con los materiales
+mostrados aparte a modo informativo (cuánto material hace falta y qué sale).
 
 Rutas:
   GET  /costo-m2              → lista de ítems con checkbox
@@ -125,18 +130,24 @@ def resultado():
     hs_oficial  = round(item['hof'] * factor_conv, 2)
     hs_ayudante = round(item['hay'] * factor_conv, 2)
 
-    # ── GG/Impuestos: mismos % configurables del presupuesto (Admin > Precios),
-    # aplicados sobre MO + Materiales (antes eran 10%/5% fijos, solo sobre MO).
+    # ── GG/Impuestos: mismos % configurables del presupuesto (Admin > Precios).
+    # Fix 07/07/2026 (cont. 2): Daniel aclaró que ACÁ (Costo/m2 solamente,
+    # NO en el presupuesto real) Beneficio y Seguros se aplican SOLO sobre la
+    # MO, no sobre MO+Materiales. Costo/m2 es una referencia de "cuánto sale
+    # la mano de obra por unidad", con los materiales mostrados aparte como
+    # dato informativo — no es el Costo Directo del presupuesto. El
+    # presupuesto real (routes/presupuesto.py::get_config_pct + funciones de
+    # totales) NO se toca, sigue aplicando los % sobre MO+Materiales como
+    # siempre. Ejemplo verificado con Daniel (Mamp. ladrillo comun 30cm,
+    # jornales 80.000/40.000, Beneficio 10%, Seguros 7%): MO pura $35.250 ×
+    # 1.17 = $41.243.
     pct_gg, pct_imp = get_config_pct()
-    base = mo_por_unit_display + total_mat_display
-    gg_monto  = round(base * pct_gg / 100, 2)
-    imp_monto = round(base * pct_imp / 100, 2)
-    # Fix 07/07/2026: antes no había un TOTAL que sumara todo — Beneficio y
-    # Seguros solo se veían como montos sueltos en "Adicionales", así que subir
-    # el % no parecía cambiar "el precio" (la tarjeta de MO, que a propósito
-    # NUNCA incluye GG/Impuestos, solo es el costo de mano de obra). Ver nota
-    # en resultado.html.
-    total_final = round(base + gg_monto + imp_monto, 2)
+    gg_monto  = round(mo_por_unit_display * pct_gg / 100, 2)
+    imp_monto = round(mo_por_unit_display * pct_imp / 100, 2)
+    # MO neta = MO pura + Beneficio + Seguros (todo calculado sobre la MO).
+    mo_neto = round(mo_por_unit_display + gg_monto + imp_monto, 2)
+    # TOTAL final de referencia = MO neta + Materiales (puros, sin adicionales).
+    total_final = round(mo_neto + total_mat_display, 2)
 
     return render_template('costo_m2/resultado.html',
         item=item,
@@ -146,6 +157,7 @@ def resultado():
         tiene_desglose=len(mat_items) > 0,
         total_mat=total_mat_display,
         mo_por_unit=mo_por_unit_display,
+        mo_neto=mo_neto,
         hs_oficial=hs_oficial,
         hs_ayudante=hs_ayudante,
         jornal_of_dia=jornal_of_dia,
