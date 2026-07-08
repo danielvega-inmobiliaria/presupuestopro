@@ -50,6 +50,15 @@
   .card-verde .label { font-size:.7rem; opacity:.7; text-transform:uppercase; letter-spacing:.08em; text-align:center; }
   .card-verde .valor { font-size:1.6rem; font-weight:800; margin:4px 0 0; text-align:center; }
 
+  /* Tarjeta TOTAL final */
+  .card-total { background:#0f1e33; border-radius:12px; color:#fff;
+                padding:16px 18px; margin-bottom:12px; border:2px solid #f59e0b; }
+  .card-total .label { font-size:.72rem; opacity:.85; text-transform:uppercase;
+                        letter-spacing:.08em; text-align:center; }
+  .card-total .valor-grande { font-size:2.3rem; font-weight:800; line-height:1.1;
+                               margin:4px 0 2px; text-align:center; color:#fbbf24; }
+  .card-total .sub { font-size:.75rem; opacity:.7; text-align:center; }
+
   /* Adicionales */
   .adic-card { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:12px;
                box-shadow:0 1px 3px rgba(0,0,0,.08); }
@@ -158,6 +167,19 @@
     <span>%</span>
     <span class="adic-monto" id="a_imp">$ {{ '{:,.0f}'.format(imp_monto).replace(',','.') }}</span>
   </div>
+</div>
+
+{# ── TARJETA TOTAL FINAL: MO + Materiales + Beneficio + Seguros, todo junto.
+     Fix 07/07/2026: antes no existía — Beneficio/Seguros solo se veían como
+     montos sueltos en "Adicionales" y la tarjeta de MO (arriba) a propósito
+     nunca los incluye (es costo de mano de obra puro). Por eso subir el %
+     de Beneficio "no parecía" cambiar nada: cambiaba el monto chico, pero
+     nadie miraba un total. Este TOTAL se recalcula en vivo con jornales,
+     precio de materiales y % de Beneficio/Seguros — como pidió Daniel. ── #}
+<div class="card-total">
+  <div class="label">TOTAL FINAL / {{ display_unit }}</div>
+  <div class="valor-grande" id="c_total">$ {{ '{:,.0f}'.format(total_final).replace(',','.') }}</div>
+  <div class="sub">Mano de obra + Materiales + Beneficio + Seguros</div>
 </div>
 
 {# ── DESGLOSE MATERIALES ── #}
@@ -290,6 +312,13 @@ function recalcAll() {
 
   document.getElementById('a_gg').textContent  = '$ ' + fmt(gg);
   document.getElementById('a_imp').textContent = '$ ' + fmt(imp);
+
+  // 4) TOTAL FINAL: MO + Materiales + Beneficio + Seguros — esto es lo que
+  // tiene que moverse si tocás jornales, precio de un material, o los % de
+  // Beneficio/Seguros (antes solo se veía el monto chico de "Adicionales").
+  var total = base + gg + imp;
+  var ct = document.getElementById('c_total');
+  if (ct) ct.textContent = '$ ' + fmt(total);
 }
 
 ['inp_jof','inp_jay','inp_gg','inp_imp'].forEach(function(id) {

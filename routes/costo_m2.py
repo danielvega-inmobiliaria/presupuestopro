@@ -131,6 +131,12 @@ def resultado():
     base = mo_por_unit_display + total_mat_display
     gg_monto  = round(base * pct_gg / 100, 2)
     imp_monto = round(base * pct_imp / 100, 2)
+    # Fix 07/07/2026: antes no había un TOTAL que sumara todo — Beneficio y
+    # Seguros solo se veían como montos sueltos en "Adicionales", así que subir
+    # el % no parecía cambiar "el precio" (la tarjeta de MO, que a propósito
+    # NUNCA incluye GG/Impuestos, solo es el costo de mano de obra). Ver nota
+    # en resultado.html.
+    total_final = round(base + gg_monto + imp_monto, 2)
 
     return render_template('costo_m2/resultado.html',
         item=item,
@@ -148,6 +154,7 @@ def resultado():
         pct_imp=pct_imp,
         gg_monto=gg_monto,
         imp_monto=imp_monto,
+        total_final=total_final,
         factor_conv=factor_conv,
         hof_orig=item['hof'],
         hay_orig=item['hay'],
