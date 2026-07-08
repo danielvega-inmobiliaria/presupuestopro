@@ -21,7 +21,7 @@ import os
 from datetime import date, timedelta
 import resend
 from werkzeug.security import generate_password_hash
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, redirect, render_template, request, url_for
 
 from database import get_db
 from utils.auth import login_user
@@ -88,7 +88,10 @@ def registro():
     _notificar_registro(nombre, apellido, telefono, email, ciudad, provincia)
 
     login_user(user_id)
-    flash(f'¡Bienvenido, {nombre}! Tenés {TRIAL_MAX_PRESUPUESTOS} presupuestos gratis o {TRIAL_MAX_DIAS} días para probar la app, lo que se cumpla primero.', 'success')
+    # Nota 07/07/2026: se saca el flash() de bienvenida de acá a propósito —
+    # duplicaba el cartel "¡Bienvenido a PresupuestoPRO!" que ya muestra
+    # dashboard.html (mostrar_bienvenida_trial) en el primer login, con más
+    # detalle (Costo/m2, PDFs, etc.). Un solo mensaje de bienvenida, no dos.
     return redirect(url_for('dashboard.index'))
 
 
