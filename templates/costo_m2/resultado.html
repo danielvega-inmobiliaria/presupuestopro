@@ -10,6 +10,10 @@
 <style>
   body { background:#f0f4f8; font-family:Arial,sans-serif; font-size:.9rem; }
 
+  .sticky-top-block { position:sticky; top:0; z-index:20; background:#f0f4f8;
+                      padding-top:2px; margin-left:-1rem; margin-right:-1rem;
+                      padding-left:1rem; padding-right:1rem; }
+
   .hdr { background:#1a56db; color:#fff; padding:12px 16px; border-radius:10px; margin-bottom:12px; }
   .hdr-rubro { font-size:.7rem; opacity:.7; text-transform:uppercase; letter-spacing:.06em; }
   .hdr-nombre { font-size:1rem; font-weight:700; margin:2px 0; }
@@ -17,9 +21,21 @@
 
   .jornales-row { background:#fff; border-radius:8px; padding:10px 14px; margin-bottom:12px;
                   box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .jornales-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em;
+                     color:#6b7280; font-weight:700; margin-bottom:6px; display:flex;
+                     align-items:center; gap:6px; flex-wrap:wrap; }
+  .jornales-label .badge-sim { background:#fef3c7; color:#92400e; font-weight:700;
+                     border-radius:4px; padding:1px 6px; font-size:.68rem;
+                     text-transform:none; letter-spacing:0; }
+  .jornal-grid { display:grid; grid-template-columns:auto 1fr auto; column-gap:10px;
+                 row-gap:6px; align-items:center; }
+  .jornal-grid .jg-label { font-size:.85rem; font-weight:600; color:#374151;
+                            white-space:nowrap; }
   .jornal-input { border:1px solid #c5d0e6; border-radius:6px; padding:4px 8px;
-                  width:100px; text-align:right; font-size:.88rem; font-weight:600; }
+                  width:100%; max-width:120px; text-align:right; font-size:.88rem;
+                  font-weight:600; justify-self:end; }
   .jornal-input:focus { outline:none; border-color:#1a56db; }
+  .jornal-grid .jg-suf { font-size:.8rem; color:#6b7280; }
 
   /* Tarjeta azul — valor único grande */
   .card-azul { background:#1a56db; border-radius:12px; color:#fff;
@@ -68,31 +84,48 @@
 </head>
 <body class="p-3">
 
-{# ── HEADER ── #}
-<div class="hdr d-flex justify-content-between align-items-start">
-  <div>
-    <div class="hdr-rubro">{{ item.rubro_nombre }}</div>
-    <div class="hdr-nombre">{{ item.nombre }}</div>
-    <div class="hdr-sub">Base de cálculo: 1 Oficial + 1 Ayudante</div>
+{# ── HEADER + JORNALES: fijos arriba (sticky) hasta la línea de Ayudante,
+     así quedan visibles al scrollear el desglose de materiales ── #}
+<div class="sticky-top-block">
+  <div class="hdr d-flex justify-content-between align-items-start">
+    <div>
+      <div class="hdr-rubro">{{ item.rubro_nombre }}</div>
+      <div class="hdr-nombre">{{ item.nombre }}</div>
+      <div class="hdr-sub">Base de cálculo: 1 Oficial + 1 Ayudante</div>
+    </div>
+    <div class="d-flex gap-2 no-print">
+      <button onclick="window.close()" class="btn btn-sm btn-outline-light">
+        <i class="bi bi-arrow-left"></i> Volver
+      </button>
+      <button id="btn-pdf" onclick="exportar()" class="btn btn-sm btn-outline-light" title="Guardar PDF">
+        <i class="bi bi-file-earmark-pdf"></i>
+      </button>
+    </div>
   </div>
-  <div class="d-flex gap-2 no-print">
-    <button onclick="window.close()" class="btn btn-sm btn-outline-light">
-      <i class="bi bi-arrow-left"></i> Volver
-    </button>
-    <button id="btn-pdf" onclick="exportar()" class="btn btn-sm btn-outline-light" title="Guardar PDF">
-      <i class="bi bi-file-earmark-pdf"></i>
-    </button>
-  </div>
-</div>
 
-{# ── JORNALES DE REFERENCIA (fix 05/07/2026: informativos, ya no editables —
-     la MO usa el mismo costo congelado que el presupuesto real, ver
-     routes/costo_m2.py) ── #}
-<div class="jornales-row no-print">
-  <div class="text-muted" style="font-size:.78rem">
-    <i class="bi bi-info-circle"></i> Jornales de referencia (los mismos del presupuesto):
-    Oficial <strong>$ {{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}</strong>/día ·
-    Ayudante <strong>$ {{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}</strong>/día
+  {# ── JORNALES: adoptados por el usuario en Admin > Precios. Editables acá
+       para simular en vivo cómo cambia la MO — no modifican lo configurado en
+       Admin ni un presupuesto ya guardado (mismo criterio que el precio de
+       cada material, más abajo). Fix 07/07/2026: antes eran de solo lectura y
+       la MO no se movía si cambiabas el jornal en Admin; ahora sí, porque
+       precio_mo_ars se recalcula desde Admin (ver database.py) y además se
+       puede simular acá mismo. ── #}
+  <div class="jornales-row no-print">
+    <div class="jornales-label">
+      <i class="bi bi-info-circle"></i> Jornales adoptados por usuario
+      <span class="badge-sim d-none" id="badge-sim">simulado, no guarda</span>
+    </div>
+    <div class="jornal-grid">
+      <span class="jg-label">Oficial</span>
+      <input type="text" inputmode="decimal" id="inp_jof" class="jornal-input"
+             value="{{ '{:,.0f}'.format(jornal_of_dia).replace(',','.') }}">
+      <span class="jg-suf">$/día</span>
+
+      <span class="jg-label">Ayudante</span>
+      <input type="text" inputmode="decimal" id="inp_jay" class="jornal-input"
+             value="{{ '{:,.0f}'.format(jornal_ay_dia).replace(',','.') }}">
+      <span class="jg-suf">$/día</span>
+    </div>
   </div>
 </div>
 
@@ -184,13 +217,19 @@
 {% endif %}
 
 <script>
-// Fix 05/07/2026: la MO ya NO se recalcula desde un jornal editable — usa el
-// mismo costo de MO congelado que el presupuesto real (MO_FIJO, calculado en
-// el servidor con items_obra.precio_mo_ars). Lo único editable acá es el
-// precio unitario de cada material (para simular variaciones de precio) y
-// los % de GG/Impuestos — igual que en el presupuesto, se aplican sobre
-// MO + Materiales.
-var MO_FIJO = {{ mo_por_unit }};
+// Fix 07/07/2026: los jornales vuelven a ser editables acá, para simular en
+// vivo cómo cambia la MO — pero esto es SOLO una simulación en el navegador,
+// no toca la DB (mismo criterio que el precio editable de cada material). El
+// costo "oficial" que se termina cobrando en un presupuesto real sigue siendo
+// items_obra.precio_mo_ars (MO_SERVIDOR), que ahora SÍ se mantiene sincronizado
+// con el jornal configurado en Admin > Precios (ver database.py::recalcular_precio_mo_ars) —
+// antes quedaba desactualizado para siempre después de la primera migración.
+var MO_SERVIDOR   = {{ mo_por_unit }};
+var HOF_ORIG       = {{ hof_orig }};
+var HAY_ORIG       = {{ hay_orig }};
+var FACTOR_CONV    = {{ factor_conv }};
+var JORNAL_OF_DEF  = {{ jornal_of_dia }};
+var JORNAL_AY_DEF  = {{ jornal_ay_dia }};
 
 function fmt(n) {
   return Math.round(n).toLocaleString('es-AR').replace(/,/g,'.');
@@ -210,8 +249,24 @@ function normNum(s) {
   return parseFloat(str) || 0;
 }
 
-/* ── Recalcula materiales (precio editable) y GG/Impuestos sobre MO+Materiales ── */
+/* ── Recalcula MO (jornal editable), materiales (precio editable) y
+   GG/Impuestos sobre MO+Materiales — todo en vivo, todo simulación local ── */
 function recalcAll() {
+  // 1) MO en vivo a partir de los jornales editados
+  var jOf = normNum(document.getElementById('inp_jof').value);
+  var jAy = normNum(document.getElementById('inp_jay').value);
+  var moSim = (HOF_ORIG * (jOf / 8) + HAY_ORIG * (jAy / 8)) * FACTOR_CONV;
+
+  var cMo = document.getElementById('c_mo');
+  if (cMo) cMo.textContent = '$ ' + fmt(moSim);
+
+  var badge = document.getElementById('badge-sim');
+  if (badge) {
+    var esDefault = (jOf === JORNAL_OF_DEF && jAy === JORNAL_AY_DEF);
+    badge.classList.toggle('d-none', esDefault);
+  }
+
+  // 2) Materiales (precio editable por fila)
   var totalMat = 0;
   document.querySelectorAll('.precio-inp').forEach(function(inp) {
     var cant   = parseFloat(inp.dataset.cant) || 0;
@@ -226,9 +281,10 @@ function recalcAll() {
   var tv = document.getElementById('tfoot_val');
   if (tv) tv.textContent = fmt(totalMat);
 
+  // 3) GG/Impuestos sobre MO (simulada) + Materiales
   var pct_gg  = normNum(document.getElementById('inp_gg').value)  / 100;
   var pct_imp = normNum(document.getElementById('inp_imp').value) / 100;
-  var base = MO_FIJO + totalMat;
+  var base = moSim + totalMat;
   var gg   = base * pct_gg;
   var imp  = base * pct_imp;
 
@@ -236,7 +292,7 @@ function recalcAll() {
   document.getElementById('a_imp').textContent = '$ ' + fmt(imp);
 }
 
-['inp_gg','inp_imp'].forEach(function(id) {
+['inp_jof','inp_jay','inp_gg','inp_imp'].forEach(function(id) {
   var el = document.getElementById(id);
   if (el) { el.addEventListener('input', recalcAll); el.addEventListener('change', recalcAll); }
 });

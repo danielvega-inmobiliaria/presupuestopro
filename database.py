@@ -16,6 +16,36 @@ def get_db():
     return db
 
 
+def recalcular_precio_mo_ars(db, jornal_of_dia=None, jornal_ay_dia=None):
+    """Recalcula items_obra.precio_mo_ars = hof*jornal_of_hora + hay*jornal_ay_hora
+    para TODOS los ítems con hof/hay > 0, usando los jornales pasados o (si no se
+    pasan) los configurados actualmente en la tabla `config`.
+
+    Fix 07/07/2026: la fórmula estaba hardcodeada a `hof*10000 + hay*5000` en
+    _actualizar_mo_analisis() y en varias migraciones (2h, 2r) — literalmente los
+    valores default de jornal (Oficial $80.000/día, Ayudante $40.000/día, ÷8hs).
+    Nada volvía a leer la tabla `config` después de la migración inicial, así que
+    cambiar el jornal en Admin > Precios (o el rendimiento HOF/HAY en
+    Admin > Rendimientos) NUNCA modificaba el costo de MO de ningún ítem — ni en
+    Costo/m2 ni en un presupuesto nuevo. Ahora se llama esta función desde
+    routes/admin.py (precios_actualizar() y rendimientos_actualizar()) cada vez
+    que se edita jornal u HOF/HAY, así items_obra.precio_mo_ars queda siempre
+    sincronizado con lo configurado. Devuelve la cantidad de ítems actualizados."""
+    if jornal_of_dia is None or jornal_ay_dia is None:
+        cfg_jo = db.execute("SELECT valor FROM config WHERE clave='jornal_oficial_dia'").fetchone()
+        cfg_ja = db.execute("SELECT valor FROM config WHERE clave='jornal_ayudante_dia'").fetchone()
+        jornal_of_dia = float(cfg_jo['valor']) if cfg_jo else 80000
+        jornal_ay_dia = float(cfg_ja['valor']) if cfg_ja else 40000
+    jh_of = jornal_of_dia / 8.0
+    jh_ay = jornal_ay_dia / 8.0
+    cur = db.execute(
+        "UPDATE items_obra SET precio_mo_ars = ROUND(hof*? + hay*?, 2) "
+        "WHERE hof > 0 OR hay > 0",
+        (jh_of, jh_ay)
+    )
+    return cur.rowcount
+
+
 def _actualizar_mo_analisis(db):
     """Calcula y guarda items_obra.precio_mo_ars (costo MO por unidad) desde la
     hoja Análisis de PRESUPUESTO HOTMART.xlsx.

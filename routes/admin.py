@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, render_template_string, request, r
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
 from utils.calculations import PAISES
-from database import get_db
+from database import get_db, recalcular_precio_mo_ars
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -456,6 +456,7 @@ def precios():
 def precios_actualizar():
     db = get_db()
     actualizados = 0
+    jornal_cambio = False
     for key, val in request.form.items():
         if key.startswith('calc_'):
             sub_nombre = key[5:]
@@ -478,8 +479,16 @@ def precios_actualizar():
                         (key, str(int(valor)))
                     )
                     actualizados += 1
+                    jornal_cambio = True
             except:
                 pass
+    # Fix 07/07/2026: si se tocó el jornal, recalcular precio_mo_ars de TODOS
+    # los ítems con los jornales nuevos — antes esta pantalla guardaba el
+    # jornal en `config` pero nada volvía a leerlo, así que ningún ítem
+    # cambiaba de costo de MO. Ver database.py::recalcular_precio_mo_ars.
+    if jornal_cambio:
+        n_mo = recalcular_precio_mo_ars(db)
+        actualizados += n_mo
     db.commit()
     db.close()
     flash(f'Precios actualizados ({actualizados} ítems).', 'success')
@@ -588,6 +597,11 @@ def rendimientos_actualizar():
                     db.execute("UPDATE items_obra SET hay=? WHERE id=?", (float(val), int(iid)))
             except Exception:
                 pass
+    # Fix 07/07/2026: al cambiar HOF/HAY hay que recalcular precio_mo_ars con
+    # esos valores nuevos (usando el jornal vigente en `config`) — antes
+    # quedaba desactualizado hasta la próxima migración manual (ver bug
+    # documentado en PROYECTO.md, sesión 04/07, y database.py::recalcular_precio_mo_ars).
+    recalcular_precio_mo_ars(db)
     db.commit()
     db.close()
     flash('Rendimientos actualizados correctamente.', 'success')
