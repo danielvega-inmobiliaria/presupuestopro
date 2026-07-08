@@ -6,7 +6,17 @@
 
 ---
 
-_Última actualización: 07/07/2026 — 20:45 ART_
+_Última actualización: 08/07/2026 — ver footer del último mensaje del chat_
+
+## Identidad de marca (usar siempre en piezas gráficas)
+- **Nombre:** PresupuestoPRO (Presupuesto en blanco + PRO en naranja `#F97316`)
+- **Logo:** escudo con grúa — archivo de referencia `IMAGENES/LOGO SOLO limpio v3.png` (fondo transparente)
+- **Slogan:** "De los metros a los pesos, en minutos."
+- **Pieza de referencia para layout de marca:** `IMAGENES/Portada_Facebook_1640x856_v2.png` (logo arriba + wordmark + slogan, fondo azul oscuro degradado)
+- Cualquier lámina/gráfica nueva debe llevar los 3 elementos (logo + nombre + slogan) en el encabezado, con esta misma composición.
+
+## Credenciales admin
+- Login app (`/admin`): `admin@presupuestopro.com` / `admin1234` (`is_admin=1`, creado en `init_db()` de `database.py`)
 
 ## Stack
 - Flask + Python 3.11 · SQLite en `/data/presupuestopro.db` · Railway (US West)
@@ -242,20 +252,14 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 ## Pendientes / Ideas
 
 ### 🔴 CRÍTICO
-- [ ] **Commitear la feature de prueba gratis completa (sesión 07/07/2026)** — ver comandos git al final de esa sección. Es el cambio sin commitear más grande hasta ahora (11+ archivos).
-- [ ] **Verificar que el `.git/index.lock` no vuelva a trabar el commit de arriba** — venía repitiéndose ("No deployo", screenshots 06/07). Si pasa: `rm -f .git/index.lock` desde Git Bash, y si persiste, cerrar GitHub Desktop u otro programa que toque el repo.
+- [x] **Commit + push de la feature de prueba gratis** ✅ CONFIRMADO 07/07/2026 21:26 ART — verificado con `git fetch origin main` (no con el mount stale): `HEAD` local y `origin/main` apuntan al mismo commit `86f9260 "feat: prueba gratis (3 presupuestos o 14 dias, lo que se cumpla primero)"`, 14 archivos, incluye todo lo listado en la sesión 07/07 más abajo. El `.git/index.lock` NO volvió a trabar nada esta vez.
+- [x] **Commitear database.py con todas las migraciones pendientes (2l, 2q, 2r, 2s, etc.)** ✅ CONFIRMADO — `git show HEAD:database.py` tiene los flags `2h_done` a `2s_done`, todos presentes en el commit ya pusheado.
 - [ ] **Configurar Webhook en MP Developers** → app PresupuestoPRO → Webhooks → URL: `https://web-production-0c9c1.up.railway.app/pagos/webhook` · Evento: `subscription_preapproval`
 - [ ] **Test flujo completo MP**: crear cuenta prueba "comprador" en MP Developers → Cuentas de prueba → suscribirse desde `/pagos/planes` → verificar activación en DB
 - [ ] **Pasar a producción MP**: cuando el test funcione, reemplazar `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY` por los de producción en Railway
-- [ ] **Commitear database.py con migración 2l** — el archivo correcto (1993 líneas) está en disco pero NO está en git. Problema: git lock files bloquean el commit desde bash. Solución: usar **GitHub Desktop** o eliminar `.git/index.lock` desde Git Bash y correr:
-  ```
-  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
-  rm -f .git/index.lock
-  git add database.py
-  git commit -m "fix: migration 2l factores comerciales (11 materiales)"
-  git push
-  ```
 - [x] **DNS Cloudflare** ✅ presupuestopro.com.ar funcionando (30/06/2026)
+
+> **Nota sobre las secciones de abajo:** varias entradas de sesiones anteriores (04/07 a 07/07) dicen "Pendiente: commitear...". Eso quedó DESACTUALIZADO — el `git fetch` del 07/07 21:26 confirmó que todo el código hasta el commit `86f9260` (inclusive) está en `origin/main`. Esas notas se dejan como registro histórico de qué incluía cada tanda, no como pendientes reales.
 
 ### 🟡 IMPORTANTE
 - [ ] **Post Facebook de lanzamiento** — redactar post con screenshots del app para grupos de albañiles → landing page → MP. Pendiente de tomar screenshots: dashboard, costo/m2, ver presupuesto.
@@ -269,8 +273,163 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 
 ## Cambios recientes comprometidos (HEAD actual en Railway)
 
-### Sesión 07/07/2026 — Campaña de lanzamiento: prueba gratis (SIN COMMITEAR)
-Feature completa implementada, verificada con Read tool, **pendiente de git** (la más grande de la app hasta ahora).
+### Sesión 08/07/2026 (cont. 3) — Unificados los botones "Probá gratis" de la landing + limpieza del modal viejo ⚠️ SIN COMMITEAR
+Seguimiento directo del bug de Ricardo Jordan: Daniel pidió controlar que **todos** los botones "Probar la App" de la landing lleven al mismo lugar, después de que otra prueba (Anibal Roca) sí funcionó pero por un botón distinto.
+
+**Encontrado:** en `templates/landing.html` convivían 2 caminos de alta: el modal viejo `modalInscripcion` (activación manual, el que rompió con Ricardo) y `/registro` (alta instantánea, prueba gratis). 6 botones distintos en la página ("PROBALA GRATIS" en el nav x2, hero, sección PDF, precios y CTA final) apuntaban todavía al modal viejo vía `data-bs-toggle="modal" data-bs-target="#modalInscripcion"`.
+
+**Fix:** los 6 botones ahora son `<a href="{{ url_for('landing.registro') }}">` (mismo patrón que ya usa `login.html`) — todos van al alta instantánea. Se confirmó con grep que no queda ningún botón apuntando al modal.
+
+**Limpieza (código muerto, mismo criterio que en sesiones anteriores):** al no quedar nada que abra el modal, se sacó todo lo asociado: el bloque `<div id="modalInscripcion">` completo, las funciones JS `enviarInscripcion()`, `mostrarExito()` y `resetModal()`, y el CSS muerto `.modal-inscripcion` / `.success-box`. Verificado con grep que no queda ninguna referencia a `modalInscripcion`, `inpNombre/inpApellido/...` ni `success-box` en el archivo. El endpoint `/inscripcion` y la tabla `leads` (routes/dashboard.py, database.py) quedan igual, sin tocar — no hacen daño estar ahí por si se reusan, pero ya nada del sitio los llama.
+
+**Respuesta a la otra pregunta de Daniel (instalar la app / caso Anibal Roca):** el cartel para "bajar/instalar la app" que apareció es el prompt nativo de Chrome/Android para instalar una PWA (Progressive Web App) — no es algo que el código dispare a propósito por cada alta nueva. `templates/base.html` registra un manifest (`manifest.json`) y un service worker en TODAS las páginas que extienden `base.html` (dashboard, login, registro, trial_vencido, etc.). Apenas un usuario llega a una de esas páginas en un navegador compatible (típicamente Chrome en Android), el navegador puede ofrecer instalarla como app — es comportamiento estándar del navegador, no algo exclusivo de una activación. La landing pública (`landing.html`) es standalone y NO dispara esto. Conclusión: sí, va a poder volver a pasar con cualquier usuario nuevo que entre al dashboard desde Chrome/Android — es normal y no es un bug.
+
+**Archivos tocados:** `templates/landing.html`.
+**Pendiente:** commitear vía Git Bash.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/landing.html
+git commit -m "fix: unificar todos los botones Probar gratis a /registro + limpiar modal de inscripcion viejo (codigo muerto)"
+git push
+```
+
+### Sesión 08/07/2026 (cont. 2) — 🔴 BUG GRAVE: tabla `leads` no existe en producción (caso Ricardo Jordan) ⚠️ SIN COMMITEAR
+Daniel reportó: Ricardo Jordan completó la inscripción, le apareció el cartel de éxito ("en breve te activamos por WhatsApp o email"), pero no llegó ningún aviso ni aparece en ningún listado.
+
+**Causa raíz encontrada — mismo patrón que el bug de `password_reset_tokens` (sesión 05/07):** la landing (`templates/landing.html`) todavía tiene el modal viejo "Quiero registrarme en PresupuestoPRO" (`modalInscripcion`, POST a `/inscripcion`) — un flujo ANTERIOR al de prueba gratis, donde el admin activa manualmente. La tabla `leads` está creada en `init_db()` pero **NUNCA se agregó a `migrate_db()`** — como la base de producción ya existía de antes, la tabla simplemente no existe ahí. `routes/dashboard.py::inscripcion()` hacía `INSERT INTO leads` sin try/except → tiraba 500. Pero el JS del modal (`enviarInscripcion()`) tiene un `.catch()` que **ignora cualquier error a propósito** ("el endpoint puede no existir aún") y muestra igual el cartel de éxito. Resultado: Ricardo vio "Registrado con éxito", pero no se guardó nada, no salió el mail al admin, y `/admin/leads` también hubiera roto si Daniel entraba (`SELECT * FROM leads` sobre una tabla inexistente).
+
+**Nota:** el dato de Ricardo no se pudo recuperar — nunca llegó a guardarse en ningún lado. Hay que volver a contactarlo.
+
+**Fix (3 partes):**
+1. `database.py::migrate_db()`: se agrega `CREATE TABLE IF NOT EXISTS leads (...)` (mismo patrón que `password_reset_tokens`) — se crea sola en el próximo deploy, sin perder nada de lo que ya funciona.
+2. `routes/dashboard.py::inscripcion()`: el INSERT ahora tiene try/except — si algo vuelve a fallar, devuelve 500 con log en vez de desaparecer en silencio (el frontend lo va a seguir ignorando, pero al menos queda registrado en los logs de Railway).
+3. **El botón "🔔 Inscriptos" en el dashboard admin YA EXISTÍA** (no era invisible del todo), pero no tenía ningún contador — un inscripto nuevo no se notaba a simple vista. Se agregó `stats.leads_nuevos` (cuenta `estado='nuevo'`) en `routes/admin.py::dashboard()` y el badge correspondiente en `templates/admin/dashboard.html`, mismo patrón que "Mensajes de contacto"/"Sugerencias".
+
+**Pendiente de decisión (no se tocó, es un cambio de UX/negocio):** la landing tiene DOS caminos de alta que compiten: el modal viejo "Inscripción" (activación manual, el que usó Ricardo) y `/registro` (prueba gratis instantánea, sin esperar a nadie — implementado 07/07). Sugerido a Daniel: reemplazar el modal viejo por un link directo a `/registro`, así cualquier nuevo interesado entra solo, al instante, sin depender de que alguien note el aviso. Queda para que Daniel decida.
+
+**Archivos tocados:** `database.py`, `routes/dashboard.py`, `routes/admin.py`, `templates/admin/dashboard.html`.
+**Pendiente:** commitear vía Git Bash y deployar; después del deploy, contactar a Ricardo Jordan para que se registre de nuevo (idealmente por `/registro`, acceso instantáneo) o cargarlo manualmente desde Admin > Nuevo usuario con sus datos.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add database.py routes/dashboard.py routes/admin.py templates/admin/dashboard.html
+git commit -m "fix: tabla leads no existia en produccion (bug critico, inscriptos se perdian en silencio) + badge de inscriptos nuevos"
+git push
+```
+
+### Sesión 08/07/2026 (cont.) — Copy de medios de pago corregido + consulta sobre SUB_UNIT de MP ⚠️ SIN COMMITEAR
+Daniel notó que `/pagos/planes` decía "Pagá con cualquier billetera o tarjeta" / "transferencia bancaria" y preguntó si Mercado Pago realmente ofrece transferencia en este tipo de cobro (Checkout Pro) — sospechaba que no.
+
+- **Confirmado con la documentación oficial vigente de Mercado Pago Argentina** (`mercadopago.com.ar/developers/es/docs/checkout-pro/overview`, consultada hoy): los medios de pago de **Checkout Pro** (lo que usa `routes/pagos.py::crear_suscripcion()`, vía `sdk.preference().create()`) son **"Tarjeta de crédito o débito, Rapipago, Pago Fácil, Cuenta Mercado Pago y Cuotas sin Tarjeta"** — no incluye transferencia bancaria como medio propio de Checkout Pro. Daniel tenía razón.
+- **Fix — copy actualizado** (sin tocar lógica, solo texto) en `routes/pagos.py`: pantalla `/pagos/planes` (bullet de features y texto al pie) y pantalla del link de pago en `crear_suscripcion()`. Ahora dicen: "dinero en cuenta, tarjeta débito/crédito o Rapipago/Pago Fácil" — se sacó toda mención a "transferencia bancaria" y "billetera digital" genérica.
+- **Consulta aparte — aviso de Mercado Pago sobre el campo `SUB_UNIT`:** Daniel mostró una captura del panel de MP ("A partir del 13/07/2026, el campo 'Plataforma de cobro / sub_unit' va a tener nuevos valores: checkout_pro, checkout_api"). Investigado: `SUB_UNIT` es una columna de los **reportes descargables** de MP (Todas las transacciones / Resumen de ventas — se generan y bajan como Excel/CSV desde el panel de MP, no forman parte de ninguna respuesta de API ni webhook). Confirmado con grep en todo el repo que el código **no lee `sub_unit` en ningún lado** (ni en `webhook()`, ni en `_activar_suscripcion()`, ni en ningún otro lugar). **Conclusión: este cambio NO afecta nuestra integración ni requiere ningún cambio de código** — solo importa si Daniel filtra/analiza manualmente esos reportes descargados por esa columna (en ese caso, de ahora en más las operaciones de PresupuestoPRO deberían figurar como `checkout_pro`, más preciso que el valor genérico anterior).
+- **Archivo tocado:** `routes/pagos.py` (solo copy/texto).
+- **Pendiente:** commitear vía Git Bash y deployar; revisar visualmente `/pagos/planes` y la pantalla de link de pago con el texto nuevo.
+  ```
+  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+  rm -f .git/index.lock
+  git add routes/pagos.py
+  git commit -m "fix: corregir copy de medios de pago en planes (Checkout Pro no ofrece transferencia bancaria)"
+  git push
+  ```
+
+### Sesión 08/07/2026 — Prueba gratis: mensaje duplicado + bug grave de facturación ⚠️ SIN COMMITEAR
+Daniel mandó 3 capturas del flujo real de un usuario de prueba con la prueba vencida por presupuestos (no por días). Encontré 3 cosas, la del medio es la más importante:
+
+1. **Mensaje duplicado en `/prueba-terminada`:** al intentar Editar con la prueba vencida, la página mostraba "Tu prueba gratis terminó" DOS veces — una vez arriba (banner rosa) y otra en la tarjeta. Misma causa que el duplicado del registro (sesión anterior): `utils/trial.py::trial_required` hacía `flash('Tu prueba gratis terminó...')` antes de redirigir a `/prueba-terminada`, que YA explica lo mismo con más detalle (`templates/trial_vencido.html`, dice el motivo exacto). Se sacó el `flash()`.
+
+2. **🔴 BUG GRAVE — `/pagos/planes` decía "Tu suscripción está activa hasta el 2026-07-22" a un usuario que NUNCA pagó nada, con la prueba vencida por presupuestos.** Causa: `subscription_expires` se usa para DOS cosas distintas sin distinguirlas — para cuentas de prueba guarda la fecha límite de la prueba (hoy+14 días al registrarse, seteada en `routes/landing.py::registro()`), y para cuentas pagas guarda el vencimiento real de la suscripción. `routes/pagos.py::planes()` comparaba esa fecha contra hoy sin mirar `es_trial`, así que CUALQUIER usuario de prueba (dentro de los 14 días, sea que ya gastó sus 3 presupuestos o no) veía "ya estás activo" y el botón cambiaba de "Pagar con Mercado Pago" a "Ir al Dashboard" — un loop sin salida: Dashboard lo bloquea → vuelve a Planes → dice que ya está activo → Dashboard de nuevo. **Esto rompía el cobro de cualquier trial que quisiera pagar antes del día 14.**
+   - Peor aún: encontré que **`_activar_suscripcion()` (el pago SÍ exitoso) nunca ponía `es_trial=0`** — o sea que incluso un usuario que pagara de verdad seguía siendo tratado como "de prueba" para siempre, y `trial_required` lo iba a volver a bloquear en cuanto pasaran los 3 presupuestos/14 días de su prueba original, PESE a tener una suscripción paga vigente.
+   - **Fix (2 partes):**
+     - `routes/pagos.py::planes()` y `::estado()`: `sub_activa` ahora es siempre `False` mientras `es_trial=1` — un usuario de prueba nunca ve "ya estás activo", siempre ve el botón de pago.
+     - `routes/pagos.py::_activar_suscripcion()`: el UPDATE de la activación ahora también pone `es_trial=0` — un pago real convierte la cuenta en paga de forma definitiva, dejando de estar sujeta a los límites de prueba.
+3. **Confirmado con Daniel:** en la captura, la prueba estaba vencida por los 3 presupuestos (no por los 14 días) — la pantalla de Planes no tiene que contemplar el plazo de 14 días para nada, solo si hay o no un pago real.
+
+**Archivos tocados:** `utils/trial.py`, `routes/pagos.py`.
+**Pendiente:** commitear vía Git Bash y deployar; probar con una cuenta de prueba con presupuestos agotados: (1) `/prueba-terminada` muestra el mensaje una sola vez; (2) `/pagos/planes` muestra el botón de pago, NO dice "ya activa"; (3) simular un pago (o revisar en Admin) y confirmar que tras `_activar_suscripcion` el usuario queda con `es_trial=0` y ya no lo bloquea `trial_required`.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add utils/trial.py routes/pagos.py
+git commit -m "fix: bienvenida duplicada en prueba-terminada + bug grave de facturacion (planes.html mentia sobre suscripcion activa)"
+git push
+```
+
+### Sesión 07/07/2026 (cont. 4) — Costo/m2: Beneficio/Seguros van SOLO sobre la MO ⚠️ SIN COMMITEAR
+**Corrige/reemplaza el criterio de la entrada "cont. 3" de abajo.** Daniel aclaró la regla de negocio real: Costo/m2 es una calculadora de referencia de **mano de obra** por unidad (con los materiales como dato aparte — cuánto hace falta y qué sale), y **solo en esta sección** (no en el presupuesto real, que sigue igual) Beneficio y Seguros se aplican **sobre la MO únicamente**, no sobre MO+Materiales.
+
+- **Ejemplo confirmado** (Mamp. ladrillo comun 30cm, jornales 80.000/40.000, Beneficio 10%, Seguros 7%): MO pura $35.250 → Beneficio $3.525 + Seguros $2.467,5 → **MO neta $41.243** (verificado con Python: 35250×1.17=41242.5).
+- **Fix:** en `routes/costo_m2.py`, `gg_monto`/`imp_monto` ahora se calculan sobre `mo_por_unit_display` solamente (antes: `mo_por_unit_display + total_mat_display`). `mo_neto = mo_por_unit_display + gg_monto + imp_monto`. `total_final = mo_neto + total_mat_display` (materiales sin adicionales). El presupuesto real (`routes/presupuesto.py`, `get_config_pct` + `_calcular_totales_finales`) **no se tocó** — sigue aplicando Beneficio/Seguros sobre MO+Materiales como siempre.
+- **JS (`templates/costo_m2/resultado.html`, `recalcAll()`):** `gg`/`imp` ahora se calculan como `moSim * pct_gg` / `moSim * pct_imp` (antes sobre `moSim + totalMat`).
+- **Archivos tocados:** `routes/costo_m2.py`, `templates/costo_m2/resultado.html`.
+- **Pendiente:** commitear vía Git Bash y deployar; probar con Mamp. ladrillo comun 30cm que la MO neta dé $41.243 con los valores default (jornales 80.000/40.000, Beneficio 10%, Seguros 7%), y que cambiar Beneficio/Seguros ya NO se vea afectado por el precio de los materiales.
+  ```
+  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+  rm -f .git/index.lock
+  git add routes/costo_m2.py templates/costo_m2/resultado.html
+  git commit -m "fix: Beneficio/Seguros en Costo/m2 se aplican solo sobre MO (no MO+Materiales)"
+  git push
+  ```
+
+### Sesión 07/07/2026 (cont. 3) — Costo/m2: sin TOTAL final + limpieza jornales duplicados ⚠️ SIN COMMITEAR
+Daniel señaló 2 cosas más sobre Costo/m2:
+1. En la lista de ítems (`costo_m2/index.html`) el header no quedaba fijo, y pidió sacar las líneas de Oficial/Ayudante de ahí — ya están (editables) en la ventana de resultado.
+2. Con el ejemplo de Mamp. ladrillo comun 30cm ($35.250 MO, jornales 80.000/40.000, Beneficio 10%/Seguros 7%): si sube Beneficio de 10% a 20%, "el precio" debería subir ~$7.500, pero el número que él mira ($35.250) no se mueve.
+
+**Investigado — punto 1:** confirmado código muerto. `costo_m2/index.html` tenía una tarjeta "Jornales diarios" (Oficial/Ayudante) que mandaba `jornal_of`/`jornal_ay` por querystring a `costo_m2.resultado` — pero `routes/costo_m2.py::resultado()` **nunca lee esos parámetros** (usa los de la tabla `config`). Quedó vestigial del diseño viejo (pre-05/07, cuando la MO sí se recalculaba con un jornal en pantalla). Se sacó la tarjeta y el JS que armaba esos parámetros; el header (título + subtítulo) ahora es `sticky-top`.
+
+**Investigado — punto 2 (el importante):** no es un bug de cálculo, es que **no existía un TOTAL que sumara todo**. La tarjeta azul de arriba es "MO / m2" a propósito puro (nunca incluyó Beneficio/Seguros — eso es correcto, es costo de mano de obra). Beneficio y Seguros solo se veían como montos sueltos y chicos en "Adicionales" (`a_gg`/`a_imp`, que SÍ se recalculaban bien al tocar el %) — pero como no había ningún número grande que los sumara a MO+Materiales, parecía que "no pasaba nada". Verificado con la cuenta de Daniel: MO $35.250 + MAT $38.200 = base $73.450; Beneficio 10%→20% = +$7.345 (coincide con "casi $7.500 más" que esperaba).
+- **Fix:** nueva tarjeta "TOTAL FINAL / {{ display_unit }}" (`card-total`, borde naranja) = MO + Materiales + Beneficio + Seguros, debajo de "Adicionales". Se recalcula en vivo con `recalcAll()` cada vez que se toca jornal, precio de un material, Beneficio % o Seguros %. `routes/costo_m2.py` ahora calcula y pasa `total_final` al template.
+- **Archivos tocados:** `templates/costo_m2/index.html` (limpieza + sticky), `templates/costo_m2/resultado.html` (tarjeta TOTAL + JS), `routes/costo_m2.py` (`total_final`).
+- **Pendiente:** commitear vía Git Bash y deployar; probar: (1) lista de ítems con header fijo al scrollear y sin las líneas de jornal viejas; (2) en resultado, subir Beneficio de 10% a 20% en el ejemplo de Mamp. ladrillo comun 30cm y confirmar que el TOTAL FINAL sube ~$7.345 (de a ~$85.937 a ~$93.282, con jornales/materiales default).
+  ```
+  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+  rm -f .git/index.lock
+  git add templates/costo_m2/index.html templates/costo_m2/resultado.html routes/costo_m2.py
+  git commit -m "fix: TOTAL final en Costo/m2 (Beneficio/Seguros no se reflejaban) + limpieza jornales duplicados"
+  git push
+  ```
+
+### Sesión 07/07/2026 (cont. 2) — Costo/m2: MO no reaccionaba al jornal + UI ⚠️ SIN COMMITEAR
+Daniel reportó con un caso concreto (Mampostería ladrillo común 30cm): cambiar el jornal no movía el precio de MO en Costo/m2. Pidió además: header fijo (sticky) hasta la línea de Ayudante con Oficial/Ayudante alineados verticalmente, que se indique "Jornales adoptados por usuario" (o poder editarlos ahí mismo con recálculo en vivo), y que Beneficio/Seguros también recalculen en vivo — igual que ya hacen los materiales.
+
+- **Causa raíz (bug de fondo, no solo de Costo/m2):** la fórmula `precio_mo_ars = hof×10000 + hay×5000` estaba hardcodeada en `_actualizar_mo_analisis()` (database.py) y en las migraciones 2h/2r — literalmente los valores default del jornal. **Nada en toda la app volvía a leer la tabla `config` y recalcular** después de la migración inicial. Resultado: cambiar el jornal en Admin > Precios, o el rendimiento HOF/HAY en Admin > Rendimientos, no modificaba el costo de MO de NINGÚN ítem — ni en Costo/m2 ni en un presupuesto nuevo. Esto es más grave que un bug de pantalla: significa que el jornal configurado en Admin era cosmético, no afectaba ningún cálculo real.
+- **Fix de fondo:** nueva función `recalcular_precio_mo_ars(db, jornal_of_dia=None, jornal_ay_dia=None)` en `database.py` — recalcula `items_obra.precio_mo_ars` para todos los ítems con HOF/HAY, usando los jornales pasados o los de `config` si no se pasan. Se llama desde `routes/admin.py`:
+  - `precios_actualizar()`: si se tocó el jornal, recalcula TODOS los ítems con el jornal nuevo.
+  - `rendimientos_actualizar()`: al tocar HOF/HAY de un ítem, recalcula con el jornal vigente.
+- **Costo/m2 (`templates/costo_m2/resultado.html`, `routes/costo_m2.py` sin cambios de backend):**
+  - Header + fila de jornales ahora en un bloque `position:sticky` (queda fijo arriba al scrollear el desglose de materiales).
+  - Jornales Oficial/Ayudante en un grid alineado verticalmente (antes texto corrido en una línea).
+  - Jornales vuelven a ser **editables** (label "Jornales adoptados por usuario"), pero solo para **simular en vivo** — no tocan la DB ni lo configurado en Admin (mismo criterio que el precio editable de cada material). Aparece un badge "simulado, no guarda" cuando se apartan del valor adoptado.
+  - JS `recalcAll()` reescrito: la MO ahora se recalcula en vivo a partir de HOF/HAY originales × jornal editado; Beneficio/Seguros siguen aplicándose sobre MO(en vivo)+Materiales, así que ahora si cambiás jornal, Beneficio o Seguros, TODO se mueve en cadena — igual que ya pasaba con el precio de los materiales.
+- **Nota importante:** este fix de fondo (`recalcular_precio_mo_ars`) va a cambiar precios de MO reales la primera vez que se guarde cualquier cambio en Admin > Precios o Admin > Rendimientos (hoy no cambia nada porque el jornal configurado coincide con el default hardcodeado 80000/40000 — recién se nota si Daniel edita esos valores). Los presupuestos YA GUARDADOS no se recalculan solos (mismo comportamiento que otros fixes de precios anteriores).
+- **Archivos tocados:** `database.py` (función nueva), `routes/admin.py` (2 funciones), `templates/costo_m2/resultado.html`.
+- **Pendiente:** commitear vía Git Bash y deployar; probar: (1) cambiar el jornal Oficial en Admin > Precios y confirmar que la MO de "Mamp. ladrillo comun 30cm" en Costo/m2 cambia; (2) en Costo/m2, editar los jornales ahí mismo y ver que la tarjeta azul de MO se mueve en vivo + aparece el badge "simulado"; (3) editar Beneficio/Seguros y confirmar que el monto se recalcula sobre la MO simulada + materiales; (4) confirmar visualmente el header sticky y la alineación Oficial/Ayudante en el celular.
+  ```
+  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+  rm -f .git/index.lock
+  git add database.py routes/admin.py templates/costo_m2/resultado.html
+  git commit -m "fix: MO en Costo/m2 no reaccionaba al jornal (config nunca se releia) + UI sticky/editable"
+  git push
+  ```
+
+### Sesión 07/07/2026 (cont.) — Fix: bienvenida duplicada al registrarse ⚠️ SIN COMMITEAR
+Daniel reportó (captura) que al entrar por primera vez aparecían 2 mensajes de bienvenida casi iguales: un alert gris dismissible ("¡Bienvenido, Jorge! Tenés 3 presupuestos gratis o 14 días...") arriba de todo, y la tarjeta naranja ("¡Bienvenido a PresupuestoPRO!...") de `dashboard.html` debajo — más el banner azul persistente de estado de prueba (ese es intencional, no es el duplicado).
+- **Causa:** `routes/landing.py::registro()` hacía `flash(...)` con un texto de bienvenida al crear la cuenta; ese flash se renderiza en `base.html` (alert Bootstrap dismissible) en la primera carga del dashboard — al mismo tiempo que `mostrar_bienvenida_trial` (tarjeta naranja, más completa) se dispara por primer login. Resultado: 2 carteles con el mismo mensaje.
+- **Fix:** se sacó el `flash(...)` de `registro()` (y el import `flash` que quedó sin uso) — queda solo la tarjeta naranja de `dashboard.html`, que además explica más (Costo/m², PDFs sin límite). El banner azul persistente de estado de prueba no se tocó.
+- **Archivo tocado:** `routes/landing.py`.
+- **Pendiente:** commitear vía Git Bash y deployar; probar registrando una cuenta nueva y confirmar que ahora aparece un solo cartel de bienvenida (naranja) + el banner azul de estado.
+  ```
+  cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+  rm -f .git/index.lock
+  git add routes/landing.py
+  git commit -m "fix: unificar mensaje de bienvenida duplicado al registrarse"
+  git push
+  ```
+
+### Sesión 07/07/2026 — Campaña de lanzamiento: prueba gratis ✅ COMMITEADA Y PUSHEADA
+Feature completa implementada, verificada con Read tool. **Confirmado commit + push** el 07/07 21:26 ART vía `git fetch origin main` (commit `86f9260`, idéntico en local y en GitHub) — la más grande de la app hasta ahora.
 
 **Regla de negocio:** 3 presupuestos completos guardados O 14 días desde el alta, lo que se cumpla primero. Solo afecta cuentas nuevas con `es_trial=1` (alta por `/registro`); cuentas existentes/admin quedan en `es_trial=0`, sin cambios.
 
@@ -299,9 +458,9 @@ Feature completa implementada, verificada con Read tool, **pendiente de git** (l
 - Decoradores `@trial_required` están después de `@login_required` en los 5 endpoints gateados (`nuevo`, `editar`, `costo_m2.index`, `costo_m2.resultado`, `pdf.propietario_preview`, `pdf.propietario`, `pdf.constructor` — 7 en total).
 
 **Pendiente:**
-- ⚠️ Commitear TODO lo de esta sesión (ver comandos git al final de esta actualización).
-- Confirmar en producción que `journal_mode=WAL` (sesión 06/07) no dio "disk I/O error" real en el volumen de Railway — si pasa, revertir a `DELETE` en `database.py`.
-- Sin resolver: el `.git/index.lock` recurrente que Daniel reportó ("No deployo") — verificar si sigue pasando al intentar este commit grande.
+- [x] ~~Commitear TODO lo de esta sesión~~ ✅ hecho, push confirmado (ver nota arriba).
+- [ ] Confirmar en producción que `journal_mode=WAL` (sesión 06/07) no dio "disk I/O error" real en el volumen de Railway — si pasa, revertir a `DELETE` en `database.py`.
+- [ ] Probar en producción (post-deploy): alta por `/registro`, contador de 3 presupuestos / 14 días, bloqueo suave en `/prueba-terminada`.
 - Ideal a futuro: mostrar `es_trial`/estado de prueba en `/admin/usuarios` (no pedido explícitamente todavía).
 
 ### Sesión 06/07/2026 — Reply-To notificaciones + limpieza landing vieja

@@ -92,7 +92,10 @@ def registro():
     # duplicaba el cartel "¡Bienvenido a PresupuestoPRO!" que ya muestra
     # dashboard.html (mostrar_bienvenida_trial) en el primer login, con más
     # detalle (Costo/m2, PDFs, etc.). Un solo mensaje de bienvenida, no dos.
-    return redirect(url_for('dashboard.index'))
+    # Fix 08/07/2026: se agrega ?nuevo_registro=1 para que dashboard.html
+    # dispare fbq('track','CompleteRegistration') una sola vez (Meta Pixel,
+    # campaña de lanzamiento) — ver templates/dashboard.html bloque scripts.
+    return redirect(url_for('dashboard.index', nuevo_registro=1))
 
 
 def _notificar_registro(nombre, apellido, telefono, email, ciudad, provincia):

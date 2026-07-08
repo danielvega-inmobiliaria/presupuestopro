@@ -159,3 +159,17 @@
 {% endif %}
 
 {% endblock %}
+
+{% block scripts %}
+{% if request.args.get('nuevo_registro') %}
+<!-- Fix 08/07/2026: dispara CompleteRegistration del Meta Pixel una sola vez,
+     justo después del alta exitosa en /registro (ver routes/landing.py, que
+     agrega ?nuevo_registro=1 al redirect). No se pone en registro.html porque
+     esa vista redirige directo al dashboard sin pantalla intermedia. -->
+<script>
+  if (typeof fbq === 'function') {
+    fbq('track', 'CompleteRegistration');
+  }
+</script>
+{% endif %}
+{% endblock %}
