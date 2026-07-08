@@ -129,8 +129,13 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
         base = hoy
     nueva_exp = base + timedelta(days=30 * meses)
 
+    # Fix 07/07/2026: se agrega es_trial=0 — un pago real convierte la cuenta
+    # de prueba en cuenta paga de forma definitiva. Antes quedaba es_trial=1
+    # para siempre, así que get_trial_status()/trial_required() lo seguían
+    # bloqueando (por los 3 presupuestos o los 14 días) aunque ya hubiera
+    # pagado, y /pagos/planes seguía sin reconocer la suscripción como activa.
     db.execute(
-        "UPDATE users SET active=1, subscription_expires=?, mp_preapproval_id=? WHERE id=?",
+        "UPDATE users SET active=1, subscription_expires=?, mp_preapproval_id=?, es_trial=0 WHERE id=?",
         (nueva_exp.isoformat(), payment_id, user_id)
     )
     db.execute("""
@@ -198,7 +203,16 @@ def planes():
 
     sub_activa = False
     sub_expires = None
-    if user and user['subscription_expires']:
+    # Fix 07/07/2026: en cuentas de prueba (es_trial=1), `subscription_expires`
+    # guarda la FECHA LÍMITE DE LA PRUEBA (hoy+14 días al registrarse), no una
+    # suscripción paga — antes esta pantalla comparaba esa fecha contra hoy y
+    # mostraba "Tu suscripción está activa hasta..." aunque el usuario nunca
+    # pagó nada (y aunque ya se le haya vencido la prueba por los 3
+    # presupuestos, antes de llegar al día 14). Mientras es_trial=1, nunca se
+    # considera "activa" acá — siempre se muestra el botón para pagar. Una vez
+    # que paga de verdad, _activar_suscripcion() pone es_trial=0 y a partir de
+    # ahí sí vale la fecha de subscription_expires.
+    if user and not user['es_trial'] and user['subscription_expires']:
         try:
             sub_expires = datetime.strptime(user['subscription_expires'], '%Y-%m-%d').date()
             sub_activa = sub_expires >= date.today() and bool(user['active'])
@@ -503,7 +517,11 @@ def estado():
     dias_restantes = 0
     expires = None
 
-    if user and user['subscription_expires']:
+    # Fix 07/07/2026: mismo criterio que planes() — mientras es_trial=1,
+    # subscription_expires es la fecha límite de la prueba, no una suscripción
+    # paga (este endpoint no está en uso desde ningún template hoy, se corrige
+    # igual por las dudas de que se conecte a futuro).
+    if user and not user['es_trial'] and user['subscription_expires']:
         try:
             exp = datetime.strptime(user['subscription_expires'], '%Y-%m-%d').date()
             expires = exp.isoformat()

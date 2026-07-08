@@ -9,7 +9,7 @@ casilla de prueba, y cualquier cuenta con es_trial=0, no tienen límite acá
 """
 from datetime import datetime
 from functools import wraps
-from flask import g, redirect, url_for, flash
+from flask import g, redirect, url_for
 from database import get_db
 
 TRIAL_MAX_PRESUPUESTOS = 3
@@ -59,7 +59,10 @@ def trial_required(f):
     def decorated(*args, **kwargs):
         ts = get_trial_status(g.user)
         if ts['vencido']:
-            flash('Tu prueba gratis terminó. Suscribite para seguir usando esta función.', 'error')
+            # Fix 07/07/2026: se sacó el flash() de acá — quedaba duplicado con
+            # el mensaje "Tu prueba gratis terminó" que ya muestra, más
+            # completo, templates/trial_vencido.html (dice el motivo exacto:
+            # presupuestos agotados o días vencidos).
             return redirect(url_for('dashboard.trial_vencido'))
         return f(*args, **kwargs)
     return decorated
