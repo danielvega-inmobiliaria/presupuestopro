@@ -100,11 +100,6 @@
     .section-sub { color:#64748b; font-size:1rem; }
     .badge-gratis { background:#dcfce7; color:#166534; border-radius:6px; padding:3px 12px; font-size:.85rem; font-weight:600; }
 
-    /* MODAL */
-    .modal-inscripcion .modal-header { background:var(--azul); color:#fff; }
-    .modal-inscripcion .modal-title i { color:var(--naranja); }
-    .success-box { display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:24px; text-align:center; }
-    .success-box.show { display:block; }
   </style>
 </head>
 <body>
@@ -117,7 +112,7 @@
     </a>
     <div class="d-flex gap-2">
       <a href="/login" class="btn btn-outline-blanco btn-sm">Iniciar sesión</a>
-      <button class="btn btn-naranja btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">PROBALA GRATIS</button>
+      <a href="{{ url_for('landing.registro') }}" class="btn btn-naranja btn-sm fw-bold">PROBALA GRATIS</a>
     </div>
   </div>
 </nav>
@@ -131,9 +126,9 @@
         <h1>De los metros<br>a los <span>pesos</span>,<br>en minutos.</h1>
         <p class="mt-3 mb-4">Ingresás las cantidades de obra y PresupuestoPRO calcula solo los materiales, la mano de obra, el cuadro de pagos y genera el PDF con tu logo para el cliente.</p>
         <div class="d-flex flex-wrap gap-3">
-          <button class="btn btn-naranja btn-lg fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+          <a href="{{ url_for('landing.registro') }}" class="btn btn-naranja btn-lg fw-bold">
             <i class="bi bi-rocket-takeoff me-1"></i> PROBALA GRATIS
-          </button>
+          </a>
           <a href="#como-funciona" class="btn btn-outline-blanco btn-lg">Ver cómo funciona</a>
         </div>
         <p class="mt-4 mb-0" style="color:#6b9cc4;font-size:.875rem;">
@@ -579,9 +574,9 @@
         </div>
 
         <div class="text-center mt-4">
-          <button class="btn btn-naranja btn-lg px-5" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+          <a href="{{ url_for('landing.registro') }}" class="btn btn-naranja btn-lg px-5">
             <i class="bi bi-rocket-takeoff me-1"></i> Empezar gratis — creá tu primer presupuesto
-          </button>
+          </a>
           <p class="text-muted mt-2 mb-0" style="font-size:.82rem;">
             <i class="bi bi-info-circle me-1"></i>El logo y los datos se cargan desde tu perfil. Los cambiás cuando quieras.
           </p>
@@ -708,9 +703,9 @@
       <div class="mb-3">
         <span class="badge-gratis"><i class="bi bi-gift me-1"></i> Primeros usuarios: acceso gratuito</span>
       </div>
-      <button class="btn btn-naranja btn-lg px-5 fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+      <a href="{{ url_for('landing.registro') }}" class="btn btn-naranja btn-lg px-5 fw-bold">
         <i class="bi bi-rocket-takeoff me-1"></i> PROBALA GRATIS
-      </button>
+      </a>
     </div>
   </div>
 </section>
@@ -720,9 +715,9 @@
   <div class="container">
     <h2>¿Listo para presupuestar como un profesional?</h2>
     <p class="mt-2 mb-4">Materiales calculados. Precios actualizados. Ganancia real. PDF con tu marca. En minutos.</p>
-    <button class="btn btn-naranja btn-lg px-5 fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">
+    <a href="{{ url_for('landing.registro') }}" class="btn btn-naranja btn-lg px-5 fw-bold">
       <i class="bi bi-rocket-takeoff me-1"></i> PROBALA GRATIS
-    </button>
+    </a>
   </div>
 </section>
 
@@ -735,80 +730,19 @@
     </div>
     <div class="d-flex align-items-center gap-3">
       <a href="/login">Iniciar sesión</a>
-      <button class="btn btn-naranja btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalInscripcion">PROBALA GRATIS</button>
+      <a href="{{ url_for('landing.registro') }}" class="btn btn-naranja btn-sm fw-bold">PROBALA GRATIS</a>
     </div>
   </div>
 </footer>
 
-<!-- MODAL INSCRIPCIÓN -->
-<div class="modal fade modal-inscripcion" id="modalInscripcion" tabindex="-1" aria-labelledby="modalInscripcionLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="modalInscripcionLabel">
-          <i class="bi bi-person-plus-fill me-2"></i> Quiero registrarme en PresupuestoPRO
-        </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-      </div>
-      <div class="modal-body p-4">
-
-        <!-- Formulario -->
-        <div id="formInscripcion">
-          <p class="text-muted mb-3" style="font-size:.9rem;">Completá tus datos y te enviamos el acceso en minutos.</p>
-          <div class="row g-3">
-            <div class="col-6">
-              <label class="form-label fw-600 small">Nombre <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="inpNombre" placeholder="Carlos">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-600 small">Apellido <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="inpApellido" placeholder="García">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-600 small">Teléfono / WhatsApp <span class="text-danger">*</span></label>
-              <input type="tel" class="form-control" id="inpTelefono" placeholder="11 5555-0000">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-600 small">Email</label>
-              <input type="email" class="form-control" id="inpEmail" placeholder="carlos@empresa.com">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-600 small">Ciudad <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="inpCiudad" placeholder="Buenos Aires">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-600 small">Provincia <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="inpProvincia" placeholder="Buenos Aires">
-            </div>
-          </div>
-          <div id="errInscripcion" class="text-danger small mt-2" style="display:none;"></div>
-          <div class="mt-4 d-grid">
-            <button class="btn btn-naranja btn-lg" onclick="enviarInscripcion()">
-              <i class="bi bi-send me-1"></i> Enviar
-            </button>
-          </div>
-          <p class="text-center text-muted mt-3 mb-0" style="font-size:.8rem;">
-            <i class="bi bi-lock-fill me-1"></i> Tus datos son confidenciales y no se comparten con terceros.
-          </p>
-        </div>
-
-        <!-- Mensaje de éxito -->
-        <div class="success-box" id="successInscripcion">
-          <div style="font-size:3rem;">🎉</div>
-          <h5 class="text-success mt-2 mb-3">Registrado con éxito</h5>
-          <p class="text-muted mb-3">
-            En breve te activamos la cuenta por <strong>WhatsApp o email</strong>.<br>
-            <strong>Tu acceso es gratuito.</strong>
-          </p>
-          <div class="d-flex justify-content-center gap-2 flex-wrap">
-            <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Fix 08/07/2026: se sacó el modal viejo de "Inscripción" (activación manual
+     por WhatsApp/email) — todos los botones de "Probá gratis" de la página
+     apuntan ahora directo a /registro (alta instantánea, prueba gratis de
+     3 presupuestos o 14 días). Ver caso Ricardo Jordan en PROYECTO.md: este
+     modal posteaba a /inscripcion, guardaba en una tabla `leads` que ni
+     siquiera existía en producción, y el JS mostraba "éxito" igual aunque
+     fallara todo — dejaba usuarios reales sin acceso y sin que nadie se
+     enterara. -->
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -856,52 +790,6 @@ document.addEventListener('DOMContentLoaded', function() {
 .phone-tab:hover { background:rgba(255,255,255,.15); }
 </style>
 <script>
-function enviarInscripcion() {
-  const nombre   = document.getElementById('inpNombre').value.trim();
-  const apellido = document.getElementById('inpApellido').value.trim();
-  const telefono = document.getElementById('inpTelefono').value.trim();
-  const ciudad   = document.getElementById('inpCiudad').value.trim();
-  const provincia= document.getElementById('inpProvincia').value.trim();
-  const err      = document.getElementById('errInscripcion');
-
-  if (!nombre || !apellido || !telefono || !ciudad || !provincia) {
-    err.textContent = 'Por favor completá los campos obligatorios (*)';
-    err.style.display = 'block';
-    return;
-  }
-  err.style.display = 'none';
-
-  // Deshabilitar botón para evitar doble envío
-  const btn = document.querySelector('#formInscripcion .btn-naranja');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
-
-  // Construir payload
-  const email = document.getElementById('inpEmail').value.trim();
-  const datos = { nombre, apellido, telefono, email, ciudad, provincia };
-
-  // Intentar POST a /inscripcion (si existe en el servidor)
-  fetch('/inscripcion', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(datos)
-  })
-  .then(r => { mostrarExito(); })
-  .catch(e => { mostrarExito(); }); // Igual mostrar éxito (el endpoint puede no existir aún)
-}
-
-function mostrarExito() {
-  document.getElementById('formInscripcion').style.display = 'none';
-  document.getElementById('successInscripcion').classList.add('show');
-  // Reset para próxima apertura
-  setTimeout(() => {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalInscripcion'));
-    if (modal) {
-      document.getElementById('modalInscripcion').addEventListener('hidden.bs.modal', resetModal, { once: true });
-    }
-  }, 100);
-}
-
 /* ── PDF DEMO INTERACTIVO ── */
 var logoUploaded = false;
 
@@ -970,16 +858,6 @@ function loadLogo(event) {
   reader.readAsDataURL(file);
 }
 
-function resetModal() {
-  document.getElementById('formInscripcion').style.display = 'block';
-  document.getElementById('successInscripcion').classList.remove('show');
-  ['inpNombre','inpApellido','inpTelefono','inpEmail','inpCiudad','inpProvincia'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  const btn = document.querySelector('#formInscripcion .btn-naranja');
-  btn.disabled = false;
-  btn.innerHTML = '<i class="bi bi-send me-1"></i> Enviar';
-}
 </script>
 </body>
 </html>
