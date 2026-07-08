@@ -259,7 +259,7 @@ def planes():
             <li>PDF profesional</li>
             <li>Analisis de costos</li>
             <li>Multi-moneda</li>
-            <li>Paga con cualquier billetera o tarjeta</li>
+            <li>Paga con dinero en cuenta, tarjeta debito/credito o Rapipago/Pago Facil</li>
           </ul>
           {% if not sub_activa %}
           <form method="POST" action="/pagos/crear-suscripcion">
@@ -277,7 +277,7 @@ def planes():
 
   <p class="text-center mt-4 text-muted small">
     Pagos seguros procesados por Mercado Pago.<br>
-    Podes pagar con cualquier tarjeta, billetera digital o efectivo.
+    Podes pagar con dinero en cuenta, tarjeta de debito/credito o efectivo en Rapipago/Pago Facil.
   </p>
 </div>
 </body>
@@ -374,7 +374,7 @@ def crear_suscripcion():
     </a>
 
     <p class="text-center text-muted mt-3" style="font-size:.78rem">
-      Aceptamos tarjetas, saldo Mercado Pago, transferencia bancaria y efectivo (Rapipago / Pagofacil)
+      Aceptamos tarjetas de debito/credito, dinero en cuenta de Mercado Pago y efectivo (Rapipago / Pago Facil)
     </p>
   </div>
 </div>
