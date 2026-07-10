@@ -114,6 +114,7 @@
               <input type="text" name="como_nos_conocio_otro" id="como-conocio-otro" class="form-control">
             </div>
             <div class="col-12">
+              {% if whatsapp_disponible %}
               <label class="form-label small d-block">¿Cómo preferís validar tu cuenta?</label>
               <div class="form-check form-check-inline">
                 <input class="form-check-input" type="radio" name="metodo_verificacion" id="metodo-email"
@@ -125,6 +126,14 @@
                        value="whatsapp" {% if prev and prev.metodo_verificacion == 'whatsapp' %}checked{% endif %}>
                 <label class="form-check-label small" for="metodo-whatsapp">Por WhatsApp</label>
               </div>
+              {% else %}
+              <!-- Fix 10/07/2026: opción WhatsApp oculta hasta tener
+                   WHATSAPP_TOKEN/WHATSAPP_PHONE_ID configurados en Railway
+                   (ver utils/verificacion.py::whatsapp_configurado). Mientras
+                   tanto, todos validan por email sin que el usuario tenga
+                   que elegir un canal que en la práctica no funciona. -->
+              <input type="hidden" name="metodo_verificacion" value="email">
+              {% endif %}
             </div>
             <div class="col-12">
               <label class="form-label small">Contraseña * <span class="text-muted">(mín. 6 caracteres)</span></label>

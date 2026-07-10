@@ -123,6 +123,16 @@ def enviar_codigo_email(email, nombre, codigo):
         return False
 
 
+def whatsapp_configurado():
+    """True si WHATSAPP_TOKEN y WHATSAPP_PHONE_ID están cargados en Railway.
+    Agregado 10/07/2026: se usa para ocultar la opción 'Por WhatsApp' en el
+    registro mientras el trámite de Meta no esté listo, evitando que alguien
+    la elija y quede en un canal que todavía no manda nada real. El día que
+    Daniel cargue esas dos variables en Railway, la opción vuelve a aparecer
+    sola — no hace falta tocar código de nuevo."""
+    return bool(os.environ.get('WHATSAPP_TOKEN') and os.environ.get('WHATSAPP_PHONE_ID'))
+
+
 def enviar_codigo_whatsapp(telefono, codigo):
     """Manda el código por WhatsApp Business Platform (Meta Cloud API).
     Devuelve False (sin excepción) si falta configurar las credenciales o si

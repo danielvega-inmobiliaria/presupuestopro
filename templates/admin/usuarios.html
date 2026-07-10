@@ -131,6 +131,13 @@
                 <i class="bi bi-whatsapp"></i>
               </a>
               {% endif %}
+              <form method="POST"
+                    action="{{ url_for('admin.usuario_eliminar', uid=u.id) }}"
+                    onsubmit="return confirm('¿Eliminar definitivamente a {{ u.email|e }}? Esto borra también sus presupuestos, suscripciones y demás datos asociados. No se puede deshacer.')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar usuario">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>

@@ -227,6 +227,37 @@ def usuario_editar(uid):
     db.close()
     return render_template('admin/usuario_form.html', u=u, user=g.user)
 
+@bp.route('/usuarios/<int:uid>/eliminar', methods=['POST'])
+@admin_required
+def usuario_eliminar(uid):
+    """Borra un usuario y todo lo asociado. Agregado 10/07/2026 — pedido de
+    Daniel para poder limpiar las cuentas ficticias/de prueba que va cargando
+    mientras testea el flujo de validación de cuenta, sin tener que pedirle
+    a un dev que lo haga a mano en la base. Irreversible: borra en cascada
+    presupuestos, suscripciones, consultas de costo/m2, sugerencias, perfil
+    de empresa, tokens de reset de password y códigos de verificación del
+    usuario, antes de borrar la fila de users."""
+    db = get_db()
+    u = db.execute("SELECT email, nombre, is_admin FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        db.close()
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('admin.usuarios'))
+    if u['is_admin']:
+        db.close()
+        flash('No se puede eliminar una cuenta de administrador desde acá.', 'error')
+        return redirect(url_for('admin.usuarios'))
+
+    for tabla in ('presupuestos', 'suscripciones', 'costo_m2_consultas', 'sugerencias',
+                  'empresa_perfil', 'password_reset_tokens', 'verificacion_codigos'):
+        db.execute(f"DELETE FROM {tabla} WHERE user_id=?", (uid,))
+    db.execute("DELETE FROM users WHERE id=?", (uid,))
+    db.commit()
+    db.close()
+    flash(f"Usuario {u['email']} eliminado.", 'success')
+    return redirect(url_for('admin.usuarios'))
+
+
 @bp.route('/usuarios/<int:uid>/enviar-activacion', methods=['POST'])
 @admin_required
 def usuario_enviar_activacion(uid):

@@ -30,6 +30,7 @@ from utils.normalizacion import PROVINCIAS_AR, clave_normalizada, telefono_norma
 from utils.verificacion import (
     crear_codigo, enviar_codigo_email, enviar_codigo_whatsapp,
     validar_codigo, verificacion_activa, get_verificacion_status,
+    whatsapp_configurado,
 )
 
 bp = Blueprint('landing', __name__)
@@ -102,7 +103,8 @@ def registro():
                                 max_dias=TRIAL_MAX_DIAS,
                                 provincias=PROVINCIAS_AR,
                                 como_opciones=COMO_NOS_CONOCIO_OPCIONES,
-                                localidades=localidades)
+                                localidades=localidades,
+                                whatsapp_disponible=whatsapp_configurado())
 
     f = request.form
     nombre    = f.get('nombre', '').strip()
@@ -128,7 +130,8 @@ def registro():
                                 max_dias=TRIAL_MAX_DIAS,
                                 provincias=PROVINCIAS_AR,
                                 como_opciones=COMO_NOS_CONOCIO_OPCIONES,
-                                localidades=[])
+                                localidades=[],
+                                whatsapp_disponible=whatsapp_configurado())
 
     if not nombre or not apellido or not email or not password:
         return _error("Completá los campos obligatorios.")
@@ -212,6 +215,19 @@ def registro():
             enviado = enviar_codigo_email(email, nombre, codigo)
         if not enviado:
             logger.error(f"[Registro] No se pudo enviar código de verificación a {email}")
+        # Fix 10/07/2026: si hubo fallback whatsapp->email, persistir el canal
+        # real en la DB. Si no se actualiza, get_verificacion_status() sigue
+        # leyendo 'whatsapp' de users.metodo_verificacion y la pantalla de
+        # validar-cuenta muestra el mensaje equivocado ("te mandamos por
+        # WhatsApp") Y compara el código ingresado contra canal='whatsapp' en
+        # vez de 'email' — el código correcto (el que llegó por mail) queda
+        # imposible de validar. Bug detectado por Daniel probando en
+        # producción 10/07/2026.
+        if canal_real != metodo_verif:
+            db_canal = get_db()
+            db_canal.execute("UPDATE users SET metodo_verificacion=? WHERE id=?", (canal_real, user_id))
+            db_canal.commit()
+            db_canal.close()
 
     login_user(user_id)
     # Nota 07/07/2026: se saca el flash() de bienvenida de acá a propósito —
@@ -245,6 +261,12 @@ def validar_cuenta():
                     codigo = crear_codigo(g.user['id'], 'email')
                     enviado = enviar_codigo_email(g.user['email'], g.user['nombre'], codigo)
                     status['metodo'] = 'email'
+                    # Fix 10/07/2026 (mismo bug que en registro()): persistir
+                    # el fallback a email, si no queda desincronizado con la DB.
+                    db_canal = get_db()
+                    db_canal.execute("UPDATE users SET metodo_verificacion='email' WHERE id=?", (g.user['id'],))
+                    db_canal.commit()
+                    db_canal.close()
             else:
                 enviado = enviar_codigo_email(g.user['email'], g.user['nombre'], codigo)
             ok_reenvio = "Te reenviamos el código." if enviado else "No pudimos reenviar el código, probá de nuevo en un rato."
