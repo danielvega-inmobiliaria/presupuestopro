@@ -34,6 +34,7 @@ from database import get_db
 from routes.presupuesto import _calcular_materiales_desde_rubros, get_config_pct
 from utils.auth import login_required
 from utils.trial import trial_required
+from utils.verificacion import verificacion_required
 
 # 05/07/2026: se registra cada consulta a esta calculadora en costo_m2_consultas,
 # para que el panel admin de usuarios pueda mostrar cuántas veces consultó cada uno.
@@ -47,6 +48,7 @@ JORNAL_DIA_AY_DEF = 40000
 
 @bp.route('/')
 @login_required
+@verificacion_required
 @trial_required
 def index():
     db = get_db()
@@ -67,6 +69,7 @@ def index():
 
 @bp.route('/resultado')
 @login_required
+@verificacion_required
 @trial_required
 def resultado():
     item_id = request.args.get('item_id', type=int)

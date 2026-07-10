@@ -21,22 +21,71 @@ import os
 from datetime import date, timedelta
 import resend
 from werkzeug.security import generate_password_hash
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, g, redirect, render_template, request, url_for
 
 from database import get_db
-from utils.auth import login_user
+from utils.auth import login_user, login_required
 from utils.trial import TRIAL_MAX_DIAS, TRIAL_MAX_PRESUPUESTOS
+from utils.normalizacion import PROVINCIAS_AR, clave_normalizada
+from utils.verificacion import (
+    crear_codigo, enviar_codigo_email, enviar_codigo_whatsapp,
+    validar_codigo, verificacion_activa, get_verificacion_status,
+)
 
 bp = Blueprint('landing', __name__)
 logger = logging.getLogger(__name__)
+
+COMO_NOS_CONOCIO_OPCIONES = [
+    'Facebook', 'Instagram', 'Recomendación de alguien', 'Búsqueda en Google', 'Otro',
+]
+
+
+def _guardar_localidad(ciudad_libre, provincia):
+    """Agrupa `ciudad_libre` contra lo ya cargado por otros usuarios (misma
+    clave normalizada = mismo lugar) y devuelve el nombre a guardar en
+    users.ciudad: si ya existía, reusa la grafía canónica; si es nueva, usa
+    tal cual la escribió este usuario y queda como canónica para el próximo."""
+    ciudad_libre = (ciudad_libre or '').strip()
+    if not ciudad_libre:
+        return ''
+    clave = clave_normalizada(ciudad_libre)
+    if not clave:
+        return ciudad_libre
+    db = get_db()
+    existente = db.execute(
+        "SELECT nombre_display FROM localidades WHERE clave_normalizada=?", (clave,)
+    ).fetchone()
+    if existente:
+        db.execute(
+            "UPDATE localidades SET veces_usada = veces_usada + 1 WHERE clave_normalizada=?",
+            (clave,)
+        )
+        db.commit()
+        db.close()
+        return existente['nombre_display']
+    db.execute(
+        "INSERT INTO localidades (clave_normalizada, nombre_display, provincia, veces_usada) VALUES (?,?,?,1)",
+        (clave, ciudad_libre, provincia or '')
+    )
+    db.commit()
+    db.close()
+    return ciudad_libre
 
 
 @bp.route('/registro', methods=['GET', 'POST'])
 def registro():
     if request.method == 'GET':
+        db = get_db()
+        localidades = [r['nombre_display'] for r in db.execute(
+            "SELECT nombre_display FROM localidades ORDER BY veces_usada DESC LIMIT 500"
+        ).fetchall()]
+        db.close()
         return render_template('registro.html',
                                 max_presupuestos=TRIAL_MAX_PRESUPUESTOS,
-                                max_dias=TRIAL_MAX_DIAS)
+                                max_dias=TRIAL_MAX_DIAS,
+                                provincias=PROVINCIAS_AR,
+                                como_opciones=COMO_NOS_CONOCIO_OPCIONES,
+                                localidades=localidades)
 
     f = request.form
     nombre    = f.get('nombre', '').strip()
@@ -46,35 +95,60 @@ def registro():
     ciudad    = f.get('ciudad', '').strip()
     provincia = f.get('provincia', '').strip()
     password  = f.get('password', '')
+    como_conocio       = f.get('como_nos_conocio', '').strip()
+    como_conocio_otro  = f.get('como_nos_conocio_otro', '').strip()
+    metodo_verif       = f.get('metodo_verificacion', 'email').strip()
+    if metodo_verif not in ('email', 'whatsapp'):
+        metodo_verif = 'email'
 
     prev = dict(nombre=nombre, apellido=apellido, telefono=telefono,
-                email=email, ciudad=ciudad, provincia=provincia)
+                email=email, ciudad=ciudad, provincia=provincia,
+                como_nos_conocio=como_conocio, metodo_verificacion=metodo_verif)
 
     def _error(msg):
         return render_template('registro.html', error=msg, prev=prev,
                                 max_presupuestos=TRIAL_MAX_PRESUPUESTOS,
-                                max_dias=TRIAL_MAX_DIAS)
+                                max_dias=TRIAL_MAX_DIAS,
+                                provincias=PROVINCIAS_AR,
+                                como_opciones=COMO_NOS_CONOCIO_OPCIONES,
+                                localidades=[])
 
     if not nombre or not apellido or not email or not password:
         return _error("Completá los campos obligatorios.")
     if len(password) < 6:
         return _error("La contraseña debe tener al menos 6 caracteres.")
+    if metodo_verif == 'whatsapp' and not telefono:
+        return _error("Para validar por WhatsApp necesitamos tu teléfono.")
+
+    if como_conocio == 'Otro' and como_conocio_otro:
+        como_conocio_final = f"Otro: {como_conocio_otro}"
+    else:
+        como_conocio_final = como_conocio
 
     db = get_db()
     existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
     if existing:
         db.close()
         return _error("Ya existe una cuenta con ese email. Iniciá sesión en vez de registrarte de nuevo.")
+    db.close()
 
+    # Localidad: agrupa contra lo ya cargado por otros usuarios (ver docstring
+    # de _guardar_localidad). Provincia ya viene de una lista cerrada (select
+    # en registro.html), no necesita normalización.
+    ciudad_final = _guardar_localidad(ciudad, provincia)
+
+    db = get_db()
     try:
         password_hash = generate_password_hash(password)
         vence = (date.today() + timedelta(days=TRIAL_MAX_DIAS)).isoformat()
         cursor = db.execute(
             """INSERT INTO users
                (email, password_hash, nombre, apellido, telefono, ciudad, provincia,
-                pais, active, es_trial, trial_visto, subscription_expires)
-               VALUES (?,?,?,?,?,?,?,?,1,1,0,?)""",
-            (email, password_hash, nombre, apellido, telefono, ciudad, provincia, 'AR', vence)
+                pais, active, es_trial, trial_visto, subscription_expires,
+                como_nos_conocio, metodo_verificacion)
+               VALUES (?,?,?,?,?,?,?,?,1,1,0,?,?,?)""",
+            (email, password_hash, nombre, apellido, telefono, ciudad_final, provincia,
+             'AR', vence, como_conocio_final, metodo_verif)
         )
         user_id = cursor.lastrowid
         db.commit()
@@ -85,7 +159,26 @@ def registro():
         return _error("Error al crear la cuenta. Intentá de nuevo.")
     db.close()
 
-    _notificar_registro(nombre, apellido, telefono, email, ciudad, provincia)
+    _notificar_registro(nombre, apellido, telefono, email, ciudad_final, provincia)
+
+    # Validación de cuenta (fix 10/07/2026): si está activada, mandamos el
+    # código ya mismo por el canal elegido. WhatsApp cae a email automático
+    # si todavía no están las credenciales de Meta configuradas (ver
+    # utils/verificacion.py::enviar_codigo_whatsapp).
+    if verificacion_activa():
+        canal_real = metodo_verif
+        codigo = crear_codigo(user_id, canal_real)
+        enviado = False
+        if canal_real == 'whatsapp':
+            enviado = enviar_codigo_whatsapp(telefono, codigo)
+            if not enviado:
+                canal_real = 'email'
+                codigo = crear_codigo(user_id, canal_real)
+                enviado = enviar_codigo_email(email, nombre, codigo)
+        else:
+            enviado = enviar_codigo_email(email, nombre, codigo)
+        if not enviado:
+            logger.error(f"[Registro] No se pudo enviar código de verificación a {email}")
 
     login_user(user_id)
     # Nota 07/07/2026: se saca el flash() de bienvenida de acá a propósito —
@@ -95,7 +188,41 @@ def registro():
     # Fix 08/07/2026: se agrega ?nuevo_registro=1 para que dashboard.html
     # dispare fbq('track','CompleteRegistration') una sola vez (Meta Pixel,
     # campaña de lanzamiento) — ver templates/dashboard.html bloque scripts.
+    if verificacion_activa():
+        return redirect(url_for('landing.validar_cuenta'))
     return redirect(url_for('dashboard.index', nuevo_registro=1))
+
+
+@bp.route('/validar-cuenta', methods=['GET', 'POST'])
+@login_required
+def validar_cuenta():
+    status = get_verificacion_status(g.user)
+    if status['verificado']:
+        return redirect(url_for('dashboard.index'))
+
+    error = None
+    ok_reenvio = None
+    if request.method == 'POST':
+        accion = request.form.get('accion', 'validar')
+        if accion == 'reenviar':
+            codigo = crear_codigo(g.user['id'], status['metodo'])
+            if status['metodo'] == 'whatsapp':
+                enviado = enviar_codigo_whatsapp(g.user['telefono'], codigo)
+                if not enviado:
+                    codigo = crear_codigo(g.user['id'], 'email')
+                    enviado = enviar_codigo_email(g.user['email'], g.user['nombre'], codigo)
+                    status['metodo'] = 'email'
+            else:
+                enviado = enviar_codigo_email(g.user['email'], g.user['nombre'], codigo)
+            ok_reenvio = "Te reenviamos el código." if enviado else "No pudimos reenviar el código, probá de nuevo en un rato."
+        else:
+            codigo_ingresado = request.form.get('codigo', '').strip()
+            if validar_codigo(g.user['id'], status['metodo'], codigo_ingresado):
+                return redirect(url_for('dashboard.index'))
+            error = "Código incorrecto o vencido. Podés pedir uno nuevo."
+
+    return render_template('validar_cuenta.html', user=g.user, metodo=status['metodo'],
+                            error=error, ok_reenvio=ok_reenvio)
 
 
 def _notificar_registro(nombre, apellido, telefono, email, ciudad, provincia):

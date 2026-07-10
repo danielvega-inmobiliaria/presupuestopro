@@ -2258,6 +2258,95 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2s: 'Accesorios' generico renombrado a nombre especifico (Desagues/TF/Gas) segun lista V3")
 
+        # ── 2t. Validación de cuenta (email/WhatsApp) + "cómo nos conociste" +
+        #        normalización de localidad/provincia ──────────────────────
+        # Pedido de Daniel 10/07/2026. Provincia pasa a ser lista cerrada (24
+        # provincias AR) desde el registro nuevo — elimina duplicados de raíz.
+        # Localidad sigue siendo texto libre (no se puede cerrar esa lista)
+        # pero se agrupa por clave normalizada en la tabla `localidades`,
+        # autoalimentada por lo que van cargando los mismos usuarios.
+        # Validación de cuenta: arranca APAGADA (config.verificacion_activa
+        # = '0') — Daniel la prende desde Admin > Configuración cuando probó
+        # el flujo. Las cuentas ya existentes quedan marcadas como
+        # verificadas (no se bloquea retroactivamente a nadie).
+        ya_2t = db.execute("SELECT valor FROM config WHERE clave='2t_done'").fetchone()
+        if not ya_2t:
+            cols_users_2t = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            for col, tipo in [('como_nos_conocio', "TEXT DEFAULT ''"),
+                               ('email_verificado', 'INTEGER DEFAULT 0'),
+                               ('phone_verificado', 'INTEGER DEFAULT 0'),
+                               ('metodo_verificacion', "TEXT DEFAULT ''")]:
+                if col not in cols_users_2t:
+                    db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo}")
+
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS verificacion_codigos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    canal TEXT NOT NULL,
+                    codigo TEXT NOT NULL,
+                    expira_at DATETIME NOT NULL,
+                    usado INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS localidades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    clave_normalizada TEXT UNIQUE NOT NULL,
+                    nombre_display TEXT NOT NULL,
+                    provincia TEXT DEFAULT '',
+                    veces_usada INTEGER DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Grandfather: nadie que ya tenía cuenta queda bloqueado por esto.
+            db.execute("UPDATE users SET email_verificado=1, phone_verificado=1")
+            db.execute("INSERT OR IGNORE INTO config (clave,valor) VALUES ('verificacion_activa','0')")
+
+            # Limpieza de datos viejos: normalizar provincia (mapeo a las 24
+            # provincias AR donde hay match confiable) y agrupar localidad en
+            # la tabla nueva, fusionando duplicados tipo "Rosario"/"rosario".
+            try:
+                from utils.normalizacion import clave_normalizada, provincia_canonica
+                usuarios_geo = db.execute(
+                    "SELECT id, ciudad, provincia FROM users WHERE ciudad != '' OR provincia != ''"
+                ).fetchall()
+                localidades_vistas = {}  # clave_normalizada -> nombre_display elegido
+                provincias_sin_match = set()
+                for u in usuarios_geo:
+                    provincia_nueva = None
+                    if u['provincia']:
+                        provincia_nueva = provincia_canonica(u['provincia'])
+                        if not provincia_nueva:
+                            provincias_sin_match.add(u['provincia'])
+                    if u['ciudad']:
+                        clave = clave_normalizada(u['ciudad'])
+                        if clave and clave not in localidades_vistas:
+                            localidades_vistas[clave] = u['ciudad'].strip()
+                        display = localidades_vistas.get(clave, u['ciudad'].strip())
+                        db.execute("""
+                            INSERT INTO localidades (clave_normalizada, nombre_display, provincia, veces_usada)
+                            VALUES (?,?,?,1)
+                            ON CONFLICT(clave_normalizada) DO UPDATE SET
+                                veces_usada = veces_usada + 1
+                        """, (clave, display, provincia_nueva or ''))
+                        db.execute("UPDATE users SET ciudad=? WHERE id=?", (display, u['id']))
+                    if provincia_nueva:
+                        db.execute("UPDATE users SET provincia=? WHERE id=?", (provincia_nueva, u['id']))
+                db.commit()
+                if provincias_sin_match:
+                    print(f"[migrate_db] 2t: provincias sin match automático (revisar a mano en Admin > "
+                          f"usuarios): {sorted(provincias_sin_match)}")
+            except Exception as e2:
+                print(f"[migrate_db] 2t: error normalizando localidad/provincia (no crítico): {e2}")
+
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2t_done','2026-07-10')")
+            db.commit()
+            print("[migrate_db] 2t: validacion de cuenta + como_nos_conocio + normalizacion de localidad/provincia")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

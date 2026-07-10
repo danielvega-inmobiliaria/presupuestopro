@@ -659,13 +659,49 @@ def configuracion():
                     "INSERT OR REPLACE INTO config (clave, valor) VALUES (?,?)",
                     (clave, val)
                 )
+        # Fix 10/07/2026: validación de cuenta (email/WhatsApp) — checkbox no
+        # tildado no manda el campo en el form, por eso se chequea presencia
+        # en vez de leer el valor.
+        verificacion_val = '1' if request.form.get('verificacion_activa') == 'on' else '0'
+        verificacion_previa = db.execute(
+            "SELECT valor FROM config WHERE clave='verificacion_activa'"
+        ).fetchone()
+        se_esta_prendiendo = verificacion_val == '1' and (not verificacion_previa or verificacion_previa['valor'] != '1')
+        db.execute(
+            "INSERT OR REPLACE INTO config (clave, valor) VALUES ('verificacion_activa', ?)",
+            (verificacion_val,)
+        )
+        # Fix 10/07/2026: al PRENDER el switch (no antes), se marca como
+        # validado a cualquiera que ya tuviera cuenta y todavía no hubiera
+        # validado — el bloqueo arranca a regir recién de acá para adelante,
+        # nunca retroactivo a alguien que se registró antes de que el switch
+        # estuviera prendido (Daniel lo pidió explícitamente 10/07/2026).
+        if se_esta_prendiendo:
+            n_grandfather = db.execute(
+                "UPDATE users SET email_verificado=1, phone_verificado=1 "
+                "WHERE metodo_verificacion != '' AND (email_verificado=0 OR phone_verificado=0)"
+            ).rowcount
+            if n_grandfather:
+                print(f"[admin.configuracion] verificacion_activa prendida: "
+                      f"{n_grandfather} cuenta(s) existente(s) marcadas como ya validadas (no retroactivo)")
         db.commit()
         db.close()
-        flash('Configuracion guardada.', 'success')
+        if se_esta_prendiendo and n_grandfather:
+            flash(f'Configuracion guardada. Validación activada — {n_grandfather} cuenta(s) que ya '
+                  f'existían quedaron marcadas como validadas (no se les exige validar retroactivamente).',
+                  'success')
+        else:
+            flash('Configuracion guardada.', 'success')
         return redirect(url_for('admin.dashboard'))
     cfg = {r['clave']: r['valor'] for r in db.execute("SELECT * FROM config").fetchall()}
+    pendientes_validar = db.execute(
+        "SELECT COUNT(*) c FROM users WHERE metodo_verificacion != '' "
+        "AND ((metodo_verificacion='email' AND email_verificado=0) "
+        "OR (metodo_verificacion='whatsapp' AND phone_verificado=0))"
+    ).fetchone()['c']
     db.close()
-    return render_template('admin/configuracion.html', cfg=cfg, user=g.user)
+    return render_template('admin/configuracion.html', cfg=cfg, user=g.user,
+                           pendientes_validar=pendientes_validar)
 
 
 # LEADS

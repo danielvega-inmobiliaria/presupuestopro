@@ -6,6 +6,7 @@ from datetime import date, datetime
 from flask import Blueprint, render_template, request, redirect, url_for, session, g, flash
 from utils.auth import login_required
 from utils.trial import trial_required
+from utils.verificacion import verificacion_required
 from utils.calculations import (
     RUBROS_DEFAULT, SUBCONTRATOS_SUGERIDOS, PAISES,
     calcular_dias_obra, calcular_cuotas, calcular_cuadro_pago,
@@ -647,6 +648,7 @@ def _guardar_borrador(p, step):
 # =========================================================================
 @bp.route('/editar/<int:pid>')
 @login_required
+@verificacion_required
 @trial_required
 def editar(pid):
     db = get_db()
@@ -732,6 +734,7 @@ def editar(pid):
 # =========================================================================
 @bp.route('/nuevo', methods=['GET', 'POST'])
 @login_required
+@verificacion_required
 @trial_required
 def nuevo():
     if request.method == 'GET':

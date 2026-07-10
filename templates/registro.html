@@ -14,6 +14,26 @@
     .trial-box { background: #fef9c3; border: 1px solid #eab308; border-radius: 8px;
                  padding: 10px 14px; font-size: .85rem; color: #713f12; }
   </style>
+
+  <!-- Meta Pixel (PresupuestoPRO Pixel, id 1189868074213923) — Fix 08/07/2026:
+       registro.html tampoco extendía base.html, así que quien llegaba directo
+       a /registro (ej. link de "Probála gratis" en un anuncio) no generaba
+       PageView si abandonaba el formulario antes de completar el alta. -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1189868074213923');
+  fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1189868074213923&ev=PageView&noscript=1"
+  /></noscript>
 </head>
 <body>
 <div class="container">
@@ -62,13 +82,49 @@
             </div>
             <div class="col-md-6">
               <label class="form-label small">Ciudad</label>
-              <input type="text" name="ciudad" class="form-control"
+              <input type="text" name="ciudad" class="form-control" list="lista-localidades"
+                     autocomplete="off"
                      value="{{ prev.ciudad if prev else '' }}">
+              <datalist id="lista-localidades">
+                {% for loc in localidades %}
+                <option value="{{ loc }}">
+                {% endfor %}
+              </datalist>
             </div>
             <div class="col-md-6">
               <label class="form-label small">Provincia</label>
-              <input type="text" name="provincia" class="form-control"
-                     value="{{ prev.provincia if prev else '' }}">
+              <select name="provincia" class="form-select">
+                <option value="">Elegí una provincia...</option>
+                {% for p in provincias %}
+                <option value="{{ p }}" {% if prev and prev.provincia == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">¿Cómo nos conociste?</label>
+              <select name="como_nos_conocio" id="como-conocio" class="form-select">
+                <option value="">Elegí una opción...</option>
+                {% for op in como_opciones %}
+                <option value="{{ op }}" {% if prev and prev.como_nos_conocio == op %}selected{% endif %}>{{ op }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6 d-none" id="como-conocio-otro-wrap">
+              <label class="form-label small">Contanos cuál</label>
+              <input type="text" name="como_nos_conocio_otro" id="como-conocio-otro" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label small d-block">¿Cómo preferís validar tu cuenta?</label>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="metodo_verificacion" id="metodo-email"
+                       value="email" {% if not prev or prev.metodo_verificacion != 'whatsapp' %}checked{% endif %}>
+                <label class="form-check-label small" for="metodo-email">Por email</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="metodo_verificacion" id="metodo-whatsapp"
+                       value="whatsapp" {% if prev and prev.metodo_verificacion == 'whatsapp' %}checked{% endif %}>
+                <label class="form-check-label small" for="metodo-whatsapp">Por WhatsApp</label>
+              </div>
             </div>
             <div class="col-12">
               <label class="form-label small">Contraseña * <span class="text-muted">(mín. 6 caracteres)</span></label>
@@ -92,5 +148,18 @@
     </p>
   </div>
 </div>
+<script>
+  // Muestra el campo de texto libre solo si elige "Otro" en cómo nos conoció.
+  (function () {
+    var select = document.getElementById('como-conocio');
+    var wrap = document.getElementById('como-conocio-otro-wrap');
+    if (!select || !wrap) return;
+    function toggle() {
+      wrap.classList.toggle('d-none', select.value !== 'Otro');
+    }
+    select.addEventListener('change', toggle);
+    toggle();
+  })();
+</script>
 </body>
 </html>
