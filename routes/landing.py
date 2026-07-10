@@ -26,7 +26,7 @@ from flask import Blueprint, g, redirect, render_template, request, url_for
 from database import get_db
 from utils.auth import login_user, login_required
 from utils.trial import TRIAL_MAX_DIAS, TRIAL_MAX_PRESUPUESTOS
-from utils.normalizacion import PROVINCIAS_AR, clave_normalizada
+from utils.normalizacion import PROVINCIAS_AR, clave_normalizada, telefono_normalizado
 from utils.verificacion import (
     crear_codigo, enviar_codigo_email, enviar_codigo_whatsapp,
     validar_codigo, verificacion_activa, get_verificacion_status,
@@ -147,6 +147,22 @@ def registro():
     if existing:
         db.close()
         return _error("Ya existe una cuenta con ese email. Iniciá sesión en vez de registrarte de nuevo.")
+
+    # Fix 10/07/2026 (pedido de Daniel): controlar también por teléfono, no
+    # solo por email — evita altas duplicadas de la misma persona con otro
+    # email (ej. para sacar más presupuestos gratis de la prueba). Se compara
+    # normalizado (últimos 10 dígitos) para que no importe el formato en que
+    # cada uno lo escribió. No hay columna indexada para esto — se compara en
+    # Python contra los teléfonos ya cargados, suficiente para el volumen
+    # actual de usuarios.
+    if telefono:
+        tel_clave = telefono_normalizado(telefono)
+        if tel_clave:
+            existentes_tel = db.execute("SELECT telefono FROM users WHERE telefono != ''").fetchall()
+            if any(telefono_normalizado(r['telefono']) == tel_clave for r in existentes_tel):
+                db.close()
+                return _error("Ya existe una cuenta registrada con ese teléfono. Si es tuya, iniciá sesión; "
+                               "si creés que es un error, escribinos.")
     db.close()
 
     # Localidad: agrupa contra lo ya cargado por otros usuarios (ver docstring

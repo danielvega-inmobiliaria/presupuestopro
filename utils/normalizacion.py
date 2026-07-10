@@ -93,3 +93,18 @@ def provincia_canonica(texto_libre):
     """Devuelve el nombre canónico de PROVINCIAS_AR si lo reconoce, o None
     si no hay match confiable (para no inventar un dato incorrecto)."""
     return _PROVINCIA_SINONIMOS.get(clave_normalizada(texto_libre))
+
+
+def telefono_normalizado(telefono):
+    """Clave de comparación para detectar el mismo teléfono escrito distinto
+    (con/sin +54, con/sin 9, con espacios/guiones/paréntesis). Fix 10/07/2026
+    — pedido de Daniel para detectar altas duplicadas (mismo teléfono, email
+    distinto). Se queda con los últimos 10 dígitos: en Argentina, área +
+    número local siempre entran ahí, así que dos formas de escribir el mismo
+    número terminan en la misma clave aunque varíe el prefijo de país/celular
+    adelante. No sirve para marcar (para eso ver el patrón wa.me existente en
+    templates/admin/usuarios.html), solo para comparar."""
+    if not telefono:
+        return ''
+    solo_digitos = re.sub(r'\D', '', telefono)
+    return solo_digitos[-10:] if len(solo_digitos) >= 8 else solo_digitos
