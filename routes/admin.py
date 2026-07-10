@@ -72,6 +72,43 @@ def usuarios():
         params
     ).fetchall()
 
+    # Fix 10/07/2026 (pedido de Daniel): al filtrar por localidad, mostrar
+    # automáticamente también el total de esa provincia y ese país (niveles
+    # más amplios), sin que haga falta ir tocando los otros filtros a mano.
+    # Si filtra por provincia, muestra el total del país. Si filtra por país,
+    # no hace falta nada más — ese total ya es el badge "Usuarios N" de arriba.
+    # Cada nivel se cuenta de forma independiente (no combinado con los demás
+    # filtros activos), porque la idea es "cuánta gente hay en esa provincia
+    # en total", no "cuánta gente de esa provincia además cumple los otros
+    # filtros puestos".
+    breakdown = []
+    if f_ciudad:
+        provincias_de_ciudad = db.execute(
+            "SELECT DISTINCT provincia FROM users WHERE is_admin=0 AND ciudad LIKE ? AND provincia != ''",
+            (f"%{f_ciudad}%",)
+        ).fetchall()
+        for row in provincias_de_ciudad:
+            prov = row['provincia']
+            c = db.execute("SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND provincia=?", (prov,)).fetchone()['c']
+            breakdown.append({'nivel': 'Provincia', 'nombre': prov, 'cantidad': c})
+        paises_de_ciudad = db.execute(
+            "SELECT DISTINCT pais FROM users WHERE is_admin=0 AND ciudad LIKE ? AND pais != ''",
+            (f"%{f_ciudad}%",)
+        ).fetchall()
+        for row in paises_de_ciudad:
+            p = row['pais']
+            c = db.execute("SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND pais=?", (p,)).fetchone()['c']
+            breakdown.append({'nivel': 'País', 'nombre': PAISES.get(p, {}).get('nombre', p), 'cantidad': c})
+    elif f_provincia:
+        paises_de_provincia = db.execute(
+            "SELECT DISTINCT pais FROM users WHERE is_admin=0 AND provincia=? AND pais != ''",
+            (f_provincia,)
+        ).fetchall()
+        for row in paises_de_provincia:
+            p = row['pais']
+            c = db.execute("SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND pais=?", (p,)).fetchone()['c']
+            breakdown.append({'nivel': 'País', 'nombre': PAISES.get(p, {}).get('nombre', p), 'cantidad': c})
+
     # Fix 10/07/2026: antes esto era un DISTINCT de lo cargado en users.provincia
     # (texto libre, con duplicados). Provincia ahora es lista cerrada — se
     # usa PROVINCIAS_AR para que el filtro sea un <select> real, igual que País.
@@ -85,7 +122,8 @@ def usuarios():
 
     return render_template('admin/usuarios.html', users=users, user=g.user,
                             provincias=PROVINCIAS_AR, localidades_lista=localidades_lista, paises=PAISES,
-                            f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais)
+                            f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais,
+                            breakdown=breakdown)
 
 
 @bp.route('/localidades')

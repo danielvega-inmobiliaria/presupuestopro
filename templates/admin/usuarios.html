@@ -15,8 +15,14 @@
 </div>
 
 {# ── Filtros por localidad / provincia / pais (fix 05/07/2026, provincia
-     pasa a select fijo y localidad a datalist real el 10/07/2026) ── #}
-<form method="GET" class="card mb-3">
+     pasa a select fijo y localidad a datalist real el 10/07/2026).
+     Fix 10/07/2026: la tarjeta de filtros queda fija (sticky) debajo del
+     navbar al scrollear, para no tener que volver arriba para cambiar el
+     filtro. Es un sticky "normal" (no está dentro de .table-responsive, no
+     tiene el bug de ghosting que sí tenía el encabezado de la tabla — ver
+     comentario más abajo sobre el clon). El offset "top" se calcula con JS
+     a partir de la altura real del navbar. ── #}
+<form method="GET" class="card mb-3" id="filtro-form" style="position: sticky; top: var(--navbar-h, 56px); z-index: 1015;">
   <div class="card-body py-2">
     <div class="row g-2 align-items-end">
       <div class="col-md-3">
@@ -50,6 +56,17 @@
         <a href="{{ url_for('admin.usuarios') }}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
       </div>
     </div>
+    {% if breakdown %}
+    {# Fix 10/07/2026 (pedido de Daniel): al filtrar por localidad o
+       provincia, mostrar automáticamente el total de los niveles más
+       amplios (provincia/país), sin tener que ir cambiando el filtro. #}
+    <div class="mt-2 pt-2 border-top d-flex flex-wrap gap-2 align-items-center">
+      <span class="text-muted small"><i class="bi bi-bar-chart"></i> También en:</span>
+      {% for b in breakdown %}
+      <span class="badge bg-light text-dark border">{{ b.nivel }} {{ b.nombre }}: <strong>{{ b.cantidad }}</strong></span>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </form>
 
@@ -185,11 +202,18 @@
 <script>
 (function () {
   var nav = document.querySelector('nav.navbar');
+  var filtroForm = document.getElementById('filtro-form');
   var theadOriginal = document.getElementById('thead-original');
   var tabla = document.getElementById('tabla-usuarios');
   var clonWrap = document.getElementById('thead-clon');
   var clonFila = document.getElementById('thead-clon-fila');
   if (!nav || !theadOriginal || !tabla || !clonWrap || !clonFila) return;
+
+  // --navbar-h la usa el CSS inline del formulario de filtros (position:
+  // sticky; top: var(--navbar-h)) para pegarse justo debajo del navbar.
+  function setNavbarHeight() {
+    document.documentElement.style.setProperty('--navbar-h', nav.offsetHeight + 'px');
+  }
 
   var thsOriginales = theadOriginal.querySelectorAll('th');
   // Clona las celdas una sola vez (mismo texto/íconos); en cada sync() solo
@@ -199,10 +223,15 @@
   });
   var thsClon = clonFila.querySelectorAll('th');
 
+  // El clon del encabezado de la tabla se pega debajo del navbar Y del
+  // formulario de filtros (que ahora también es sticky), no solo del navbar.
+  function offsetTop() {
+    return nav.offsetHeight + (filtroForm ? filtroForm.offsetHeight : 0);
+  }
+
   function sync() {
-    var navH = nav.offsetHeight;
     var rectTabla = tabla.getBoundingClientRect();
-    clonWrap.style.top = navH + 'px';
+    clonWrap.style.top = offsetTop() + 'px';
     clonWrap.style.left = rectTabla.left + 'px';
     clonWrap.style.width = rectTabla.width + 'px';
     thsOriginales.forEach(function (th, i) {
@@ -211,13 +240,14 @@
   }
 
   function actualizarVisibilidad() {
+    setNavbarHeight();
     var rectThead = theadOriginal.getBoundingClientRect();
     var rectTabla = tabla.getBoundingClientRect();
-    var navH = nav.offsetHeight;
+    var top = offsetTop();
     // Mostrar el clon solo mientras el encabezado real ya pasó por debajo
-    // del navbar pero la tabla todavía no terminó de pasar (si no, quedaría
-    // flotando sobre contenido de otra sección de la página).
-    var debeMostrarse = rectThead.top < navH && rectTabla.bottom > navH;
+    // del navbar+filtros pero la tabla todavía no terminó de pasar (si no,
+    // quedaría flotando sobre contenido de otra sección de la página).
+    var debeMostrarse = rectThead.top < top && rectTabla.bottom > top;
     clonWrap.style.display = debeMostrarse ? 'block' : 'none';
     if (debeMostrarse) sync();
   }
@@ -228,6 +258,7 @@
   if (window.ResizeObserver) {
     new ResizeObserver(actualizarVisibilidad).observe(nav);
     new ResizeObserver(actualizarVisibilidad).observe(tabla);
+    if (filtroForm) new ResizeObserver(actualizarVisibilidad).observe(filtroForm);
   }
   actualizarVisibilidad();
 })();
