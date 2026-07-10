@@ -248,6 +248,16 @@
 </div>
 {% endif %}
 
+{# ── Aclaración de errores de precio (fix 10/07/2026, a pedido de Daniel):
+     mismo mensaje que ya está en /sugerencias, repetido acá porque es donde
+     el usuario más probablemente nota un precio raro (comparando $ Lista vs
+     $ Costo). no-print para que no salga en el PDF exportado. ── #}
+<p class="text-muted no-print" style="font-size:.75rem; text-align:center; margin-top:-4px;">
+  <i class="bi bi-exclamation-circle"></i>
+  ¿Ves un error de cálculo o un precio muy distorsionado? Contanos desde
+  <a href="{{ url_for('sugerencias.index') }}">Sugerencias</a>, nos ayuda a corregirlo.
+</p>
+
 <script>
 // Fix 07/07/2026: los jornales vuelven a ser editables acá, para simular en
 // vivo cómo cambia la MO — pero esto es SOLO una simulación en el navegador,

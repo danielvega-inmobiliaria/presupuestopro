@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, render_template_string, request, r
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
 from utils.calculations import PAISES
+from utils.normalizacion import PROVINCIAS_AR
 from database import get_db, recalcular_precio_mo_ars
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -50,8 +51,11 @@ def usuarios():
         where.append("ciudad LIKE ?")
         params.append(f"%{f_ciudad}%")
     if f_provincia:
-        where.append("provincia LIKE ?")
-        params.append(f"%{f_provincia}%")
+        # Fix 10/07/2026: provincia ya es lista cerrada (select) — match exacto,
+        # no LIKE. Con LIKE, "Buenos Aires" también traía a los de "Ciudad
+        # Autónoma de Buenos Aires" por ser substring.
+        where.append("provincia = ?")
+        params.append(f_provincia)
     if f_pais:
         where.append("pais = ?")
         params.append(f_pais)
@@ -68,15 +72,95 @@ def usuarios():
         params
     ).fetchall()
 
-    # Listas para los combos de filtro (ciudades/provincias ya cargadas, para autocompletar)
-    provincias = [r['provincia'] for r in db.execute(
-        "SELECT DISTINCT provincia FROM users WHERE is_admin=0 AND provincia IS NOT NULL AND provincia != '' ORDER BY provincia"
+    # Fix 10/07/2026: antes esto era un DISTINCT de lo cargado en users.provincia
+    # (texto libre, con duplicados). Provincia ahora es lista cerrada — se
+    # usa PROVINCIAS_AR para que el filtro sea un <select> real, igual que País.
+    # Localidad sigue siendo abierta, pero ahora hay tabla `localidades`
+    # autoalimentada (fix de hoy) para ofrecer autocompletado real, no el
+    # autocompletado del navegador que Daniel vio antes.
+    localidades_lista = [r['nombre_display'] for r in db.execute(
+        "SELECT nombre_display FROM localidades WHERE merged_en='' ORDER BY veces_usada DESC"
     ).fetchall()]
     db.close()
 
     return render_template('admin/usuarios.html', users=users, user=g.user,
-                            provincias=provincias, paises=PAISES,
+                            provincias=PROVINCIAS_AR, localidades_lista=localidades_lista, paises=PAISES,
                             f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais)
+
+
+@bp.route('/localidades')
+@admin_required
+def localidades():
+    db = get_db()
+    filas = db.execute("SELECT * FROM localidades ORDER BY merged_en != '', veces_usada DESC").fetchall()
+    # Para poder mostrar "fusionada en: <nombre>" en vez de solo la clave.
+    por_clave = {f['clave_normalizada']: f for f in filas}
+    db.close()
+    return render_template('admin/localidades.html', filas=filas, por_clave=por_clave, user=g.user)
+
+
+@bp.route('/localidades/<int:lid>/renombrar', methods=['POST'])
+@admin_required
+def localidad_renombrar(lid):
+    nuevo_nombre = (request.form.get('nombre_display') or '').strip()
+    if not nuevo_nombre:
+        flash('El nombre no puede quedar vacío.', 'error')
+        return redirect(url_for('admin.localidades'))
+    db = get_db()
+    fila = db.execute("SELECT * FROM localidades WHERE id=?", (lid,)).fetchone()
+    if not fila:
+        db.close()
+        flash('No se encontró esa localidad.', 'error')
+        return redirect(url_for('admin.localidades'))
+    # Los usuarios que ya tenían la grafía vieja se actualizan también, para
+    # que no quede desincronizado lo que ve Daniel acá vs. lo que dice cada
+    # usuario en Admin > Usuarios.
+    db.execute("UPDATE users SET ciudad=? WHERE ciudad=?", (nuevo_nombre, fila['nombre_display']))
+    db.execute("UPDATE localidades SET nombre_display=? WHERE id=?", (nuevo_nombre, lid))
+    db.commit()
+    db.close()
+    flash(f'Renombrada a "{nuevo_nombre}".', 'success')
+    return redirect(url_for('admin.localidades'))
+
+
+@bp.route('/localidades/fusionar', methods=['POST'])
+@admin_required
+def localidad_fusionar():
+    """Fusiona `origen_id` hacia `destino_id`: todos los usuarios que tenían
+    la grafía de origen pasan a la de destino, y de acá en más cualquiera que
+    se registre escribiendo la clave de origen también cae en destino (ver
+    routes/landing.py::_guardar_localidad, sigue la cadena `merged_en`)."""
+    try:
+        origen_id = int(request.form.get('origen_id'))
+        destino_id = int(request.form.get('destino_id'))
+    except (TypeError, ValueError):
+        flash('Elegí las dos localidades a fusionar.', 'error')
+        return redirect(url_for('admin.localidades'))
+    if origen_id == destino_id:
+        flash('Elegí dos localidades distintas.', 'error')
+        return redirect(url_for('admin.localidades'))
+
+    db = get_db()
+    origen = db.execute("SELECT * FROM localidades WHERE id=?", (origen_id,)).fetchone()
+    destino = db.execute("SELECT * FROM localidades WHERE id=?", (destino_id,)).fetchone()
+    if not origen or not destino:
+        db.close()
+        flash('No se encontró alguna de las dos localidades.', 'error')
+        return redirect(url_for('admin.localidades'))
+
+    db.execute("UPDATE users SET ciudad=? WHERE ciudad=?", (destino['nombre_display'], origen['nombre_display']))
+    db.execute(
+        "UPDATE localidades SET merged_en=?, veces_usada=0 WHERE id=?",
+        (destino['clave_normalizada'], origen_id)
+    )
+    db.execute(
+        "UPDATE localidades SET veces_usada = veces_usada + ? WHERE id=?",
+        (origen['veces_usada'], destino_id)
+    )
+    db.commit()
+    db.close()
+    flash(f'"{origen["nombre_display"]}" fusionada en "{destino["nombre_display"]}".', 'success')
+    return redirect(url_for('admin.localidades'))
 
 @bp.route('/usuarios/nuevo', methods=['GET', 'POST'])
 @admin_required

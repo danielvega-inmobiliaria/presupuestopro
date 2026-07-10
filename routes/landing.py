@@ -44,7 +44,12 @@ def _guardar_localidad(ciudad_libre, provincia):
     """Agrupa `ciudad_libre` contra lo ya cargado por otros usuarios (misma
     clave normalizada = mismo lugar) y devuelve el nombre a guardar en
     users.ciudad: si ya existía, reusa la grafía canónica; si es nueva, usa
-    tal cual la escribió este usuario y queda como canónica para el próximo."""
+    tal cual la escribió este usuario y queda como canónica para el próximo.
+
+    Fix 10/07/2026: si esa clave fue fusionada a mano por Daniel (Admin >
+    Localidades) hacia otra entrada, sigue la cadena hasta la canónica final
+    en vez de reusar la vieja — así una fusión hecha hoy también agrupa a
+    los usuarios que se registren después."""
     ciudad_libre = (ciudad_libre or '').strip()
     if not ciudad_libre:
         return ''
@@ -53,16 +58,28 @@ def _guardar_localidad(ciudad_libre, provincia):
         return ciudad_libre
     db = get_db()
     existente = db.execute(
-        "SELECT nombre_display FROM localidades WHERE clave_normalizada=?", (clave,)
+        "SELECT clave_normalizada, nombre_display, merged_en FROM localidades WHERE clave_normalizada=?",
+        (clave,)
     ).fetchone()
     if existente:
+        destino = existente
+        visitados = {existente['clave_normalizada']}
+        while destino['merged_en'] and destino['merged_en'] not in visitados:
+            siguiente = db.execute(
+                "SELECT clave_normalizada, nombre_display, merged_en FROM localidades WHERE clave_normalizada=?",
+                (destino['merged_en'],)
+            ).fetchone()
+            if not siguiente:
+                break
+            visitados.add(siguiente['clave_normalizada'])
+            destino = siguiente
         db.execute(
             "UPDATE localidades SET veces_usada = veces_usada + 1 WHERE clave_normalizada=?",
-            (clave,)
+            (destino['clave_normalizada'],)
         )
         db.commit()
         db.close()
-        return existente['nombre_display']
+        return destino['nombre_display']
     db.execute(
         "INSERT INTO localidades (clave_normalizada, nombre_display, provincia, veces_usada) VALUES (?,?,?,1)",
         (clave, ciudad_libre, provincia or '')

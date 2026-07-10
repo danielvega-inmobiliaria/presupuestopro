@@ -2347,6 +2347,25 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2t: validacion de cuenta + como_nos_conocio + normalizacion de localidad/provincia")
 
+        # ── 2u. Admin > Localidades: permitir fusionar entradas duplicadas
+        #        que la normalización automática no agrupó ────────────────
+        # Pedido de Daniel 10/07/2026: la normalización (2t) agrupa lo obvio
+        # (mayúsculas/tildes/espacios), pero cosas como "Rosario" vs "Rosario
+        # Norte" o errores de tipeo distintos no se detectan solas — Daniel
+        # necesita poder revisar la lista y fusionarlas a mano. `merged_en`
+        # guarda la clave_normalizada del registro "bueno" cuando se fusiona
+        # uno viejo hacia otro (se conserva la fila vieja por prolijidad de
+        # datos históricos, pero _guardar_localidad la sigue hasta el final).
+        ya_2u = db.execute("SELECT valor FROM config WHERE clave='2u_done'").fetchone()
+        if not ya_2u:
+            cols_loc = [r[1] for r in db.execute("PRAGMA table_info(localidades)").fetchall()]
+            if 'merged_en' not in cols_loc:
+                db.execute("ALTER TABLE localidades ADD COLUMN merged_en TEXT DEFAULT ''")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2u_done','2026-07-10')")
+            db.commit()
+            print("[migrate_db] 2u: localidades.merged_en agregado (fusion manual de duplicados)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
