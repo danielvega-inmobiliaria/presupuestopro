@@ -17,24 +17,39 @@
 {# ── Filtros por localidad / provincia / pais (fix 05/07/2026, provincia
      pasa a select fijo y localidad a datalist real el 10/07/2026).
      Fix 10/07/2026: la tarjeta de filtros queda fija (sticky) debajo del
-     navbar al scrollear, para no tener que volver arriba para cambiar el
-     filtro. Es un sticky "normal" (no está dentro de .table-responsive, no
-     tiene el bug de ghosting que sí tenía el encabezado de la tabla — ver
-     comentario más abajo sobre el clon). El offset "top" se calcula con JS
-     a partir de la altura real del navbar. ── #}
+     navbar al scrollear. Es un sticky "normal" (no está dentro de
+     .table-responsive, no tiene el bug de ghosting que sí tenía el
+     encabezado de la tabla — ver comentario más abajo sobre el clon).
+
+     Fix 10/07/2026 (2da vuelta, pedido de Daniel): se saca el botón
+     "Filtrar" — cada campo se auto-envía al cambiar (evento 'change': en
+     los <select> dispara al elegir una opción, en el input de Localidad
+     dispara al perder el foco o al elegir una sugerencia del datalist). Se
+     achican las 3 columnas para que entren en una sola línea, y cada label
+     muestra al lado la cantidad de usuarios que corresponde a ese nivel
+     (`contadores`, calculado en admin.py::usuarios() — infiere
+     provincia/país aunque no estén elegidos explícitamente, a partir de la
+     ciudad/provincia que sí esté activa). Se deja un botón submit oculto
+     (accesibilidad / Enter en el teclado) y un ícono chico de "Limpiar". ── #}
 <form method="GET" class="card mb-3" id="filtro-form" style="position: sticky; top: var(--navbar-h, 56px); z-index: 1015;">
   <div class="card-body py-2">
     <div class="row g-2 align-items-end">
-      <div class="col-md-3">
-        <label class="form-label form-label-sm mb-0 text-muted">Localidad</label>
+      <div class="col-6 col-md-4">
+        <label class="form-label form-label-sm mb-0 text-muted">
+          Localidad
+          {% if contadores.ciudad is not none %}<span class="badge bg-secondary">{{ contadores.ciudad }}</span>{% endif %}
+        </label>
         <input type="text" name="f_ciudad" class="form-control form-control-sm" autocomplete="off"
                value="{{ f_ciudad }}" placeholder="Ej: Rosario" list="lista-localidades-filtro">
         <datalist id="lista-localidades-filtro">
           {% for l in localidades_lista %}<option value="{{ l }}">{% endfor %}
         </datalist>
       </div>
-      <div class="col-md-3">
-        <label class="form-label form-label-sm mb-0 text-muted">Provincia</label>
+      <div class="col-6 col-md-4">
+        <label class="form-label form-label-sm mb-0 text-muted">
+          Provincia
+          {% if contadores.provincia %}<span class="badge bg-secondary">{{ contadores.provincia.cantidad }}</span>{% endif %}
+        </label>
         <select name="f_provincia" class="form-select form-select-sm">
           <option value="">Todas</option>
           {% for p in provincias %}
@@ -42,8 +57,11 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
-        <label class="form-label form-label-sm mb-0 text-muted">País</label>
+      <div class="col-6 col-md-3">
+        <label class="form-label form-label-sm mb-0 text-muted">
+          País
+          {% if contadores.pais %}<span class="badge bg-secondary">{{ contadores.pais.cantidad }}</span>{% endif %}
+        </label>
         <select name="f_pais" class="form-select form-select-sm">
           <option value="">Todos</option>
           {% for code, info in paises.items() %}
@@ -51,22 +69,13 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-sm btn-primary flex-fill"><i class="bi bi-funnel"></i> Filtrar</button>
-        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-sm btn-outline-secondary">Limpiar</a>
+      <div class="col-6 col-md-1">
+        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-sm btn-outline-secondary w-100" title="Limpiar filtros">
+          <i class="bi bi-x-lg"></i>
+        </a>
       </div>
     </div>
-    {% if breakdown %}
-    {# Fix 10/07/2026 (pedido de Daniel): al filtrar por localidad o
-       provincia, mostrar automáticamente el total de los niveles más
-       amplios (provincia/país), sin tener que ir cambiando el filtro. #}
-    <div class="mt-2 pt-2 border-top d-flex flex-wrap gap-2 align-items-center">
-      <span class="text-muted small"><i class="bi bi-bar-chart"></i> También en:</span>
-      {% for b in breakdown %}
-      <span class="badge bg-light text-dark border">{{ b.nivel }} {{ b.nombre }}: <strong>{{ b.cantidad }}</strong></span>
-      {% endfor %}
-    </div>
-    {% endif %}
+    <button type="submit" class="visually-hidden">Filtrar</button>
   </div>
 </form>
 
@@ -200,6 +209,24 @@
 </div>
 
 <script>
+(function () {
+  // Fix 10/07/2026 (2da vuelta): auto-enviar el formulario de filtros al
+  // cambiar cualquier campo (ya no hay botón "Filtrar" visible). 'change'
+  // dispara solo (en los <select>) o al perder el foco / elegir del
+  // datalist (en Localidad) — no en cada tecla, para no recargar la página
+  // mientras Daniel todavía está escribiendo.
+  var filtroFormAuto = document.getElementById('filtro-form');
+  if (filtroFormAuto) {
+    filtroFormAuto.querySelectorAll('input[name="f_ciudad"], select[name="f_provincia"], select[name="f_pais"]')
+      .forEach(function (el) {
+        el.addEventListener('change', function () {
+          if (filtroFormAuto.requestSubmit) filtroFormAuto.requestSubmit();
+          else filtroFormAuto.submit();
+        });
+      });
+  }
+})();
+
 (function () {
   var nav = document.querySelector('nav.navbar');
   var filtroForm = document.getElementById('filtro-form');
