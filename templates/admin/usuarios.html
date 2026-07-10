@@ -54,24 +54,26 @@
 </form>
 
 {# Fix 10/07/2026 (pedido de Daniel): encabezado de la tabla fijo al scrollear,
-   pegado justo debajo del navbar (que ya es sticky-top en base.html), para
-   poder leer los títulos de columna con listas largas de usuarios. El offset
-   "top" se calcula con JS a partir de la altura real del navbar en vez de
-   hardcodearlo, porque cambia entre mobile/desktop. #}
-<style>
-  #tabla-usuarios thead th {
-    position: sticky;
-    top: var(--navbar-h, 56px);
-    z-index: 2;
-    background-color: #212529; /* mismo color que table-dark, fijo para que no
-                                   se transparente y se vea la fila de atrás */
-    box-shadow: 0 1px 0 rgba(255,255,255,.1); /* separa visualmente del contenido que pasa debajo */
-  }
-</style>
+   pegado justo debajo del navbar, para poder leer los títulos de columna con
+   listas largas de usuarios.
+
+   2do intento (el de "position: sticky" en los <th> daba un glitch de
+   ghosting/tearing: al scrollear quedaba un resto visible de la fila
+   anterior tapado a medias arriba del encabezado negro, típico de sticky
+   dentro de un contenedor con overflow-x:auto como .table-responsive —
+   bug conocido de Chrome, no se resuelve solo con recalcular alturas).
+
+   Enfoque nuevo, sin position:sticky: se clona el <thead> real en un <div
+   id="thead-clon"> aparte con position:fixed, oculto por default. Un
+   listener de scroll lo muestra/oculta y le copia el ancho exacto de cada
+   columna (getBoundingClientRect de cada th original) para que quede
+   perfectamente alineado con la tabla real. Al ser un elemento totalmente
+   aparte (no sticky, no dentro del contenedor con overflow), no tiene el
+   bug de ghosting. #}
 <div class="card">
   <div class="table-responsive">
     <table class="table table-hover mb-0" id="tabla-usuarios">
-      <thead class="table-dark">
+      <thead class="table-dark" id="thead-original">
         <tr>
           <th>Nombre</th>
           <th>Email / Teléfono</th>
@@ -164,28 +166,70 @@
   </div>
 </div>
 
+{# Clon del encabezado — position:fixed, arranca oculto. Reemplaza el intento
+   anterior con position:sticky en los <th> (Fix 10/07/2026, 1er intento):
+   ese enfoque daba ghosting/tearing al scrollear (quedaba un resto visible
+   de la fila anterior tapado a medias arriba del encabezado negro) — bug
+   conocido de Chrome con sticky dentro de un contenedor con
+   overflow-x:auto como .table-responsive, no se arregla solo recalculando
+   alturas. Este clon es un elemento totalmente aparte (position:fixed, no
+   sticky, no vive dentro del contenedor con overflow), así que no tiene ese
+   bug. Un listener de scroll lo muestra/oculta y le copia el ancho exacto
+   de cada columna para que quede alineado con la tabla real. #}
+<div id="thead-clon" style="display:none; position:fixed; overflow:hidden; z-index:1030;">
+  <table class="table table-hover mb-0" style="table-layout:fixed;">
+    <thead class="table-dark"><tr id="thead-clon-fila"></tr></thead>
+  </table>
+</div>
+
 <script>
 (function () {
-  // Fix 10/07/2026 (2da vuelta): el cálculo original solo corría una vez al
-  // parsear el script, antes de que terminaran de cargar las fuentes de
-  // bootstrap-icons — el navbar podía cambiar de alto unos px después de eso
-  // y dejaba a la cabecera pegada en la posición vieja (se veía un resto de
-  // la fila anterior asomando arriba del negro, hasta que algo disparaba un
-  // recálculo). Ahora se recalcula en 'load' y con ResizeObserver sobre el
-  // navbar, así se ajusta solo ante cualquier cambio de alto (fuentes,
-  // resize, menú mobile, etc.), no solo en el primer render.
   var nav = document.querySelector('nav.navbar');
-  function setNavbarHeight() {
-    if (nav) {
-      document.documentElement.style.setProperty('--navbar-h', nav.offsetHeight + 'px');
-    }
+  var theadOriginal = document.getElementById('thead-original');
+  var tabla = document.getElementById('tabla-usuarios');
+  var clonWrap = document.getElementById('thead-clon');
+  var clonFila = document.getElementById('thead-clon-fila');
+  if (!nav || !theadOriginal || !tabla || !clonWrap || !clonFila) return;
+
+  var thsOriginales = theadOriginal.querySelectorAll('th');
+  // Clona las celdas una sola vez (mismo texto/íconos); en cada sync() solo
+  // se les ajusta el ancho para que sigan alineadas con la tabla real.
+  thsOriginales.forEach(function (th) {
+    clonFila.appendChild(th.cloneNode(true));
+  });
+  var thsClon = clonFila.querySelectorAll('th');
+
+  function sync() {
+    var navH = nav.offsetHeight;
+    var rectTabla = tabla.getBoundingClientRect();
+    clonWrap.style.top = navH + 'px';
+    clonWrap.style.left = rectTabla.left + 'px';
+    clonWrap.style.width = rectTabla.width + 'px';
+    thsOriginales.forEach(function (th, i) {
+      thsClon[i].style.width = th.getBoundingClientRect().width + 'px';
+    });
   }
-  setNavbarHeight();
-  window.addEventListener('load', setNavbarHeight);
-  window.addEventListener('resize', setNavbarHeight);
-  if (nav && window.ResizeObserver) {
-    new ResizeObserver(setNavbarHeight).observe(nav);
+
+  function actualizarVisibilidad() {
+    var rectThead = theadOriginal.getBoundingClientRect();
+    var rectTabla = tabla.getBoundingClientRect();
+    var navH = nav.offsetHeight;
+    // Mostrar el clon solo mientras el encabezado real ya pasó por debajo
+    // del navbar pero la tabla todavía no terminó de pasar (si no, quedaría
+    // flotando sobre contenido de otra sección de la página).
+    var debeMostrarse = rectThead.top < navH && rectTabla.bottom > navH;
+    clonWrap.style.display = debeMostrarse ? 'block' : 'none';
+    if (debeMostrarse) sync();
   }
+
+  window.addEventListener('scroll', actualizarVisibilidad, { passive: true });
+  window.addEventListener('resize', actualizarVisibilidad);
+  window.addEventListener('load', actualizarVisibilidad);
+  if (window.ResizeObserver) {
+    new ResizeObserver(actualizarVisibilidad).observe(nav);
+    new ResizeObserver(actualizarVisibilidad).observe(tabla);
+  }
+  actualizarVisibilidad();
 })();
 
 const APP_URL = 'https://web-production-0c9c1.up.railway.app/login';
