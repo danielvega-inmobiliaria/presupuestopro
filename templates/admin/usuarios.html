@@ -63,6 +63,9 @@
     position: sticky;
     top: var(--navbar-h, 56px);
     z-index: 2;
+    background-color: #212529; /* mismo color que table-dark, fijo para que no
+                                   se transparente y se vea la fila de atrás */
+    box-shadow: 0 1px 0 rgba(255,255,255,.1); /* separa visualmente del contenido que pasa debajo */
   }
 </style>
 <div class="card">
@@ -163,14 +166,26 @@
 
 <script>
 (function () {
+  // Fix 10/07/2026 (2da vuelta): el cálculo original solo corría una vez al
+  // parsear el script, antes de que terminaran de cargar las fuentes de
+  // bootstrap-icons — el navbar podía cambiar de alto unos px después de eso
+  // y dejaba a la cabecera pegada en la posición vieja (se veía un resto de
+  // la fila anterior asomando arriba del negro, hasta que algo disparaba un
+  // recálculo). Ahora se recalcula en 'load' y con ResizeObserver sobre el
+  // navbar, así se ajusta solo ante cualquier cambio de alto (fuentes,
+  // resize, menú mobile, etc.), no solo en el primer render.
+  var nav = document.querySelector('nav.navbar');
   function setNavbarHeight() {
-    var nav = document.querySelector('nav.navbar');
     if (nav) {
       document.documentElement.style.setProperty('--navbar-h', nav.offsetHeight + 'px');
     }
   }
   setNavbarHeight();
+  window.addEventListener('load', setNavbarHeight);
   window.addEventListener('resize', setNavbarHeight);
+  if (nav && window.ResizeObserver) {
+    new ResizeObserver(setNavbarHeight).observe(nav);
+  }
 })();
 
 const APP_URL = 'https://web-production-0c9c1.up.railway.app/login';
