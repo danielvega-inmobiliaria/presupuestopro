@@ -72,6 +72,12 @@ def usuarios():
         params
     ).fetchall()
 
+    # Fix 10/07/2026 (cont. 8, pedido de Daniel): el badge "Usuarios" del
+    # encabezado tiene que marcar SIEMPRE el total de la base (sin filtrar),
+    # no la cantidad de filas que quedaron después de aplicar los filtros
+    # (eso ya lo muestra `users|length` en la tabla misma).
+    total_usuarios = db.execute("SELECT COUNT(*) as c FROM users WHERE is_admin=0").fetchone()['c']
+
     # Fix 10/07/2026 (2da vuelta, pedido de Daniel): en vez de un cartel de
     # "también en" aparte, mostrar la cantidad de cada nivel (ciudad,
     # provincia, país) pegada al lado de su propio label. Cuando un nivel no
@@ -132,7 +138,7 @@ def usuarios():
     return render_template('admin/usuarios.html', users=users, user=g.user,
                             provincias=PROVINCIAS_AR, localidades_lista=localidades_lista, paises=PAISES,
                             f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais,
-                            contadores=contadores)
+                            contadores=contadores, total_usuarios=total_usuarios)
 
 
 @bp.route('/localidades')

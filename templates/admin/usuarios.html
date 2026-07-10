@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="bi bi-people"></i> Usuarios <span class="badge bg-secondary">{{ users|length }}</span></h4>
+  <h4 class="mb-0"><i class="bi bi-people"></i> Usuarios <span class="badge bg-secondary">{{ total_usuarios }}</span></h4>
   <div class="d-flex gap-2">
     <a href="{{ url_for('admin.localidades') }}" class="btn btn-outline-secondary">
       <i class="bi bi-geo-alt"></i> Gestionar localidades
@@ -48,7 +48,10 @@
       <div class="col-6 col-md-4">
         <label class="form-label form-label-sm mb-0 text-muted">
           Provincia
-          {% if contadores.provincia %}<span class="badge bg-secondary">{{ contadores.provincia.cantidad }}</span>{% endif %}
+          {% if contadores.provincia %}
+          <span class="badge bg-secondary">{{ contadores.provincia.cantidad }}</span>
+          {% if not f_provincia %}<span class="text-muted">{{ contadores.provincia.nombre }}</span>{% endif %}
+          {% endif %}
         </label>
         <select name="f_provincia" class="form-select form-select-sm">
           <option value="">Todas</option>
@@ -60,7 +63,10 @@
       <div class="col-6 col-md-3">
         <label class="form-label form-label-sm mb-0 text-muted">
           País
-          {% if contadores.pais %}<span class="badge bg-secondary">{{ contadores.pais.cantidad }}</span>{% endif %}
+          {% if contadores.pais %}
+          <span class="badge bg-secondary">{{ contadores.pais.cantidad }}</span>
+          {% if not f_pais %}<span class="text-muted">{{ contadores.pais.nombre }}</span>{% endif %}
+          {% endif %}
         </label>
         <select name="f_pais" class="form-select form-select-sm">
           <option value="">Todos</option>
