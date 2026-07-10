@@ -53,9 +53,21 @@
   </div>
 </form>
 
+{# Fix 10/07/2026 (pedido de Daniel): encabezado de la tabla fijo al scrollear,
+   pegado justo debajo del navbar (que ya es sticky-top en base.html), para
+   poder leer los títulos de columna con listas largas de usuarios. El offset
+   "top" se calcula con JS a partir de la altura real del navbar en vez de
+   hardcodearlo, porque cambia entre mobile/desktop. #}
+<style>
+  #tabla-usuarios thead th {
+    position: sticky;
+    top: var(--navbar-h, 56px);
+    z-index: 2;
+  }
+</style>
 <div class="card">
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table table-hover mb-0" id="tabla-usuarios">
       <thead class="table-dark">
         <tr>
           <th>Nombre</th>
@@ -150,6 +162,17 @@
 </div>
 
 <script>
+(function () {
+  function setNavbarHeight() {
+    var nav = document.querySelector('nav.navbar');
+    if (nav) {
+      document.documentElement.style.setProperty('--navbar-h', nav.offsetHeight + 'px');
+    }
+  }
+  setNavbarHeight();
+  window.addEventListener('resize', setNavbarHeight);
+})();
+
 const APP_URL = 'https://web-production-0c9c1.up.railway.app/login';
 
 function waActivacion(tel, nombre) {
