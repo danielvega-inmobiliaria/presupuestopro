@@ -101,6 +101,28 @@
     .badge-gratis { background:#dcfce7; color:#166534; border-radius:6px; padding:3px 12px; font-size:.85rem; font-weight:600; }
 
   </style>
+
+  <!-- Meta Pixel (PresupuestoPRO Pixel, id 1189868074213923) — Fix 08/07/2026:
+       landing.html es standalone (no extends base.html) así que no heredaba el
+       Pixel de ahí. Se agrega acá directo porque esta es la página real que
+       recibe el tráfico de los anuncios (dashboard.index() la sirve cuando
+       no hay sesión). Sin esto, Meta nunca veía el PageView del visitante. -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1189868074213923');
+  fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1189868074213923&ev=PageView&noscript=1"
+  /></noscript>
+  <meta name="facebook-domain-verification" content="39xkjaz4s6n6ou5436fpgnikh1wibt" />
 </head>
 <body>
 
