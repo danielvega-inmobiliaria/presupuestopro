@@ -118,7 +118,14 @@ def resultado():
     # así la expansión de compuestos, sinónimos y conversión a bolsas es idéntica
     # a la que ve el usuario en el paso 6 (Materiales) de un presupuesto real.
     p_sintetico = {'rubros': [{'items': [{'nombre': item['nombre'], 'cantidad': factor_conv}]}]}
-    mat_items_raw = _calcular_materiales_desde_rubros(p_sintetico)
+    # Fix 10/07/2026: redondear=False → NO redondear cada material a unidad de
+    # compra entera (bolsa/u). En un presupuesto real ese redondeo hacia arriba
+    # es correcto (no se compra 0.8 bolsas), pero acá estamos mostrando el
+    # consumo real de referencia por 1 m2/m3, y redondear cada material a la
+    # bolsa/unidad entera más cercana infla el costo (ej. Cemento Albañilería
+    # aparecía como 1 bolsa completa consumida por m2 cuando en realidad son
+    # ~0.8 bolsas). Ver docstring de _calcular_materiales_desde_rubros.
+    mat_items_raw = _calcular_materiales_desde_rubros(p_sintetico, redondear=False)
     mat_items = [{
         'nombre':          m['nombre'],
         'cantidad':        m['cantidad'],

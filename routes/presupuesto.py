@@ -256,9 +256,25 @@ def _materiales_por_unidad_items():
     return resultado
 
 
-def _calcular_materiales_desde_rubros(p):
+def _calcular_materiales_desde_rubros(p, redondear=True):
     """Recalcula la lista de materiales (formato TOT MAT) desde analisis_sub
-    usando las cantidades actuales de los rubros en el presupuesto."""
+    usando las cantidades actuales de los rubros en el presupuesto.
+
+    redondear=True  (default, presupuesto real / PDF): cantidad de compra
+        redondeada arriba a unidad comercial (bolsa/u entera) — correcto
+        para lo que hay que comprar en el corralón.
+    redondear=False (Costo/m2, ver routes/costo_m2.py): NO redondea a unidad
+        de compra. Fix 10/07/2026 — Daniel detectó que en Costo/m2 el Cemento
+        de Albañilería (y cualquier material 'Bolsas'/'U'/'Kg') se mostraba
+        siempre como 1 bolsa entera consumida, aunque el consumo real por m2
+        fuera una fracción chica (ej. Mamp. ladrillo comun 30cm: ~0.8 bolsas
+        = ~20kg reales, no 1 bolsa completa). Pasaba porque esta función
+        siempre hacía ceil() para redondear a unidad de compra (correcto en
+        un presupuesto real de obra completa, donde no podés comprar 0.8
+        bolsas), pero Costo/m2 calcula sobre una unidad sintética de 1 m2
+        (o factor_conv chico), así que ese ceil() infla el costo de
+        referencia. Con redondear=False se usa la cantidad real fraccionaria
+        tanto para mostrar como para el subtotal."""
     try:
         db2 = get_db()
         subs_rows = db2.execute(
@@ -344,14 +360,19 @@ def _calcular_materiales_desde_rubros(p):
                     precio_unit = vals['precio'] * kg_por_unidad
                     unidad = etiqueta
                     break
-            cant_redondeada = _redondear_cantidad(raw_qty, unidad)
+            if redondear:
+                cant_final = _redondear_cantidad(raw_qty, unidad)
+            else:
+                # Costo/m2: cantidad real sin redondear a unidad de compra
+                # (ver docstring de la función — fix 10/07/2026).
+                cant_final = round(raw_qty, 3)
             cat_num, _ = _categoria_material(nombre)
             result.append({
                 'nombre':       nombre,
-                'cantidad':     cant_redondeada,
+                'cantidad':     cant_final,
                 'unidad':       unidad,
                 'precio_local': round(precio_unit),
-                'subtotal':     round(cant_redondeada * precio_unit),
+                'subtotal':     round(cant_final * precio_unit),
                 'categoria':    cat_num,
             })
         return sorted(result, key=lambda m: _categoria_material(m['nombre']))
