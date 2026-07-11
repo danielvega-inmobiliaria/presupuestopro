@@ -1,5 +1,6 @@
 import base64
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g
+from werkzeug.security import check_password_hash, generate_password_hash
 from utils.auth import login_required
 from database import get_db
 
@@ -22,7 +23,9 @@ def _get_perfil(user_id):
 @login_required
 def ver():
     perfil = _get_perfil(g.user['id'])
-    return render_template('perfil/perfil.html', perfil=perfil)
+    # Fix 11/07/2026: faltaba pasar `user` al template — sin esto, el navbar
+    # ({% if user %} en base.html) no se mostraba en esta página.
+    return render_template('perfil/perfil.html', perfil=perfil, user=g.user)
 
 
 @bp.route('/guardar', methods=['POST'])
@@ -83,6 +86,45 @@ def guardar():
     db.close()
     flash('Perfil de empresa guardado correctamente.', 'success')
     return redirect(url_for('perfil.ver'))
+
+
+@bp.route('/cambiar-password', methods=['GET', 'POST'])
+@login_required
+def cambiar_password():
+    """Agregado 11/07/2026: no existía ninguna forma de cambiar la propia
+    contraseña estando logueado (solo el flujo de "olvidé mi contraseña" por
+    email, que requiere que el email de la cuenta reciba correo — no
+    garantizado para admin@presupuestopro.com). Sirve para cualquier usuario
+    logueado, incluido el admin."""
+    if request.method == 'POST':
+        actual = request.form.get('actual', '')
+        pw1 = request.form.get('password', '')
+        pw2 = request.form.get('password2', '')
+
+        db = get_db()
+        row = db.execute("SELECT password_hash FROM users WHERE id=?", (g.user['id'],)).fetchone()
+
+        if not row or not check_password_hash(row['password_hash'], actual):
+            db.close()
+            flash('La contraseña actual no es correcta.', 'error')
+            return redirect(url_for('perfil.cambiar_password'))
+        if len(pw1) < 6:
+            db.close()
+            flash('La contraseña nueva debe tener al menos 6 caracteres.', 'error')
+            return redirect(url_for('perfil.cambiar_password'))
+        if pw1 != pw2:
+            db.close()
+            flash('Las contraseñas nuevas no coinciden.', 'error')
+            return redirect(url_for('perfil.cambiar_password'))
+
+        db.execute("UPDATE users SET password_hash=? WHERE id=?",
+                   (generate_password_hash(pw1), g.user['id']))
+        db.commit()
+        db.close()
+        flash('Contraseña actualizada correctamente.', 'success')
+        return redirect(url_for('perfil.ver'))
+
+    return render_template('perfil/cambiar_password.html', user=g.user)
 
 
 @bp.route('/borrar-logo', methods=['POST'])
