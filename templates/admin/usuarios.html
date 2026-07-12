@@ -39,16 +39,24 @@
           Localidad
           {% if contadores.ciudad is not none %}<span class="badge bg-secondary">{{ contadores.ciudad }}</span>{% endif %}
         </label>
-        {# Fix 12/07/2026: antes era <input list="..."> con <datalist> nativo.
-           En mobile (Chrome/Android), el datalist se mostraba como una tira
-           horizontal de 3 sugerencias pegada arriba del teclado — layout que
-           no se puede controlar por CSS porque lo dibuja el navegador, no el
-           DOM. Reemplazado por un dropdown propio en JS: vertical, alfabético
-           (ya viene ordenado así desde el backend), con scroll si hay muchas
-           localidades. Ver #loc-dropdown y el script "Autocomplete Localidad"
-           más abajo. #}
-        <input type="text" name="f_ciudad" id="input-localidad" class="form-control form-control-sm" autocomplete="off"
+        {# Fix 12/07/2026 (1ra vuelta): reemplazado <input list="..."> con
+           <datalist> nativo por un dropdown propio en JS (pensando que el
+           datalist era el responsable de la tira horizontal de sugerencias
+           en mobile). No alcanzó: lo que Daniel seguía viendo (Rosario/Roldán
+           en el mismo lugar tras el fix) no era nuestro datalist ni nuestro
+           dropdown — era el AUTOFILL nativo de Chrome, que recuerda valores
+           tipeados antes en un campo con el mismo "name" y los sugiere,
+           IGNORANDO autocomplete="off" en muchas versiones de Chrome Android
+           (comportamiento documentado, no es un bug nuestro).
+
+           Fix 12/07/2026 (2da vuelta, definitivo): se separa el campo VISIBLE
+           (sin "name", así Chrome no tiene qué campo recordar) del campo que
+           realmente se envía en el formulario (input hidden "f_ciudad",
+           nunca recibe foco → Chrome nunca le ofrece autofill). JS sincroniza
+           ambos. #}
+        <input type="text" id="input-localidad" class="form-control form-control-sm" autocomplete="off"
                value="{{ f_ciudad }}" placeholder="Ej: Rosario">
+        <input type="hidden" name="f_ciudad" id="input-localidad-hidden" value="{{ f_ciudad }}">
         <div id="loc-dropdown" class="list-group shadow-sm" style="display:none; position:absolute; z-index:1020; max-height:220px; overflow-y:auto; width:100%;"></div>
       </div>
       <div class="col-6 col-md-4">
@@ -224,11 +232,11 @@
 (function () {
   // Fix 10/07/2026 (2da vuelta): auto-enviar el formulario de filtros al
   // cambiar cualquier campo (ya no hay botón "Filtrar" visible). 'change'
-  // dispara solo (en los <select>) o al perder el foco (en Localidad) — no
-  // en cada tecla, para no recargar la página mientras Daniel escribe.
+  // dispara solo (en los <select>) — Localidad se maneja aparte más abajo,
+  // porque ahora es un input sin "name" (ver fix del autofill de Chrome).
   var filtroFormAuto = document.getElementById('filtro-form');
   if (filtroFormAuto) {
-    filtroFormAuto.querySelectorAll('input[name="f_ciudad"], select[name="f_provincia"], select[name="f_pais"]')
+    filtroFormAuto.querySelectorAll('select[name="f_provincia"], select[name="f_pais"]')
       .forEach(function (el) {
         el.addEventListener('change', function () {
           if (filtroFormAuto.requestSubmit) filtroFormAuto.requestSubmit();
@@ -239,13 +247,28 @@
 })();
 
 (function () {
-  // Fix 12/07/2026: dropdown propio para Localidad, en reemplazo del
-  // <datalist> nativo (ver comentario en el HTML). Lista ya viene
-  // alfabética desde el backend (routes/admin.py::usuarios()).
+  // Fix 12/07/2026 (2da vuelta): dropdown propio para Localidad. La 1ra
+  // vuelta (sacar el <datalist>) no alcanzó — lo que Daniel seguía viendo
+  // (Rosario/Roldán en el mismo lugar, en horizontal) era el AUTOFILL
+  // NATIVO de Chrome (recuerda valores tipeados antes en un campo con el
+  // mismo "name", e ignora autocomplete="off" en muchas versiones de Chrome
+  // Android — comportamiento documentado del navegador, no un bug nuestro).
+  // Ahora el input visible NO tiene "name" (nada que Chrome pueda asociar a
+  // historial de autofill) y un input hidden #input-localidad-hidden,
+  // name="f_ciudad", es el que realmente viaja en el GET del formulario.
   var TODAS_LOCALIDADES = {{ localidades_lista | tojson }};
   var input = document.getElementById('input-localidad');
+  var hidden = document.getElementById('input-localidad-hidden');
   var dropdown = document.getElementById('loc-dropdown');
-  if (!input || !dropdown) return;
+  var filtroFormLoc = document.getElementById('filtro-form');
+  if (!input || !hidden || !dropdown) return;
+
+  function submitForm() {
+    if (filtroFormLoc) {
+      if (filtroFormLoc.requestSubmit) filtroFormLoc.requestSubmit();
+      else filtroFormLoc.submit();
+    }
+  }
 
   function render(lista) {
     dropdown.innerHTML = '';
@@ -260,12 +283,9 @@
       item.addEventListener('mousedown', function (ev) {
         ev.preventDefault();
         input.value = nombre;
+        hidden.value = nombre;
         dropdown.style.display = 'none';
-        var filtroFormAuto = document.getElementById('filtro-form');
-        if (filtroFormAuto) {
-          if (filtroFormAuto.requestSubmit) filtroFormAuto.requestSubmit();
-          else filtroFormAuto.submit();
-        }
+        submitForm();
       });
       dropdown.appendChild(item);
     });
@@ -273,6 +293,7 @@
   }
 
   input.addEventListener('input', function () {
+    hidden.value = input.value; // se mantiene sincronizado aunque no elija una sugerencia
     var q = input.value.trim().toLowerCase();
     if (!q) { dropdown.style.display = 'none'; return; }
     render(TODAS_LOCALIDADES.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }));
@@ -283,6 +304,8 @@
   input.addEventListener('blur', function () {
     // Pequeño delay para que el mousedown del item llegue a disparar antes.
     setTimeout(function () { dropdown.style.display = 'none'; }, 150);
+    // Si escribió a mano (sin elegir sugerencia) y cambió el valor, auto-envía igual.
+    if (hidden.value !== hidden.defaultValue) submitForm();
   });
 })();
 
