@@ -34,16 +34,22 @@
 <form method="GET" class="card mb-3" id="filtro-form" style="position: sticky; top: var(--navbar-h, 56px); z-index: 1015;">
   <div class="card-body py-2">
     <div class="row g-2 align-items-end">
-      <div class="col-6 col-md-4">
+      <div class="col-6 col-md-4 position-relative">
         <label class="form-label form-label-sm mb-0 text-muted">
           Localidad
           {% if contadores.ciudad is not none %}<span class="badge bg-secondary">{{ contadores.ciudad }}</span>{% endif %}
         </label>
-        <input type="text" name="f_ciudad" class="form-control form-control-sm" autocomplete="off"
-               value="{{ f_ciudad }}" placeholder="Ej: Rosario" list="lista-localidades-filtro">
-        <datalist id="lista-localidades-filtro">
-          {% for l in localidades_lista %}<option value="{{ l }}">{% endfor %}
-        </datalist>
+        {# Fix 12/07/2026: antes era <input list="..."> con <datalist> nativo.
+           En mobile (Chrome/Android), el datalist se mostraba como una tira
+           horizontal de 3 sugerencias pegada arriba del teclado — layout que
+           no se puede controlar por CSS porque lo dibuja el navegador, no el
+           DOM. Reemplazado por un dropdown propio en JS: vertical, alfabético
+           (ya viene ordenado así desde el backend), con scroll si hay muchas
+           localidades. Ver #loc-dropdown y el script "Autocomplete Localidad"
+           más abajo. #}
+        <input type="text" name="f_ciudad" id="input-localidad" class="form-control form-control-sm" autocomplete="off"
+               value="{{ f_ciudad }}" placeholder="Ej: Rosario">
+        <div id="loc-dropdown" class="list-group shadow-sm" style="display:none; position:absolute; z-index:1020; max-height:220px; overflow-y:auto; width:100%;"></div>
       </div>
       <div class="col-6 col-md-4">
         <label class="form-label form-label-sm mb-0 text-muted">
@@ -89,23 +95,26 @@
    pegado justo debajo del navbar, para poder leer los títulos de columna con
    listas largas de usuarios.
 
-   2do intento (el de "position: sticky" en los <th> daba un glitch de
-   ghosting/tearing: al scrollear quedaba un resto visible de la fila
-   anterior tapado a medias arriba del encabezado negro, típico de sticky
-   dentro de un contenedor con overflow-x:auto como .table-responsive —
-   bug conocido de Chrome, no se resuelve solo con recalcular alturas).
+   1er intento: "position: sticky" en los <th> daba un glitch de
+   ghosting/tearing (bug de Chrome con sticky dentro de un contenedor con
+   overflow-x:auto pero SIN overflow-y explícito, mientras la página entera
+   scrolleaba). 2do intento: clon del <thead> con position:fixed + JS
+   sincronizando scroll/anchos — funcionaba en desktop pero en mobile el
+   encabezado desaparecía al scrollear (reportado por Daniel 12/07/2026),
+   por la combinación de scroll de página + teclado virtual + recálculo de
+   viewport, poco confiable en ese hack.
 
-   Enfoque nuevo, sin position:sticky: se clona el <thead> real en un <div
-   id="thead-clon"> aparte con position:fixed, oculto por default. Un
-   listener de scroll lo muestra/oculta y le copia el ancho exacto de cada
-   columna (getBoundingClientRect de cada th original) para que quede
-   perfectamente alineado con la tabla real. Al ser un elemento totalmente
-   aparte (no sticky, no dentro del contenedor con overflow), no tiene el
-   bug de ghosting. #}
+   Fix 12/07/2026 (3er enfoque, definitivo): el propio contenedor
+   `.table-responsive` pasa a ser el scroll (max-height + overflow-y:auto,
+   además del overflow-x:auto que ya tenía) y el <thead> usa position:sticky
+   normal (top:0) DENTRO de ese contenedor. Este es el patrón estándar para
+   encabezados de tabla fijos — al ser el propio contenedor el que scrollea
+   (no la página), no depende de JS ni tiene el bug de ghosting de Chrome, y
+   funciona igual en desktop y mobile. #}
 <div class="card">
-  <div class="table-responsive">
+  <div class="table-responsive" id="tabla-scroll-wrap" style="max-height: 65vh; overflow-y: auto;">
     <table class="table table-hover mb-0" id="tabla-usuarios">
-      <thead class="table-dark" id="thead-original">
+      <thead class="table-dark" id="thead-original" style="position: sticky; top: 0; z-index: 5;">
         <tr>
           <th>Nombre</th>
           <th>Email / Teléfono</th>
@@ -198,29 +207,25 @@
   </div>
 </div>
 
-{# Clon del encabezado — position:fixed, arranca oculto. Reemplaza el intento
-   anterior con position:sticky en los <th> (Fix 10/07/2026, 1er intento):
-   ese enfoque daba ghosting/tearing al scrollear (quedaba un resto visible
-   de la fila anterior tapado a medias arriba del encabezado negro) — bug
-   conocido de Chrome con sticky dentro de un contenedor con
-   overflow-x:auto como .table-responsive, no se arregla solo recalculando
-   alturas. Este clon es un elemento totalmente aparte (position:fixed, no
-   sticky, no vive dentro del contenedor con overflow), así que no tiene ese
-   bug. Un listener de scroll lo muestra/oculta y le copia el ancho exacto
-   de cada columna para que quede alineado con la tabla real. #}
-<div id="thead-clon" style="display:none; position:fixed; overflow:hidden; z-index:1030;">
-  <table class="table table-hover mb-0" style="table-layout:fixed;">
-    <thead class="table-dark"><tr id="thead-clon-fila"></tr></thead>
-  </table>
-</div>
-
 <script>
+(function () {
+  // --navbar-h la usa el CSS del formulario de filtros (position: sticky;
+  // top: var(--navbar-h)) para pegarse justo debajo del navbar real.
+  var nav = document.querySelector('nav.navbar');
+  if (!nav) return;
+  function setNavbarHeight() {
+    document.documentElement.style.setProperty('--navbar-h', nav.offsetHeight + 'px');
+  }
+  window.addEventListener('resize', setNavbarHeight);
+  window.addEventListener('load', setNavbarHeight);
+  setNavbarHeight();
+})();
+
 (function () {
   // Fix 10/07/2026 (2da vuelta): auto-enviar el formulario de filtros al
   // cambiar cualquier campo (ya no hay botón "Filtrar" visible). 'change'
-  // dispara solo (en los <select>) o al perder el foco / elegir del
-  // datalist (en Localidad) — no en cada tecla, para no recargar la página
-  // mientras Daniel todavía está escribiendo.
+  // dispara solo (en los <select>) o al perder el foco (en Localidad) — no
+  // en cada tecla, para no recargar la página mientras Daniel escribe.
   var filtroFormAuto = document.getElementById('filtro-form');
   if (filtroFormAuto) {
     filtroFormAuto.querySelectorAll('input[name="f_ciudad"], select[name="f_provincia"], select[name="f_pais"]')
@@ -234,66 +239,51 @@
 })();
 
 (function () {
-  var nav = document.querySelector('nav.navbar');
-  var filtroForm = document.getElementById('filtro-form');
-  var theadOriginal = document.getElementById('thead-original');
-  var tabla = document.getElementById('tabla-usuarios');
-  var clonWrap = document.getElementById('thead-clon');
-  var clonFila = document.getElementById('thead-clon-fila');
-  if (!nav || !theadOriginal || !tabla || !clonWrap || !clonFila) return;
+  // Fix 12/07/2026: dropdown propio para Localidad, en reemplazo del
+  // <datalist> nativo (ver comentario en el HTML). Lista ya viene
+  // alfabética desde el backend (routes/admin.py::usuarios()).
+  var TODAS_LOCALIDADES = {{ localidades_lista | tojson }};
+  var input = document.getElementById('input-localidad');
+  var dropdown = document.getElementById('loc-dropdown');
+  if (!input || !dropdown) return;
 
-  // --navbar-h la usa el CSS inline del formulario de filtros (position:
-  // sticky; top: var(--navbar-h)) para pegarse justo debajo del navbar.
-  function setNavbarHeight() {
-    document.documentElement.style.setProperty('--navbar-h', nav.offsetHeight + 'px');
-  }
-
-  var thsOriginales = theadOriginal.querySelectorAll('th');
-  // Clona las celdas una sola vez (mismo texto/íconos); en cada sync() solo
-  // se les ajusta el ancho para que sigan alineadas con la tabla real.
-  thsOriginales.forEach(function (th) {
-    clonFila.appendChild(th.cloneNode(true));
-  });
-  var thsClon = clonFila.querySelectorAll('th');
-
-  // El clon del encabezado de la tabla se pega debajo del navbar Y del
-  // formulario de filtros (que ahora también es sticky), no solo del navbar.
-  function offsetTop() {
-    return nav.offsetHeight + (filtroForm ? filtroForm.offsetHeight : 0);
-  }
-
-  function sync() {
-    var rectTabla = tabla.getBoundingClientRect();
-    clonWrap.style.top = offsetTop() + 'px';
-    clonWrap.style.left = rectTabla.left + 'px';
-    clonWrap.style.width = rectTabla.width + 'px';
-    thsOriginales.forEach(function (th, i) {
-      thsClon[i].style.width = th.getBoundingClientRect().width + 'px';
+  function render(lista) {
+    dropdown.innerHTML = '';
+    if (!lista.length) { dropdown.style.display = 'none'; return; }
+    lista.slice(0, 30).forEach(function (nombre) {
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'list-group-item list-group-item-action py-1 px-2 small';
+      item.textContent = nombre;
+      // mousedown (no click) + preventDefault: evita que el blur del input
+      // cierre el dropdown ANTES de registrar la selección.
+      item.addEventListener('mousedown', function (ev) {
+        ev.preventDefault();
+        input.value = nombre;
+        dropdown.style.display = 'none';
+        var filtroFormAuto = document.getElementById('filtro-form');
+        if (filtroFormAuto) {
+          if (filtroFormAuto.requestSubmit) filtroFormAuto.requestSubmit();
+          else filtroFormAuto.submit();
+        }
+      });
+      dropdown.appendChild(item);
     });
+    dropdown.style.display = 'block';
   }
 
-  function actualizarVisibilidad() {
-    setNavbarHeight();
-    var rectThead = theadOriginal.getBoundingClientRect();
-    var rectTabla = tabla.getBoundingClientRect();
-    var top = offsetTop();
-    // Mostrar el clon solo mientras el encabezado real ya pasó por debajo
-    // del navbar+filtros pero la tabla todavía no terminó de pasar (si no,
-    // quedaría flotando sobre contenido de otra sección de la página).
-    var debeMostrarse = rectThead.top < top && rectTabla.bottom > top;
-    clonWrap.style.display = debeMostrarse ? 'block' : 'none';
-    if (debeMostrarse) sync();
-  }
-
-  window.addEventListener('scroll', actualizarVisibilidad, { passive: true });
-  window.addEventListener('resize', actualizarVisibilidad);
-  window.addEventListener('load', actualizarVisibilidad);
-  if (window.ResizeObserver) {
-    new ResizeObserver(actualizarVisibilidad).observe(nav);
-    new ResizeObserver(actualizarVisibilidad).observe(tabla);
-    if (filtroForm) new ResizeObserver(actualizarVisibilidad).observe(filtroForm);
-  }
-  actualizarVisibilidad();
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    if (!q) { dropdown.style.display = 'none'; return; }
+    render(TODAS_LOCALIDADES.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }));
+  });
+  input.addEventListener('focus', function () {
+    if (input.value.trim()) input.dispatchEvent(new Event('input'));
+  });
+  input.addEventListener('blur', function () {
+    // Pequeño delay para que el mousedown del item llegue a disparar antes.
+    setTimeout(function () { dropdown.style.display = 'none'; }, 150);
+  });
 })();
 
 const APP_URL = 'https://web-production-0c9c1.up.railway.app/login';

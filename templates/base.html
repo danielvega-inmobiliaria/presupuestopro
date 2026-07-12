@@ -78,6 +78,9 @@
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('perfil.ver') }}"><i class="bi bi-building me-1"></i> Mi empresa</a></li>
             <li><a class="dropdown-item" href="{{ url_for('perfil.cambiar_password') }}"><i class="bi bi-key me-1"></i> Cambiar contraseña</a></li>
+            <li id="li-instalar-app" style="display:none">
+              <a class="dropdown-item" href="#" id="btn-instalar-app"><i class="bi bi-download me-1"></i> Instalar app</a>
+            </li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a></li>
           </ul>
@@ -87,6 +90,42 @@
   </div>
 </nav>
 {% endif %}
+
+{# Modal con los pasos de instalación (mismo contenido que "Punto 10" del
+   Manual del Usuario, templates/manual.html#pantalla-inicio) — fix
+   12/07/2026, pedido de Daniel: además de la explicación en el Manual, que
+   haya un botón de instalación (dispara el prompt nativo del navegador
+   cuando existe) o, si el navegador no lo soporta (iOS Safari no tiene
+   prompt nativo), que abra directamente esta ventana con los pasos. #}
+<div class="modal fade" id="modalInstalarApp" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="bi bi-phone"></i> Instalar PresupuestoPRO</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted">Queda un ícono en la pantalla de inicio y se abre a pantalla completa, sin la barra del navegador.</p>
+        <div id="pasos-ios">
+          <h6 class="text-muted mb-2"><i class="bi bi-apple"></i> iPhone / iPad (Safari)</h6>
+          <ol>
+            <li>Tocá el ícono de compartir <i class="bi bi-box-arrow-up"></i> (abajo en el centro).</li>
+            <li>Deslizá hacia abajo y tocá <strong>"Agregar a pantalla de inicio"</strong>.</li>
+            <li>Confirmá el nombre y tocá <strong>"Agregar"</strong>.</li>
+          </ol>
+        </div>
+        <div id="pasos-android">
+          <h6 class="text-muted mb-2"><i class="bi bi-android2"></i> Android (Chrome)</h6>
+          <ol class="mb-0">
+            <li>Tocá los tres puntos <i class="bi bi-three-dots-vertical"></i> arriba a la derecha.</li>
+            <li>Tocá <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.</li>
+            <li>Confirmá tocando <strong>"Instalar"</strong> o <strong>"Agregar"</strong>.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% block sticky_nav %}{% endblock %}
 <div class="container-fluid py-4">
@@ -134,6 +173,61 @@ function wizardGoto(url) {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/static/sw.js').catch(() => {});
 }
+</script>
+<script>
+// Fix 12/07/2026: botón "Instalar app" (menú de usuario) — pedido de Daniel
+// como complemento del Manual (Punto 10). En Android/Chrome/desktop que
+// soportan el evento "beforeinstallprompt", el botón dispara el instalador
+// nativo del navegador. iOS Safari no tiene ese evento (Apple no lo
+// implementa), así que ahí el botón abre directamente el modal con los
+// pasos manuales. Si la app ya está instalada (corriendo en modo
+// standalone), el botón queda oculto.
+(function () {
+  var li = document.getElementById('li-instalar-app');
+  var btn = document.getElementById('btn-instalar-app');
+  if (!li || !btn) return;
+
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isStandalone) return; // ya instalada, no mostrar nada
+
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  var deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    li.style.display = 'block';
+  });
+
+  // En iOS (sin beforeinstallprompt) o si el navegador tarda en disparar el
+  // evento, mostramos igual el botón: sirve para abrir el modal con pasos.
+  if (isIOS) li.style.display = 'block';
+  else setTimeout(function () { if (!deferredPrompt) li.style.display = 'block'; }, 2500);
+
+  function abrirModal() {
+    var modalEl = document.getElementById('modalInstalarApp');
+    document.getElementById('pasos-ios').style.display = isIOS ? 'block' : 'none';
+    document.getElementById('pasos-android').style.display = isIOS ? 'none' : 'block';
+    new bootstrap.Modal(modalEl).show();
+  }
+
+  btn.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.finally(function () {
+        deferredPrompt = null;
+        li.style.display = 'none';
+      });
+    } else {
+      abrirModal();
+    }
+  });
+
+  window.addEventListener('appinstalled', function () {
+    li.style.display = 'none';
+  });
+})();
 </script>
 </body>
 </html>

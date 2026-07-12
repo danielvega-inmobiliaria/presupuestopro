@@ -130,8 +130,11 @@ def usuarios():
     # Localidad sigue siendo abierta, pero ahora hay tabla `localidades`
     # autoalimentada (fix de hoy) para ofrecer autocompletado real, no el
     # autocompletado del navegador que Daniel vio antes.
+    # Fix 12/07/2026: antes ordenaba por uso (veces_usada DESC) -> las
+    # sugerencias del filtro de Localidad aparecían desordenadas. Pedido de
+    # Daniel: alfabético, para elegir más fácil desde el celular.
     localidades_lista = [r['nombre_display'] for r in db.execute(
-        "SELECT nombre_display FROM localidades WHERE merged_en='' ORDER BY veces_usada DESC"
+        "SELECT nombre_display FROM localidades WHERE merged_en='' ORDER BY nombre_display COLLATE NOCASE ASC"
     ).fetchall()]
     db.close()
 
