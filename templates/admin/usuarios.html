@@ -273,7 +273,13 @@
   function render(lista) {
     dropdown.innerHTML = '';
     if (!lista.length) { dropdown.style.display = 'none'; return; }
-    lista.slice(0, 30).forEach(function (nombre) {
+    // Fix 13/07/2026: antes cortaba a los primeros 30 resultados (alfabético) —
+    // si había más de 30 localidades que matcheaban la letra, las que
+    // seguían alfabéticamente después de las primeras 30 no aparecían nunca
+    // (reportado por Daniel: "si hay una localidad con esa letra no aparece
+    // en la lista"). El dropdown ya es scrolleable (max-height 220px), así
+    // que no hace falta cortar la lista — se muestran todos los matches.
+    lista.forEach(function (nombre) {
       var item = document.createElement('button');
       item.type = 'button';
       item.className = 'list-group-item list-group-item-action py-1 px-2 small';
@@ -295,11 +301,19 @@
   input.addEventListener('input', function () {
     hidden.value = input.value; // se mantiene sincronizado aunque no elija una sugerencia
     var q = input.value.trim().toLowerCase();
-    if (!q) { dropdown.style.display = 'none'; return; }
+    // Si borró todo y quedó vacío, mostrar la lista completa (igual que al
+    // hacer foco), no ocultar el dropdown.
+    if (!q) { render(TODAS_LOCALIDADES); return; }
     render(TODAS_LOCALIDADES.filter(function (n) { return n.toLowerCase().indexOf(q) !== -1; }));
   });
   input.addEventListener('focus', function () {
+    // Fix 13/07/2026: antes, si el campo estaba vacío, tocarlo/clickearlo no
+    // mostraba nada (reportado por Daniel: "si clickeo en ciudad no aparece
+    // la lista"). Ahora, con el campo vacío, se muestra la lista completa
+    // de localidades (igual que un <select> nativo al abrirlo); si ya hay
+    // texto, se re-filtra como antes.
     if (input.value.trim()) input.dispatchEvent(new Event('input'));
+    else render(TODAS_LOCALIDADES);
   });
   input.addEventListener('blur', function () {
     // Pequeño delay para que el mousedown del item llegue a disparar antes.
