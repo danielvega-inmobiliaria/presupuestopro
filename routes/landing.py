@@ -365,10 +365,16 @@ def contacto():
         except Exception as e:
             logger.error(f"[Contacto] Error enviando email: {e}")
 
-    # ⚠️ Fix 06/07/2026 pendiente de confirmar con Daniel: este redirect apunta
-    # a '/landing', ruta que se ELIMINÓ en este mismo fix (era la landing vieja
-    # muerta). Se dejó sin tocar a pedido explícito ("sin tocar la función
-    # contacto()"), pero si este formulario vuelve a usarse (ej. en la landing
-    # real, templates/landing.html) este redirect va a dar 404. Cambiar a
-    # '/?contacto_ok=1#contacto' (la home real) en cuanto se confirme.
-    return redirect('/landing?contacto_ok=1#contacto')
+    # Fix 14/07/2026: '/landing' ya no existe (se borró 06/07/2026). Corregido
+    # a la home real, tal como quedó anotado como pendiente.
+    return redirect('/?contacto_ok=1#contacto')
+
+
+@bp.route('/terminos')
+def terminos():
+    return render_template('terminos.html')
+
+
+@bp.route('/privacidad')
+def privacidad():
+    return render_template('privacidad.html')
