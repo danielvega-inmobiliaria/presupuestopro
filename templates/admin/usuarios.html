@@ -8,6 +8,13 @@
     <a href="{{ url_for('admin.localidades') }}" class="btn btn-outline-secondary">
       <i class="bi bi-geo-alt"></i> Gestionar localidades
     </a>
+    {# Fix 15/07/2026, pedido de Daniel: exportar en un click el Excel de
+       usuarios a contactar (sin validar email / con 1 solo presupuesto o
+       borrador), con mensajes de WhatsApp y email ya sugeridos por fila.
+       Antes esto se armaba a mano con capturas de pantalla de esta tabla. #}
+    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn btn-outline-primary" title="Descarga un Excel con los usuarios sin validar email y los que hicieron solo 1 presupuesto/borrador, con mensajes sugeridos">
+      <i class="bi bi-file-earmark-excel"></i> Exportar para contactar
+    </a>
     <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn btn-success">
       <i class="bi bi-person-plus"></i> Nuevo usuario
     </a>

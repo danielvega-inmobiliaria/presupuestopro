@@ -2366,6 +2366,26 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2u: localidades.merged_en agregado (fusion manual de duplicados)")
 
+        # ── 2v. Bot de FAQ por WhatsApp: tabla de consultas sin respuesta ──
+        # Cuando el bot (routes/whatsapp_bot.py) no encuentra match para un
+        # mensaje entrante, lo guarda acá para revisión manual — el bot no
+        # deriva a un humano en el momento, pero tampoco improvisa.
+        ya_2v = db.execute("SELECT valor FROM config WHERE clave='2v_done'").fetchone()
+        if not ya_2v:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS whatsapp_consultas_sin_responder (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    telefono TEXT NOT NULL,
+                    mensaje TEXT NOT NULL,
+                    respondida INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2v_done','2026-07-15')")
+            db.commit()
+            print("[migrate_db] 2v: whatsapp_consultas_sin_responder agregada (bot de FAQ)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

@@ -2,11 +2,12 @@ import json
 import os
 import urllib.request
 from datetime import date, timedelta
-from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g
+from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g, send_file
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
 from utils.calculations import PAISES
 from utils.normalizacion import PROVINCIAS_AR
+from utils.exportar_contactos import generar_excel_usuarios_a_contactar
 from database import get_db, recalcular_precio_mo_ars
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -142,6 +143,31 @@ def usuarios():
                             provincias=PROVINCIAS_AR, localidades_lista=localidades_lista, paises=PAISES,
                             f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais,
                             contadores=contadores, total_usuarios=total_usuarios)
+
+
+@bp.route('/usuarios/exportar-contactar')
+@admin_required
+def usuarios_exportar_contactar():
+    """Pedido de Daniel 15/07/2026: antes esta lista se armaba a mano
+    (capturas de pantalla de esta misma tabla + transcripción manual a un
+    Excel — lento y con riesgo de error en teléfonos/contadores). Este botón
+    arma el mismo Excel en un click, leyendo directo de la base. Ver
+    utils/exportar_contactos.py para la lógica de segmentación exacta."""
+    db = get_db()
+    usuarios = db.execute(
+        """SELECT u.*,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores
+           FROM users u
+           WHERE u.is_admin=0
+           ORDER BY u.created_at DESC"""
+    ).fetchall()
+    db.close()
+
+    buf, download_name = generar_excel_usuarios_a_contactar(usuarios)
+    return send_file(buf,
+                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      as_attachment=True, download_name=download_name)
 
 
 @bp.route('/localidades')

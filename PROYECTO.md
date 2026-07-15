@@ -6,7 +6,75 @@
 
 ---
 
-_Última actualización: 08/07/2026 — ver footer del último mensaje del chat_
+_Última actualización: 15/07/2026 — 15:15 ART_
+
+### Sesión 15/07/2026 — Bot de FAQ por WhatsApp: primera versión del código ⚠️ SIN COMMITEAR
+Trabajo hecho desde el proyecto paralelo `CHATBOT_WHATSAPP_BUSINESS` (ver ese `PROYECTO.md` para el contexto completo de por qué y las preguntas/respuestas fuente en `FAQ_BOT.md`). Se dejó preparada la arquitectura técnica aunque el número 341 754-2009 todavía no está dado de alta en Meta — no se puede probar en vivo todavía.
+
+**Hecho:**
+1. **`routes/whatsapp_bot.py` (nuevo):** blueprint `whatsapp_bot`, `url_prefix='/webhook/whatsapp'`.
+   - `GET` → verificación del webhook ante Meta (compara `hub.verify_token` contra `WHATSAPP_VERIFY_TOKEN`).
+   - `POST` → recibe mensajes entrantes, busca match por palabras clave contra `FAQ_DATA` (~21 preguntas, mismo contenido que `FAQ_BOT.md`), responde por WhatsApp si matchea; si no, guarda la consulta en `whatsapp_consultas_sin_responder` y manda la respuesta de fallback.
+   - `buscar_respuesta()`: normaliza (minúsculas, sin tildes) y hace matching por substring simple — decidido así con Daniel (rápido/gratis, se revisa si resulta muy rígido en el uso real).
+   - `enviar_mensaje_whatsapp()`: mensaje de texto libre vía Cloud API (distinto de `enviar_codigo_whatsapp()` en `utils/verificacion.py`, que manda un template pre-aprobado — este no necesita template porque responde dentro de la ventana de 24hs de una conversación que inició el usuario).
+2. **`database.py`, migración `2v`:** tabla nueva `whatsapp_consultas_sin_responder` (id, telefono, mensaje, respondida, created_at) — donde caen las consultas que el bot no supo responder, para revisión manual (no hay pantalla de Admin para verlas todavía, queda pendiente).
+3. **`app.py`:** registrado `whatsapp_bot.bp`.
+4. Verificado con `py_compile` (sintaxis OK) y con un test manual de `buscar_respuesta()` con 4 mensajes de prueba — matchearon bien las 3 preguntas reales y la 4ta (sin sentido) devolvió `None` como se esperaba.
+
+**Variables de entorno que van a faltar en Railway cuando el número esté aprobado** (ninguna cargada todavía):
+- `WHATSAPP_TOKEN`
+- `WHATSAPP_PHONE_ID`
+- `WHATSAPP_VERIFY_TOKEN` (Daniel elige cualquier string, se lo repite a Meta al configurar el webhook)
+
+**Archivos tocados:** `routes/whatsapp_bot.py` (nuevo), `database.py`, `app.py`.
+**Pendiente:**
+- Commitear y deployar (comando abajo). El código no rompe nada de lo existente: sin las 3 variables de entorno, el bot simplemente no puede responder (mismo patrón que `whatsapp_configurado()`).
+- Una vez que Meta apruebe el negocio y se dé de alta el número: configurar el webhook en Meta Business Manager apuntando a `https://presupuestopro.com.ar/webhook/whatsapp` (o la URL de Railway), cargar las 3 variables en Railway, y probar en vivo con un mensaje real.
+- Pantalla en Admin para ver/marcar como respondidas las filas de `whatsapp_consultas_sin_responder` (no existe todavía).
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/whatsapp_bot.py app.py database.py
+git commit -m "feat: bot de FAQ por WhatsApp (webhook Cloud API, matching por palabras clave, fallback a whatsapp_consultas_sin_responder)"
+git push
+```
+
+### Sesión 14/07/2026 — Datos legales publicados en el sitio (bloqueante para verificación Meta Business) ✅ COMMITEADO Y PUSHEADO (confirmado 15/07/2026, commit `3df2d75`, `origin/main` = `HEAD`)
+En el proyecto paralelo `CHATBOT_WHATSAPP_BUSINESS` se detectó que el sitio no tenía ningún dato legal publicado (razón social, CUIT, dirección, contacto) ni páginas de Términos/Privacidad — esto traba la verificación de Meta Business Manager, que exige que esos datos coincidan entre Meta y el sitio.
+**Hecho:**
+- Footer de `templates/landing.html`: agregado bloque con "PresupuestoPRO — Daniel Vega — CUIT 23-14055838-9 · Milstein 2652, Roldán, Santa Fe, Argentina · presupuestopro.app@gmail.com" + links a Términos y Privacidad.
+- Nuevas páginas `templates/terminos.html` y `templates/privacidad.html` (rutas `GET /terminos` y `GET /privacidad` en `routes/landing.py`).
+- Fix del bug ya documentado (sesión 06/07): `contacto()` redirigía a `/landing` (ruta borrada) → ahora redirige a `/?contacto_ok=1#contacto`.
+- Confirmado: el dominio ya tiene la meta tag de verificación de Facebook (`meta-facebook-domain-verification`), así que ese paso ya estaba resuelto.
+**Archivos tocados:** `templates/landing.html`, `templates/terminos.html` (nuevo), `templates/privacidad.html` (nuevo), `routes/landing.py`.
+**Pendiente:** verificar que `presupuestopro.com.ar/terminos` y `/privacidad` respondan en producción (deploy automático de Railway tras el push); después reintentar/completar la verificación de Meta Business Manager con esos mismos datos (razón social Daniel Vega, CUIT 23-14055838-9, domicilio Milstein 2652 Roldán, email presupuestopro.app@gmail.com).
+
+### Sesión 13/07/2026 (cont. 15) — 2 bugs reales más en el dropdown de Localidad ⚠️ SIN COMMITEAR
+Daniel mandó capturas (PC + celu) confirmando que el fix de cont. 14 SÍ está deployado (verificado con `git fetch`: `origin/main` = `HEAD` = commit `5fac7f0`), pero el dropdown propio tenía 2 bugs reales de mi implementación:
+1. **Clickear el campo vacío no mostraba nada.** El JS solo abría el dropdown si ya había texto tipeado (`input`/`focus` chequeaban `input.value.trim()`). ✅ Fix: con el campo vacío, foco o borrar todo el texto ahora muestran la lista completa de localidades (como un `<select>` nativo al abrirlo).
+2. **Localidades que matcheaban la letra podían no aparecer.** `render()` cortaba a los primeros 30 resultados (`.slice(0, 30)`) — si había más de 30 matches alfabéticos, los que venían después (alfabéticamente) del puesto 30 nunca se mostraban. ✅ Fix: se sacó el corte — el dropdown ya es scrolleable (`max-height:220px`), no hace falta limitarlo.
+
+**Archivo tocado:** `templates/admin/usuarios.html`.
+**Pendiente:** commitear vía Git Bash y deployar; Daniel prueba: (a) click en el campo vacío muestra la lista completa, (b) tipear una letra con muchos matches (ej. "a") muestra TODAS las localidades que la contienen, no solo las primeras alfabéticas.
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/admin/usuarios.html
+git commit -m "fix: dropdown Localidad — mostrar lista completa en foco/campo vacio, sacar el corte de 30 resultados que ocultaba matches"
+git push
+```
+✅ **CONFIRMADO 13/07/2026 por Daniel: "Anda perfecto".** El dropdown de Localidad en Admin > Usuarios queda resuelto (foco vacío muestra lista completa, sin corte de 30 resultados). Con esto se da por cerrado todo el bloque de bugs de Admin > Usuarios de esta sesión (encabezado fijo mobile, orden alfabético, autofill de Chrome, foco vacío/corte de 30).
+
+**Estado de "conectar WhatsApp Business" al cierre de esta sesión (13/07/2026):**
+- ✅ Perfil personal (celu): foto, descripción, migración del número y WhatsApp Web — todo confirmado hecho por Daniel.
+- ✅ Resuelto en PC: se puede tener el WhatsApp Desktop (personal, 7371) y una pestaña de `web.whatsapp.com` vinculada a WhatsApp Business (PP) al mismo tiempo — son clientes separados.
+- ⏳ **Sigue pendiente:** el trámite de Meta Cloud API (verificar negocio en Meta Business Manager, dar de alta el número 341 754-2009, template de autenticación, tokens) — no se arrancó todavía, quedó para retomar en el próximo chat.
+
+## 📅 Hitos del proyecto (confirmado 11/07/2026 con capturas del chat original)
+- **Inicio:** 17/06/2026 23:24 ART — primer mensaje de Daniel compartiendo el Excel de presupuestos para revisar. El mensaje que Daniel marcó como "acá empezamos" (arranque formal de la idea de la app) fue 18/06/2026 00:06 ART.
+- **Primer deploy a producción:** 25/06/2026 08:49 ART (primer commit "Initial deploy setup").
+- **Dominio propio funcionando:** 30/06/2026 (presupuestopro.com.ar).
+- **Lanzamiento:** 01/07/2026 — publicaciones en Facebook e Instagram.
 
 ## Identidad de marca (usar siempre en piezas gráficas)
 - **Nombre:** PresupuestoPRO (Presupuesto en blanco + PRO en naranja `#F97316`)
@@ -43,12 +111,25 @@ git push
 
 ---
 
+## ⚠️ REGLA — Features nuevas vs. fixes, dónde se prueban (definido 10/07/2026)
+- **Fix de un cálculo/bug en algo que ya existe** (ej. el fix de Costo/m2 del 10/07) → directo a la versión actual en producción, como veníamos haciendo.
+- **Feature nueva** (algo que la app no hace hoy: cálculo de escaleras, WhatsApp Business, proveedores zonales, etc.) → **primero se prueba en una versión paralela**, no se toca la producción actual hasta que esté validada.
+- **Mecanismo definido 10/07/2026 (cont. 9):** branch de git aparte (ej. `dev`) + un 2do servicio en Railway apuntando a ese branch, con su propia URL de prueba y su propia base de datos. Producción (`main`) queda intacta mientras se prueba. Cuando la feature esté validada, se mergea `dev` → `main`. **Falta:** crear el branch `dev` y dar de alta el 2do servicio en Railway (queda para cuando arranque la primera feature nueva de la lista).
+- **Excepción aplicada 10/07/2026 (validación de cuenta + cómo-conoció + localidad/provincia):** se shippeó directo a producción en vez de armar la versión paralela, PERO detrás de un feature flag apagado (`config.verificacion_activa='0'`) — el código convive con producción sin cambiar el comportamiento hasta que Daniel lo prenda a mano desde Admin. Este patrón (flag apagado por default) es una alternativa válida a la versión paralela cuando el cambio se puede aislar así; usarlo quirúrgicamente, no como regla general.
+
+## ⚠️ REGLA — Mantener el Manual del Usuario al día (definido 12/07/2026, cont. 14)
+Cada vez que un cambio en la app toque algo que el Manual del Usuario (`templates/manual.html`) describe o debería describir (flujo de registro, login, wizard de presupuesto, Costo/m², Mi Empresa, instalación PWA, etc.), corregir/actualizar el Manual en el mismo momento — no esperar a que Daniel pregunte.
+- Si el cambio de la sesión modificó algo relevante para el Manual: avisar explícitamente qué se actualizó ahí, para que Daniel lo commitee junto con el resto (un solo commit, como pidió).
+- Si el cambio fue interno/admin (no afecta lo que ve o hace un usuario común, ej. fixes solo en `/admin`), aclarar que el Manual no aplica en ese caso — para que quede claro que no se lo pasó por alto.
+
+---
+
 ## Variables de entorno en Railway
 | Variable | Estado |
 |---|---|
 | `RESEND_API_KEY` | ✅ Configurada |
-| `MP_ACCESS_TOKEN` | ✅ Configurada (TEST-...) |
-| `MP_PUBLIC_KEY` | ✅ Configurada (TEST-a4752ff6...) |
+| `MP_ACCESS_TOKEN` | ✅ **PRODUCCIÓN** (`APP_USR-...`) — confirmado por captura de Railway 10/07/2026 |
+| `MP_PUBLIC_KEY` | ✅ **PRODUCCIÓN** (`APP_USR-...`) — confirmado por captura de Railway 10/07/2026 |
 | `MP_APP_ID` | ✅ Configurada (3111479646589398) |
 | `MP_PRECIO_ARS` | ✅ Configurada (12500) |
 | `APP_BASE_URL` | ✅ Configurada |
@@ -210,7 +291,10 @@ TOTAL          = costo_directo + Beneficio + Seguros
 
 ---
 
-## ⚠️ PROBLEMA CRÍTICO PENDIENTE — HH y materiales incorrectos
+## ✅ RESUELTO (confirmado 10/07/2026, cont. 9) — HH y materiales incorrectos
+Esta sección quedó desactualizada: describe el estado ANTES del fix. El "Fix a implementar (próximo chat)" de más abajo se hizo — quedó documentado en el historial de migraciones (`2h`, `2m`, `2n`, `2o`, `2p`, `2q`, `2r`, ver sección "Migraciones en database.py" al final del archivo) y **verificado por Daniel contra Excel real** (sesión 04/07/2026, cochera de Ezequiel Petrini): MO coincide EXACTO con el Excel ($5.902.594) y Costo Directo quedó ~1.3% cerca (diferencia considerada tolerable por Daniel). Se deja el detalle original abajo como registro histórico, no como pendiente activo.
+
+## ~~PROBLEMA CRÍTICO PENDIENTE~~ (histórico, ver nota de arriba) — HH y materiales incorrectos
 
 ### Root cause
 El Excel `PRESUPUESTO HOTMART.xlsx` (hoja "Análisis") NO está en Railway (`/data/`).
@@ -249,31 +333,281 @@ Para esto se necesita el Excel completo (o los datos de todos los ítems con sus
 
 ---
 
+### Sesión 10/07/2026 (cont. 6) — Bug de validación por WhatsApp + limpieza de usuarios de prueba ⚠️ SIN COMMITEAR
+Daniel probó el switch de validación con una cuenta nueva eligiendo WhatsApp. Reportó dos cosas:
+1. **Bug encontrado probando en producción:** eligió validar por WhatsApp, la pantalla decía "te mandamos el código por WhatsApp al 341 3412325" pero el código llegó por EMAIL (WhatsApp real sigue sin funcionar, cae a email automático). Causa raíz: el fallback whatsapp→email nunca actualizaba `users.metodo_verificacion` en la DB, así que `validar_cuenta` seguía comparando el código ingresado contra canal='whatsapp' en vez de 'email' — **el código correcto quedaba imposible de validar**. Bloqueaba a cualquiera que eligiera WhatsApp mientras no esté Meta configurado. ✅ **Fix aplicado** en `routes/landing.py` (alta y reenvío de código): ahora persiste el canal real en la DB cuando hay fallback.
+2. **Ocultar la opción "Por WhatsApp" hasta tener Meta configurado** (pedido explícito de Daniel, para no repetir el problema con usuarios reales): ✅ agregada `utils/verificacion.py::whatsapp_configurado()` (chequea `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`). `templates/registro.html` ahora oculta el radio "Por WhatsApp" y fuerza `metodo_verificacion=email` (input hidden) mientras esas variables no estén en Railway. **Se reactiva solo** el día que Daniel cargue esas 2 variables — no hace falta tocar código de nuevo.
+3. **Pedido: limpiar usuarios ficticios de prueba** — no existía ninguna forma de borrar usuarios desde Admin. ✅ agregado botón "Eliminar" (ícono tacho, confirmación con `confirm()`) en cada fila de **Admin > Usuarios**, ruta `POST /admin/usuarios/<id>/eliminar` (`routes/admin.py::usuario_eliminar`). Borra en cascada presupuestos, suscripciones, consultas de costo/m2, sugerencias, perfil de empresa, tokens de reset y códigos de verificación del usuario, antes de borrar la fila de `users`. Bloqueado para cuentas admin (no se puede autoeliminar ni eliminar otro admin desde ahí). Irreversible, sin papelera — la confirmación lo aclara.
+
+**Archivos tocados:** `routes/landing.py`, `routes/admin.py`, `templates/admin/usuarios.html`, `templates/registro.html`, `utils/verificacion.py`.
+**Pendiente:** commitear vía Git Bash y deployar; luego Daniel: (a) usar el botón nuevo de Eliminar para borrar las cuentas de prueba que ya cargó, (b) prender el switch de validación de nuevo (esto valida automáticamente cualquier cuenta que haya quedado a medio validar) y (c) registrar una cuenta de prueba nueva para confirmar que ahora sí valida bien por email.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/landing.py routes/admin.py templates/admin/usuarios.html templates/registro.html utils/verificacion.py
+git commit -m "fix: persistir canal real en fallback whatsapp->email + ocultar opcion WhatsApp hasta configurar Meta + boton eliminar usuario en Admin"
+git push
+```
+
+### Sesión 10/07/2026 (cont. 7) — Admin > Usuarios: encabezado fijo, filtros fijos + auto-filtrado, contadores por nivel ⚠️ SIN COMMITEAR (último cambio de la sesión)
+1. **Encabezado de tabla fijo al scrollear** — 1er intento con `position: sticky` en los `<th>` tuvo un bug de ghosting/tearing (típico de sticky dentro de `.table-responsive`, overflow-x:auto). ✅ **Commiteado y funcionando** (confirmado por Daniel) con 2do enfoque: clon del `<thead>` en un `<div id="thead-clon">` aparte con `position:fixed`, sincronizado por JS (ancho de columnas + mostrar/ocultar según scroll).
+2. **Formulario de filtros (Localidad/Provincia/País) también fijo al scrollear** — ✅ commiteado, `position: sticky` normal (sin el bug de arriba porque no está dentro de `.table-responsive`). El clon del encabezado de la tabla se posiciona debajo del navbar + del formulario de filtros.
+3. **Bug reportado por Daniel — "el filtro no cambia nada":** no era bug, no estaba tocando el botón "Filtrar" (probó escribiendo/seleccionando sin enviar el form). Confirmado con captura que el filtro sí funciona.
+4. **Simplificación pedida por Daniel a partir de eso:** sacar el botón "Filtrar" (auto-enviar el form al cambiar cualquier campo), achicar las 3 columnas para que entren en una sola línea, y mostrar la cantidad de usuarios al lado de cada label (Localidad/Provincia/País) en vez de un cartel aparte de "también en". ✅ **implementado, todavía sin commitear:**
+   - `routes/admin.py::usuarios()`: variable `contadores` (dict con `ciudad`/`provincia`/`pais`) — cada nivel se infiere del más específico que esté activo si no fue elegido explícitamente (ciudad → su provincia más frecuente; provincia → su país más frecuente), tomando el valor más frecuente entre los usuarios que matchean por si hay datos mezclados.
+   - `templates/admin/usuarios.html`: columnas Localidad/Provincia/País pasan a `col-md-4/4/3` + ícono chico de "Limpiar" (`col-md-1`), sin botón Filtrar visible (queda un `<button class="visually-hidden">` para accesibilidad/Enter). Badge con la cantidad al lado de cada label. JS nuevo: `change` en los 3 campos hace `requestSubmit()` automático.
+
+**Archivos tocados (acumulado de toda la sesión "cont. 7"):** `templates/admin/usuarios.html`, `routes/admin.py`.
+**Pendiente:** commitear vía Git Bash y deployar; Daniel prueba: (a) que auto-filtra al elegir Provincia/País y al tabular fuera de Localidad, (b) que los contadores calculan bien en combinaciones (solo ciudad, solo provincia, ciudad+provincia explícita, etc.), (c) que "Limpiar" resetea los 3 campos.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/admin/usuarios.html routes/admin.py
+git commit -m "feat: auto-filtrar usuarios sin boton (change event), contadores por nivel geografico al lado de cada campo"
+git push
+```
+
+### Sesión 10/07/2026 (cont. 8) — Admin > Usuarios: contador total + nombre de provincia/país inferido ⚠️ SIN COMMITEAR
+Retomando el pendiente de "cont. 7" (auto-filtrado + contadores), Daniel pidió 2 ajustes puntuales antes de commitear:
+1. **El badge "Usuarios" del encabezado tiene que marcar siempre el TOTAL de la base**, no la cantidad de filas que quedan después de filtrar (eso ya lo dice la tabla misma). Antes usaba `{{ users|length }}` (filtrado). ✅ **Fix:** `routes/admin.py::usuarios()` ahora calcula `total_usuarios` (COUNT sin filtros, is_admin=0) y lo pasa al template; `templates/admin/usuarios.html` usa `{{ total_usuarios }}` en el badge del `<h4>`.
+2. **Al elegir una ciudad, mostrar también el nombre de la provincia/país inferidos**, no solo la cantidad. El backend (`contadores.provincia.nombre` / `contadores.pais.nombre`, de la sesión "cont. 7") ya calculaba el nombre pero el template no lo mostraba. ✅ **Fix:** al lado del badge de cantidad se agrega el nombre en texto muted — pero **solo cuando ese nivel está inferido, no elegido explícitamente** (`{% if not f_provincia %}` / `{% if not f_pais %}`), para no duplicar lo que ya se ve en el `<select>` cuando Daniel elige Provincia/País a mano.
+
+**Archivos tocados (sesión completa "cont. 8"):** `routes/admin.py`, `templates/admin/usuarios.html`.
+**Pendiente:** commitear vía Git Bash y deployar (incluye también el auto-filtrado + contadores de "cont. 7", que seguía sin commitear); Daniel prueba: (a) que "Usuarios" arriba siempre muestra el total aunque haya filtro aplicado, (b) que al elegir solo una Localidad aparece el nombre de la provincia y el país correspondientes al lado de sus contadores, (c) que si además elige Provincia o País a mano desde el `<select>`, no se duplica el nombre (el select ya lo muestra).
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/admin.py templates/admin/usuarios.html
+git commit -m "feat: badge Usuarios muestra total fijo + nombre de provincia/pais inferido junto al contador"
+git push
+```
+
+### Sesión 11/07/2026 (cont. 11) — Cambiar contraseña propia (self-service) ⚠️ SIN COMMITEAR
+Daniel vio en Chrome que la contraseña de `admin@presupuestopro.com` (`admin1234`) aparece en una filtración de datos conocida y hay que cambiarla. Al revisar, la app **no tenía ninguna forma de cambiar la propia contraseña estando logueado** — solo existía el flujo "olvidé mi contraseña" (`/recuperar`) que manda un link por email, y no está garantizado que `admin@presupuestopro.com` reciba correo (el dominio verificado en Resend es `presupuestopro.com.ar`, no `presupuestopro.com`).
+- ✅ **Agregado:** `routes/perfil.py::cambiar_password()` (`GET/POST /perfil/cambiar-password`) — pide contraseña actual + nueva (2 veces), valida mínimo 6 caracteres y que coincidan, y actualiza `password_hash` del usuario logueado (`g.user`, sirve para cualquier cuenta, incluida la de admin).
+- ✅ Template nuevo `templates/perfil/cambiar_password.html`.
+- ✅ Link "Cambiar contraseña" agregado al menú desplegable del usuario en `templates/base.html`, junto a "Mi empresa".
+- ✅ **Fix de paso:** `perfil.ver()` no le pasaba `user` al template — sin eso, el navbar no se mostraba en la página "Mi empresa". Corregido.
+
+**Archivos tocados:** `routes/perfil.py`, `templates/perfil/cambiar_password.html` (nuevo), `templates/base.html`.
+**Pendiente:** commitear vía Git Bash y deployar; después Daniel: entra con la cuenta admin → menú de usuario (arriba a la derecha) → "Cambiar contraseña" → cambia `admin1234` por algo fuerte y único.
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/perfil.py templates/perfil/cambiar_password.html templates/base.html
+git commit -m "feat: cambiar contraseña propia (self-service) desde el menú de usuario + fix navbar en Mi empresa"
+git push
+```
+✅ **CONFIRMADO 12/07/2026 (cont. 12):** commit `f9ca0e6` es el HEAD actual de `main`, pusheado — esta feature y todo lo anterior (cont. 6/7/8) están en producción. Daniel probó cambiar la contraseña y funciona bien.
+
+### Sesión 12/07/2026 (cont. 12) — Feedback de Daniel probando en producción + arranque WhatsApp Business
+1. **Cambiar contraseña propia** ✅ probado por Daniel, funciona bien.
+2. **Validación de cuenta por email** ✅ probado por Daniel, valida bien (fix del fallback WhatsApp→email confirmado en producción).
+3. **Admin > Usuarios (auto-filtro + contadores)** ✅ funciona, pero Daniel reportó 2 problemas **solo en mobile**:
+   - 🐞 **Encabezado/menú fijo desaparece al hacer scroll en celu** (en desktop sí queda fijo). Pendiente de fix — revisar el JS del clon de `<thead>` (`position:fixed`, sincronizado por scroll) en viewport mobile.
+   - 🐞 **Sugerencias de Localidad (datalist) se muestran en horizontal (3 visibles) arriba del teclado en mobile.** Daniel pidió que se muestren en **vertical y ordenadas alfabéticamente** para elegir más fácil. Nota técnica a validar: el orden de opciones sí lo controlamos (query del backend), pero el layout horizontal/vertical de la barra de sugerencias sobre el teclado es una UI nativa del navegador/Android sobre `<datalist>` — puede no ser 100% controlable por CSS; evaluar alternativa (dropdown propio en JS) si el navegador no cede el layout.
+4. **Contenido de marketing sin commitear** (carrusel, historias de origen, docx) — Daniel confirmó: **queda para el chat/proyecto de Marketing**, no se toca acá.
+5. **Expansión Regional** — Daniel avisa cuando esté terminada esa investigación para evaluar integrarla a la app.
+6. **Arranca el trabajo de conectar WhatsApp Business** (siguiente tema de este chat).
+
+**Pendiente:** decidir con Daniel por dónde arrancar dentro de "conectar WhatsApp Business" (terminar perfil personal del celu vs. trámite Meta Business Manager vs. los 2 bugs de Admin > Usuarios reportados arriba).
+
+### Sesión 12/07/2026 (cont. 13) — Fix de los 2 bugs mobile de Admin > Usuarios + botón de instalación PWA + Manual actualizado
+Daniel eligió arrancar por los 2 bugs reportados antes de seguir con WhatsApp Business.
+
+1. **Datalist de Localidad — orden alfabético + layout vertical.** Root cause: `routes/admin.py::usuarios()` ordenaba `localidades_lista` por `veces_usada DESC` (frecuencia de uso, no alfabético) — ✅ cambiado a `ORDER BY nombre_display COLLATE NOCASE ASC`. Además, la tira horizontal de 3 sugerencias arriba del teclado en mobile era el `<datalist>` nativo del navegador (Chrome/Android dibuja esa UI, no se puede forzar vertical por CSS) — ✅ reemplazado por un dropdown propio en JS (`templates/admin/usuarios.html`): lista vertical, con scroll, ya alfabética desde el backend, con click para seleccionar.
+2. **Encabezado de tabla fijo que desaparecía en mobile al scrollear.** Root cause: el enfoque anterior (clon de `<thead>` con `position:fixed` + JS de scroll/resize) dependía de recalcular la posición contra el scroll de toda la página — poco confiable en mobile con teclado virtual y cambios de viewport. ✅ **Reescrito con el patrón estándar** de tabla con scroll propio: `.table-responsive` pasa a tener `max-height: 65vh; overflow-y: auto` y el `<thead>` usa `position: sticky; top: 0` normal, DENTRO de ese contenedor (no de la página). Se eliminaron ~90 líneas de JS frágil (el clon + los listeners de scroll/resize).
+3. **Botón de instalación PWA (pedido nuevo, ligado al Punto 10 del Manual).** Agregado en `templates/base.html`: ítem "Instalar app" en el menú de usuario (oculto si la app ya corre instalada/standalone). Captura `beforeinstallprompt` → en Android/Chrome/desktop dispara el instalador nativo del navegador. iOS Safari no tiene ese evento (no lo soporta), así que ahí el botón abre un modal (`#modalInstalarApp`) con los mismos pasos que el Manual.
+4. **Manual del Usuario actualizado** (`templates/manual.html`) para reflejar el estado real de la app:
+   - Corregido dato **erróneo**: Costo/m² decía que los jornales "no son editables" — en realidad sí lo son y recalculan en vivo (fix del 07/07/2026, el manual había quedado desactualizado).
+   - Agregado: campo "cómo nos conociste" en el registro, mención de validación de cuenta por email, "Cambiar contraseña" desde el menú de usuario, y el nuevo botón "Instalar app" (Punto 10).
+
+**Archivos tocados:** `routes/admin.py`, `templates/admin/usuarios.html`, `templates/base.html`, `templates/manual.html`.
+**Pendiente:** commitear vía Git Bash y deployar; Daniel prueba en el celu: (a) que el dropdown de Localidad sale vertical y alfabético, (b) que el encabezado de la tabla queda fijo al scrollear en mobile (ya no desaparece), (c) que aparece "Instalar app" en el menú y funciona (en Android dispara instalación real; en iPhone abre el modal con los pasos), (d) repasar el Manual actualizado.
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/admin.py templates/admin/usuarios.html templates/base.html templates/manual.html
+git commit -m "fix: datalist localidad alfabetico+vertical, encabezado tabla fijo en mobile (sticky real), boton Instalar app (PWA), correcciones Manual del Usuario"
+git push
+```
+
+### Sesión 12/07/2026 (cont. 14) — Fix real del dropdown de Localidad (era autofill de Chrome, no nuestro código) ⚠️ SIN COMMITEAR
+Daniel deployó lo de cont. 13 y probó en el celu (capturas): el Manual ya mostraba los cambios, pero en Admin > Usuarios seguía viendo "Rosario" / "Roldán" en el mismo lugar horizontal, y no encontraba "Instalar app".
+1. **Root cause real del dropdown de Localidad:** no era nuestro `<datalist>` (ya sacado en cont. 13) — era el **autofill nativo de Chrome**, que recuerda valores tipeados antes en un campo con el mismo `name` ("f_ciudad") y los sugiere en su propia UI (una tira horizontal arriba del teclado), **ignorando `autocomplete="off"`** (comportamiento documentado de Chrome Android, no arreglable solo con ese atributo). ✅ **Fix:** el input visible de Localidad ya no tiene `name` (nada que Chrome pueda asociar a historial), se agregó un `<input type="hidden" name="f_ciudad">` que es el que realmente viaja en el filtro — Chrome nunca le ofrece autofill a un campo oculto. El dropdown propio (vertical, alfabético) sigue funcionando igual, sincronizado por JS con el hidden.
+2. **"No encuentro Instalar app":** lo más probable es que Daniel no haya tocado el desplegable de usuario (aparece como "Administrador ▾" al final del menú mobile colapsado, sin expandir en la captura) — "Instalar app" vive ahí adentro, junto a "Mi empresa"/"Cambiar contraseña". Otra posibilidad: si ese número de celu ya tiene la app agregada a la pantalla de inicio de una sesión anterior, el botón se oculta a propósito (no tiene sentido reinstalar). Pendiente confirmar cuál de las dos es.
+
+**Archivo tocado:** `templates/admin/usuarios.html`.
+**Pendiente:** commitear vía Git Bash y deployar; Daniel confirma que el dropdown de Localidad ya no repite Rosario/Roldán fantasma.
+✅ **"Instalar app" — resuelto sin cambios de código:** Daniel confirmó que tocando "Administrador ▾" no aparecía porque el celu ya tenía la app instalada de una sesión anterior (comportamiento esperado — el botón se oculta a propósito si ya está instalada). Desinstaló para confirmar que el botón aparece en ese caso. No aplica cambio al Manual (es un detalle de comportamiento, no un paso nuevo para el usuario).
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/admin/usuarios.html
+git commit -m "fix: dropdown de Localidad — separar input visible (sin name) de hidden f_ciudad para evitar que Chrome autofill nativo pise las sugerencias"
+git push
+```
+
 ## Pendientes / Ideas
 
 ### 🔴 CRÍTICO
-- [x] **Commit + push de la feature de prueba gratis** ✅ CONFIRMADO 07/07/2026 21:26 ART — verificado con `git fetch origin main` (no con el mount stale): `HEAD` local y `origin/main` apuntan al mismo commit `86f9260 "feat: prueba gratis (3 presupuestos o 14 dias, lo que se cumpla primero)"`, 14 archivos, incluye todo lo listado en la sesión 07/07 más abajo. El `.git/index.lock` NO volvió a trabar nada esta vez.
-- [x] **Commitear database.py con todas las migraciones pendientes (2l, 2q, 2r, 2s, etc.)** ✅ CONFIRMADO — `git show HEAD:database.py` tiene los flags `2h_done` a `2s_done`, todos presentes en el commit ya pusheado.
-- [ ] **Configurar Webhook en MP Developers** → app PresupuestoPRO → Webhooks → URL: `https://web-production-0c9c1.up.railway.app/pagos/webhook` · Evento: `subscription_preapproval`
-- [ ] **Test flujo completo MP**: crear cuenta prueba "comprador" en MP Developers → Cuentas de prueba → suscribirse desde `/pagos/planes` → verificar activación en DB
-- [ ] **Pasar a producción MP**: cuando el test funcione, reemplazar `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY` por los de producción en Railway
+- [x] **Commit + push de la feature de prueba gratis** ✅ CONFIRMADO 07/07/2026 21:26 ART.
+- [x] **Commitear database.py con todas las migraciones pendientes (2l, 2q, 2r, 2s, etc.)** ✅ CONFIRMADO.
+- [x] **Configurar Webhook en MP Developers** ✅ confirmado por Daniel 10/07/2026 (cont. 9) — ya venía probando con pagos reales, así que el webhook está andando.
+- [x] **Test flujo completo MP** ✅ confirmado por Daniel 10/07/2026 (cont. 9) — ya hizo pagos reales.
+- [x] **Pasar a producción MP** ✅ CONFIRMADO 10/07/2026 (cont. 9) — captura de Railway → Variables muestra `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY` arrancando con `APP_USR-` (formato de producción, no `TEST-`). Los pagos que viene haciendo Daniel ya son reales.
 - [x] **DNS Cloudflare** ✅ presupuestopro.com.ar funcionando (30/06/2026)
 
-> **Nota sobre las secciones de abajo:** varias entradas de sesiones anteriores (04/07 a 07/07) dicen "Pendiente: commitear...". Eso quedó DESACTUALIZADO — el `git fetch` del 07/07 21:26 confirmó que todo el código hasta el commit `86f9260` (inclusive) está en `origin/main`. Esas notas se dejan como registro histórico de qué incluía cada tanda, no como pendientes reales.
+> **Nota CONFIRMADA 10/07/2026 22:45 ART (cont. 9):** `git fetch origin main` desde Git Bash real (no el mount stale) — `HEAD` local y `origin/main` apuntan al mismo commit `1909015` ("feat: badge Usuarios muestra total fijo..."), `git diff` entre ambos vacío. **Todo el código de TODAS las sesiones anteriores hasta hoy está pusheado**, incluyendo lo que en su momento quedó marcado "⚠️ SIN COMMITEAR" en las sesiones de abajo (cont. 6, cont. 7, cont. 8, validación de cuenta, cómo-nos-conoció, localidad/provincia normalizada, Sugerencias, y todo lo anterior a esas). Esas marcas y los "Pendiente: commitear..." de sesiones pasadas quedan como registro histórico de qué incluía cada tanda, **no como pendientes reales** — no hace falta volver a commitear nada de eso.
 
 ### 🟡 IMPORTANTE
-- [ ] **Post Facebook de lanzamiento** — redactar post con screenshots del app para grupos de albañiles → landing page → MP. Pendiente de tomar screenshots: dashboard, costo/m2, ver presupuesto.
-- [ ] Confirmar variable `APP_BASE_URL` en Railway
-- [ ] Test completo flujo pago MP → activación → email
+- [ ] **Post Facebook de lanzamiento** — redactar post con screenshots del app para grupos de albañiles → landing page → MP. Pendiente de tomar screenshots: dashboard, costo/m2, ver presupuesto. (Daniel: dejar en pendientes por ahora, 10/07/2026 cont. 9.)
+- [ ] Confirmar variable `APP_BASE_URL` en Railway — Daniel cree que ya está funcionando en la web (10/07/2026 cont. 9), pero queda como pendiente de confirmación formal (no verificable desde acá sin acceso a Railway).
+- [ ] Test completo flujo pago MP → activación → email — Daniel cree que ya está, pero lo deja explícitamente en pendientes para probarlo formalmente (10/07/2026 cont. 9).
 - [x] **Resincronizar cantidades de materiales en `analisis_sub`** ✅ hecho 04/07/2026 con migración 2n (ver abajo).
 
 ### 🟢 IDEAS FUTURAS
 - [ ] Unificar landing_presupuestopro.md con posts para marketing
 - [ ] **Permitir sesión simultánea celu + compu** — hoy `login_user()` en `utils/auth.py` invalida cualquier sesión anterior de la cuenta (sesión única). Decisión 04/07/2026: dejarlo como está por ahora, pero evaluar cambiarlo (guardar múltiples tokens por usuario en vez de uno solo) si vuelve a ser un problema.
 
+#### Tanda 10/07/2026 — lista de ideas que Daniel pasó para revisar/priorizar más adelante
+- [ ] Cálculo de escaleras (nuevo tipo de ítem/feature)
+- [ ] Proveedores zonales (afiliaciones) — incorporar y que el listado de materiales los nombre
+- [ ] Para quien piensa construir (sin arquitecto/constructor), que la app le dé una idea del gasto total antes de arrancar
+- [ ] Marcar en Google Maps las ciudades donde está operando la app
+- [x] Validar la cuenta con celu y/o mail al registrarse — ✅ código implementado y **pusheado** (confirmado 10/07/2026 cont. 9, ver nota de git fetch arriba). WhatsApp real todavía bloqueado por trámite en Meta (ver ítem nuevo de abajo).
+- [x] En el registro, que la localidad/provincia se filtre de una lista ya cargada (no texto libre) — ✅ implementado y pusheado.
+- [ ] Conectar la app con WhatsApp Business (API oficial) — 🟡 **EN CURSO desde 12/07/2026.** Perfil personal del celu y PC ya resueltos (13/07). Sigue pendiente el trámite de Meta Cloud API (checklist más abajo) — no arrancado todavía.
+- ✅ **Aparte, 10-11/07/2026 (cont. 9-10): el WhatsApp COMÚN (personal) del número que usa "Enviar WhatsApp de activación" en Admin > Usuarios quedó "Cuenta en revisión" el 10/07 (sospecha: mismo texto plantilla repetido a no-contactos vía `wa.me`) y Daniel la recuperó.** Buenas prácticas para no repetirlo — ver sección dedicada más abajo ("WhatsApp — buen uso, definido 11/07/2026").
+- ✅ **Reorganización de números/celulares — PLAN FINAL, EN CURSO 11/07/2026:** se probaron y descartaron 2 caminos antes de llegar al definitivo:
+  1. ~~2 cuentas dentro de la misma WhatsApp Business del celu de PP~~ — descartado: esa versión de WhatsApp Business no expone "Agregar cuenta" (tocar el perfil arriba de Ajustes abre "Editar perfil", no un selector de cuentas).
+  2. ~~Clonar WhatsApp Business con Dual Messenger (Samsung)~~ — descartado: Dual Messenger del celu solo tiene disponibles para clonar WhatsApp normal, Facebook y Messenger — WhatsApp Business no aparece en la lista.
+  3. ~~Mover "Directo a Vos" (el WhatsApp Business existente, número prepago) al celu personal~~ — descartado: Daniel no tiene el chip físico del prepago, y sin él es imposible recibir el código de verificación para reactivarlo en otro celu (no se puede evitar este paso).
+  - **✅ Plan final (sin necesitar el chip perdido):** "Directo a Vos" queda intacto en el celu de PP, sin tocar nada (Daniel ya hizo backup por las dudas — Google Drive, cuenta `directoavos0361@gmail.com`, 461 MB). El número de PP se configura como WhatsApp Business en el **celu personal** (instalando la app ahí, aparte del WhatsApp normal de la línea 7371 — 2 apps distintas en el mismo celu, sin clonar nada, 100% soportado). Al verificar el número de PP ahí, se muda solo desde el WhatsApp normal del celu de PP (con opción de transferir el historial). Para operar sin depender de tener el celu personal siempre a mano, se vincula WhatsApp Web/Escritorio a esa cuenta.
+  - **Progreso 11/07/2026 (mismo día):** Daniel ya está armando el perfil de empresa de WhatsApp Business para PP en el celu personal — categoría elegida: **Contratista de albañilería + Producto/servicio + Empresa de software**; horario configurado como **"Siempre abierto"** (pensado para cuando se sume un chatbot, que pueda responder a cualquier hora sin que la cuenta figure "cerrada").
+  - **Pendiente:** terminar de configurar el perfil (foto, descripción, etc.), confirmar que el número de PP quedó migrado a Business, vincular WhatsApp Web, y — más adelante — evaluar el chatbot mencionado (todavía sin definir con qué herramienta).
+- [ ] Armar un recorrido guiado por la app explicando el funcionamiento — en PC, mostrar un mensaje al pasar el mouse por la celda
+- [x] Cuando alguien se inscribe, preguntarle cómo nos conoció — ✅ implementado y pusheado.
+- [x] Agregar nota en la app: si el usuario encuentra un error o diferencia de precios, que mande un mensaje desde Sugerencias (menú) — ✅ implementado y pusheado, ver `templates/sugerencias.html`.
+- [ ] Publicar la app en Google Play y App Store (requiere empaquetado nativo/TWA, cuenta de developer en cada tienda, cumplir sus requisitos de revisión)
+- [ ] Ofrecer/vender la app también desde Mercado Libre, como canal de venta adicional (mismo grupo que Google Play/App Store — aclarado por Daniel 10/07/2026: es de la app, no de marketing)
+
+**Nota:** "Se buscan albañiles" y la "Historia de 2 jóvenes recién egresados y un abuelo" (de la tanda original) ya están concretadas (carrusel crónica e `HISTORIA_ORIGEN_PRESUPUESTOPRO.md`, ver `PROYECTO_MARKETING.md`).
+
+#### 📱 WhatsApp — buen uso, definido 11/07/2026 (para no repetir la revisión de cuenta del 10/07)
+Reglas a seguir con el número que se usa para mandar activaciones/avisos desde Admin > Usuarios:
+1. **Variar el texto** entre envíos — no mandar el mismo mensaje plantilla palabra por palabra a varias personas seguidas. Cambiar el orden de las frases o agregar algo del contexto de cada usuario.
+2. **Espaciar los envíos** — no varios `wa.me` seguidos en pocos minutos. Dejar minutos entre uno y otro si son varios usuarios el mismo día.
+3. **Guardar como contacto** antes de escribir, cuando se pueda — mensajes a números guardados generan mucha menos sospecha que a desconocidos.
+4. **Limitar mensajes nuevos a desconocidos por día** — no hay un número oficial público, pero como regla práctica conviene no pasar de un puñado por día con un número nuevo/poco usado, e ir escalando de a poco.
+5. **Frenar de inmediato** ese patrón de envíos si alguien bloquea o reporta el número — seguir mandando en ese momento es lo que más rápido escala a suspensión.
+6. **A mediano plazo, migrar este flujo a la API oficial de WhatsApp Business (Meta Cloud API)** — pensada justamente para mandar mensajes a muchos destinatarios con reglas propias (plantillas aprobadas, opt-in), sin arriesgar un número personal. Es el trámite que ya está en curso con Meta (ver ítem "Conectar la app con WhatsApp Business" arriba).
+
+#### 🟣 Cola de ideas para MARKETING (pendiente de trasladar a PROYECTO_MARKETING.md)
+Daniel las va pasando por este chat para no interrumpir el hilo — quedan acá anotadas hasta que se abra el chat de marketing y se carguen allá. No confundir con las de arriba (son de la app, no de difusión).
+- [ ] Hacer calcos con QR
+- [ ] Aclarar en cada lámina/post que es una app para Albañiles y Constructores
+- [ ] Hacer historieta completa de los jóvenes y el abuelo (extender la historia de origen a formato historieta)
+
 ## Cambios recientes comprometidos (HEAD actual en Railway)
 
-### Sesión 08/07/2026 (cont. 3) — Unificados los botones "Probá gratis" de la landing + limpieza del modal viejo ⚠️ SIN COMMITEAR
+### Sesión 10/07/2026 (cont. 5) — Segunda ronda de feedback tras deployar cont. 4 ✅ COMMITEADO Y DEPLOYADO
+1. **Burbuja celeste "3 de 3 presupuestos Y 14 de 14 días"** — ✅ arreglado: `templates/dashboard.html` línea ~30, "y" → "o" (coherente con "lo que se cumpla primero").
+2. **Sigue pudiendo crear presupuesto sin validar el mail, otra vez después de deployar** — todavía no confirmado si es bug: la explicación más probable sigue siendo que el switch `verificacion_activa` (Admin > Configuración) sigue apagado. Le quedó preguntado a Daniel de nuevo, explícito esta vez, con la ruta exacta.
+3. **Localidad se despliega distinto a Provincia, sin flechita** — no es bug, es una limitación real: Provincia es un `<select>` (control nativo del navegador, con flechita); Localidad tiene que seguir siendo texto libre con sugerencias (`<datalist>`) porque es una lista abierta que se autoalimenta — ningún navegador le pone flechita a un datalist, son controles distintos por diseño. Además, la entrada con ícono de persona ("Roldán — Santa Fe") y el link "Administrar direcciones..." que aparecen mezclados en la lista son el autocompletado de direcciones DE CHROME superpuesto al datalist de la app (pasa incluso con `autocomplete="off"` puesto, Chrome lo ignora bastante seguido en campos que él interpreta como parte de un formulario de dirección). No hay un fix confiable para eso del lado del código — explicado a Daniel, sin acción de código.
+4. **Daniel no encontraba dónde estaba el switch de validación** — el botón en Admin > Acceso rápido decía solo "Configuración (GG%, Imp%)", sin mencionar validación, por eso no lo relacionó. ✅ arreglado el texto del botón a "Configuración (GG%, Imp%, validación de cuenta)" (`templates/admin/dashboard.html`). Ruta completa: **menú de arriba → "Admin" (ícono engranaje) → tarjeta "Acceso rápido" → ese botón → switch al final de la página** (`/admin/configuracion`).
+
+**Archivos tocados:** `templates/dashboard.html`, `templates/admin/dashboard.html`.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/dashboard.html templates/admin/dashboard.html
+git commit -m "fix: texto burbuja prueba gratis (y -> o) + boton de Configuracion menciona validacion de cuenta para que se encuentre"
+git push
+```
+**✅ COMMITEADO Y DEPLOYADO 10/07/2026 16:11 ART** — el primer deploy del commit `8ed88716` había fallado en Railway ("Deployment failed during build process" con 0 build logs, instantáneo). El diagnóstico automático de Railway lo marcó como **Infrastructure Error / transitorio** (no relacionado al código: el commit solo tocaba texto HTML, no puede romper un build de Python; el mismo código había buildeado bien 26 min antes). No existe opción "Redeploy" para deployments que fallaron en build (solo aplica a exitosos), así que se resolvió disparando un build nuevo con un commit vacío:
+```
+git commit --allow-empty -m "chore: retry deploy tras error transitorio de infraestructura"
+git push
+```
+Resultado: ACTIVE / Deployment successful. Texto burbuja (y→o) y botón "Configuración (GG%, Imp%, validación de cuenta)" ya en producción.
+**Pendiente:** Daniel confirma si prendió el switch de validación en `/admin/configuracion`.
+
+### Sesión 10/07/2026 (cont. 3) — Validación de cuenta + cómo-nos-conoció + localidad/provincia normalizada ✅ COMMITEADO Y DEPLOYADO (confirmado por captura de pantalla de Daniel probando en producción — pedirle `git log --oneline -5` para anotar el hash acá)
+Implementación de 3 de los 4 puntos de la "tanda rápida" (el 4to, nota en Sugerencias, es un cambio de una línea, ver más abajo aparte). Esto es una FEATURE nueva que toca el flujo de registro/login — más grande de lo que parecía al principio, sobre todo la validación de cuenta (terminó incluyendo integración con WhatsApp Business/Meta). Por eso se armó con **feature flag apagado por default**, para no arriesgar nada en producción hasta que Daniel la pruebe.
+
+**Provincia → lista cerrada.** `templates/registro.html` pasa de campo de texto libre a `<select>` con las 24 provincias argentinas (`utils/normalizacion.py::PROVINCIAS_AR`). Elimina el problema de raíz (no puede haber "Pba" vs "Buenos Aires" si no se puede escribir texto libre).
+
+**Localidad → autoalimentada y normalizada.** Sigue siendo texto libre (no se puede cerrar una lista de miles de localidades), pero ahora hay una tabla nueva `localidades` que se autoalimenta: cuando alguien escribe una ciudad, se normaliza (minúsculas, sin tildes, sin puntuación — `utils/normalizacion.py::clave_normalizada()`) y si ya existe una entrada con esa misma clave normalizada, se reusa la grafía ya cargada (así "Rosario" y "rosario" quedan como un solo registro). El campo de registro tiene autocompletado (`<datalist>`) con las localidades ya cargadas.
+
+**Limpieza de datos viejos:** la migración 2t (`database.py`) recorre TODOS los `users.ciudad`/`users.provincia` existentes al momento de correr, agrupa localidades duplicadas y mapea provincias a su nombre canónico donde hay match confiable (diccionario de sinónimos: pba/caba/bs as/etc. — ver `utils/normalizacion.py`). Las provincias sin match automático quedan sin tocar y se listan en el log de Railway para revisar a mano.
+
+**Cómo nos conociste:** nuevo campo en el registro (`users.como_nos_conocio`), lista fija (Facebook, Instagram, Recomendación de alguien, Búsqueda en Google, Otro) + texto libre si elige "Otro". Visible en Admin > Usuarios.
+
+**Validación de cuenta (email/WhatsApp):** en el registro, el usuario elige validar por email o WhatsApp. Se manda un código de 6 dígitos (`utils/verificacion.py`), y mientras no lo confirme, queda bloqueado para crear presupuestos, usar Costo/m² y descargar PDFs (mismo patrón que el bloqueo de prueba gratis vencida, `utils/trial.py`) — puede entrar al dashboard igual, con la pantalla `templates/validar_cuenta.html` pidiéndole el código.
+- Email: funciona YA, usa Resend (mismo que el resto de la app).
+- WhatsApp: el código para mandarlo por Meta Cloud API está escrito (`utils/verificacion.py::enviar_codigo_whatsapp`), pero **no puede mandar mensajes reales todavía** — devuelve `False` y cae automático a email mientras no estén configuradas `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_ID` en Railway. Ver checklist para Daniel más abajo.
+- **341-301-7371 vs 341-754-2009 (pregunta de Daniel 10/07/2026):** el 301-7371 nunca necesitó configuración porque los mensajes que manda la app hoy (activación manual desde Admin, aviso de vencimiento) son links `wa.me/...` — abren WhatsApp con un mensaje precargado que **una persona** tiene que tocar "enviar" a mano (`templates/admin/usuarios.html::waActivacion()`, `routes/pdf_routes.py`, `routes/pagos.py`). Eso no manda nada solo, así que no requiere ninguna cuenta de empresa ni aprobación de Meta — es el WhatsApp normal de Daniel, con un mensaje ya escrito. El código de validación es distinto: lo tiene que mandar el SERVIDOR sin que nadie toque nada, y eso es justo lo que Meta exige verificar (WhatsApp Business Platform / Cloud API) antes de dejar mandar mensajes automáticos — por eso hace falta el trámite para el 754-2009.
+- **¿Afecta a los ya inscriptos sin validar? No, nunca retroactivo — fix 10/07/2026:** el bloqueo se calcula en dos pasos para garantizar esto. (1) La migración 2t marca como validadas TODAS las cuentas que existan en el momento del deploy. (2) Además, `routes/admin.py::configuracion()` marca como validada a cualquier cuenta sin validar **en el instante exacto en que Daniel prende el switch** (no antes, no en el deploy) — así que aunque alguien se registre en el medio, con el switch todavía apagado, esa cuenta queda a salvo apenas se activa. El bloqueo rige solo para quien se registre **después** de que el switch ya esté prendido. El cartel de "Configuración guardada" avisa cuántas cuentas quedaron marcadas así, si hubo alguna.
+
+**Interruptor general (`config.verificacion_activa`, arranca en `'0'` = apagado):** desde Admin > Configuración hay un switch "Validación de cuenta obligatoria". Con el switch apagado, nada de esto bloquea a nadie (el registro guarda igual el método elegido, para cuando se prenda). **Recomendación: probarlo primero con tu propia cuenta antes de prenderlo para todos.**
+
+**⚠️ Checklist para Daniel — activar WhatsApp real (fuera del código, en Meta):**
+1. Verificar el negocio en [Meta Business Manager](https://business.facebook.com) (puede tardar días).
+2. Dar de alta el número **341 754-2009** en WhatsApp Business Platform (Cloud API) dentro de ese Business Manager.
+3. Crear y esperar la aprobación de un **template de mensaje categoría "Autenticación"** (Meta exige plantilla pre-aprobada para mandar un código sin que el usuario haya escrito primero) — anotar el nombre exacto del template.
+4. Conseguir el token de acceso permanente y el `phone_number_id` que da Meta.
+5. Pasarme esos 3 datos (token, phone_number_id, nombre del template) para cargarlos como variables de entorno en Railway (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE_OTP`) — ahí sí queda funcionando el envío real, sin tocar código de nuevo.
+
+**Archivos nuevos:** `utils/normalizacion.py`, `utils/verificacion.py`, `templates/validar_cuenta.html`.
+**Archivos tocados:** `database.py` (migración 2t), `routes/landing.py` (registro + nueva vista `/validar-cuenta`), `templates/registro.html`, `routes/admin.py` + `templates/admin/configuracion.html` (switch), `templates/admin/usuarios.html` (badges), `routes/costo_m2.py`, `routes/presupuesto.py`, `routes/pdf_routes.py` (agregado `@verificacion_required` junto a `@trial_required`).
+**Estado:** deployado. Daniel probó registrando un usuario nuevo y el bloqueo NO actuó — esperado, todavía no había prendido el switch `verificacion_activa` en Admin > Configuración (instrucción textual que se le dio: probar el registro CON el switch apagado primero). Falta que lo prenda para probar el bloqueo real.
+
+### Sesión 10/07/2026 (cont. 4) — Fixes tras la primera prueba de Daniel ⚠️ SIN COMMITEAR
+Daniel probó lo de arriba en producción y reportó varias cosas en un solo mensaje:
+1. **Texto de la burbuja celeste de prueba gratis** ("...3 de 3 presupuestos y 14 de 14 días") — pidió dejarlo anotado para la próxima tanda de correcciones, no tocarlo ahora. **Pendiente para después:** `templates/dashboard.html` líneas 29-31, cambiar "y" por "o" (coherente con "lo que se cumpla primero").
+2. **Pudo crear un presupuesto sin validar el email** — no es bug: el switch `verificacion_activa` seguía apagado (instrucción de la sesión anterior era probar el registro primero CON el switch apagado). Sin acción de código; falta que Daniel prenda el switch para probar el bloqueo real.
+3. **"Próximos vencimientos" no muestra a todos los recién anotados** — no es bug de hoy: `routes/admin.py::dashboard()` siempre tuvo `LIMIT 5` ordenado por fecha de vencimiento más próxima (línea ~31). Con más de 5 cuentas por vencer, las de fecha más lejana quedan afuera del widget aunque sean más nuevas. Si Daniel quiere ver más, es un cambio de una línea (subir el LIMIT o agregar "ver todos").
+4. **Filtros de Localidad/Provincia sin desplegable como País** — ✅ arreglado: Provincia pasa a `<select>` con las 24 provincias fijas (antes era texto libre con datalist, y además el filtro usaba `LIKE`, lo que hacía que filtrar "Buenos Aires" también trajera "Ciudad Autónoma de Buenos Aires" por ser substring — corregido a match exacto). Localidad ahora tiene datalist real alimentado por la tabla `localidades` (antes lo que aparecía era el autocompletado del navegador, no datos de la app).
+5. **Pedido: poder controlar/corregir localidades duplicadas a mano** — ✅ nueva página **Admin > Localidades** (`templates/admin/localidades.html`, ruta `/admin/localidades`, link agregado en el dashboard de admin y en Usuarios). Permite renombrar una localidad (corrige la grafía en todos los usuarios que la tengan) y fusionar dos que sean el mismo lugar (ej. "Rosario" y "Rosario Norte", que la normalización automática no agrupa sola). Al fusionar, los usuarios existentes con la vieja pasan a la nueva, y de ahí en más cualquiera que se registre escribiendo la vieja también cae en la nueva (columna nueva `localidades.merged_en`, migración 2u).
+6. **Aclaración de error de precios en la tarjeta de Costo/m²** — ✅ agregada al final de `templates/costo_m2/resultado.html` (debajo del desglose de materiales, `no-print` para no salir en el PDF exportado): "¿Ves un error de cálculo o un precio muy distorsionado? Contanos desde Sugerencias". Mismo mensaje que ya estaba en `/sugerencias`, repetido acá porque es donde el usuario más probablemente nota el precio raro (comparando $ Lista vs $ Costo).
+7. **"Eduardo" duplicado — confirmado por Daniel:** fue una prueba suya con dos emails distintos, no un bug del formulario (no hay doble submit). A partir de esto, Daniel pidió controlar también por teléfono para evitar altas duplicadas de la misma persona con otro email — ✅ agregado: `routes/landing.py::registro()` ahora también rechaza el alta si el teléfono (normalizado a los últimos 10 dígitos, `utils/normalizacion.py::telefono_normalizado()`) ya está en otra cuenta, con el mismo mensaje de error que usa el email duplicado.
+
+**Nota aparte:** un llamado a `AskUserQuestion` falló silenciosamente (error de la herramienta, no relacionado con el código) mientras se estaba por preguntar sobre "Eduardo" y sobre a qué se refería el punto 6 — Daniel lo aclaró directo en los siguientes mensajes, no hizo falta reintentar.
+
+**Archivos nuevos:** `templates/admin/localidades.html`.
+**Archivos tocados:** `database.py` (migración 2u), `routes/admin.py` (fix filtro provincia + rutas de localidades), `routes/landing.py` (`_guardar_localidad` sigue la cadena de fusión + control de teléfono duplicado), `utils/normalizacion.py` (`telefono_normalizado`), `templates/admin/usuarios.html` (filtros), `templates/admin/dashboard.html` (link nuevo), `templates/costo_m2/resultado.html` (nota de error de precios).
+**Pendiente:** commitear vía Git Bash y deployar.
+```
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add database.py routes/admin.py routes/landing.py utils/normalizacion.py templates/admin/localidades.html templates/admin/usuarios.html templates/admin/dashboard.html templates/costo_m2/resultado.html
+git commit -m "fix: filtro de provincia (select fijo, match exacto) + localidad con datalist real + Admin > Localidades para fusionar duplicados a mano + nota de error de precios en Costo/m2 + control de telefono duplicado en registro"
+git push
+```
+
+
+### Sesión 10/07/2026 (cont.) — 🐛 Bug de cálculo en Costo/m2: materiales redondeados a bolsa entera ✅ COMMITEADO, PUSHEADO Y VERIFICADO (commit `8748b42`)
+Daniel detectó en la calculadora Costo/m2 (ítem "Mamp. ladrillo comun 30cm") que el Cemento de Albañilería se mostraba como 1 bolsa entera consumida por m2, cuando el consumo real ronda los 20kg (bien menos de una bolsa de 25kg). Arena y Ladrillos daban bien; solo se notaba con materiales tipo "Bolsas"/"U"/"Kg" cuando la cantidad fraccionaria por m2 caía por debajo de 1 unidad — más notorio en revoques, donde el consumo de cemento por m2 es chico.
+
+**Causa raíz (confirmada leyendo el código, sin acceso a la DB de producción):** `_calcular_materiales_desde_rubros()` (`routes/presupuesto.py`) redondea SIEMPRE hacia arriba (`math.ceil`) la cantidad de materiales tipo Bolsas/U/Kg antes de calcular el subtotal — correcto para un presupuesto real (no se compra 0.8 bolsas), pero `routes/costo_m2.py` reutiliza esa misma función sobre un "presupuesto sintético" de 1 sola unidad (factor_conv chico, ej. 0.30 para el ítem de 30cm). Con cantidades tan chicas, el `ceil()` infla el costo de referencia (0.8 bolsas → redondeaba a 1 bolsa completa, ~25% de sobrecosto en este caso puntual, mucho peor en ítems donde el consumo por m2 es una fracción todavía más chica de una bolsa).
+
+**Fix:** se agregó un parámetro `redondear=True/False` a `_calcular_materiales_desde_rubros()`. El presupuesto real y el PDF lo siguen llamando sin el parámetro (default `True`, sin cambios de comportamiento). Costo/m2 ahora llama con `redondear=False`, así usa la cantidad real fraccionaria (sin redondeo de compra) tanto para mostrar como para el subtotal.
+
+**Archivos tocados:** `routes/presupuesto.py` (función `_calcular_materiales_desde_rubros`), `routes/costo_m2.py` (llamado con `redondear=False`).
+**Estado:** ✅ commiteado y pusheado a `origin/main` (`8748b42`, 2 files changed, 34 insertions/6 deletions) — confirmado por Daniel el 10/07/2026. Probado en un ítem de revoque (cemento capa aisladora): da bien.
+
+### Sesión 10/07/2026 — 🔴 BUG GRAVE: /admin/precios caído en producción (BuildError) ✅ COMMITEADO Y PUSHEADO (commit `09146a1`)
+Daniel reportó que al entrar a "Precios de materiales" desde el panel admin, la página tira Internal Server Error. Confirmado con 3 clientes reales de prueba gratuita ya usando la app — antes de tocar nada se le explicó que los presupuestos ya generados guardan sus totales congelados en la base (no se recalculan con cambios de código), así que no corren riesgo con este tipo de fixes.
+
+**Causa (confirmada con el traceback real de Railway, pedido por Deploy Logs):** `templates/admin/precios.html` línea 7 tenía `url_for('admin.index')` — ese endpoint no existe, la vista del dashboard admin se llama `admin.dashboard` (`routes/admin.py`, `@bp.route('/') def dashboard()`). Cualquier `url_for` a un endpoint inexistente rompe toda la página con `werkzeug.routing.exceptions.BuildError`, no solo el link — por eso toda la pantalla caía con 500 aunque el resto del código de la vista estuviera bien.
+
+**Fix:** cambiado a `url_for('admin.dashboard')`. Verificado con grep en toda la app que no queda ningún otro `admin.index` suelto — era el único caso.
+
+**Archivos tocados:** `templates/admin/precios.html`.
+**Estado:** ✅ commiteado y pusheado a `origin/main` (`09146a1`) — confirmado por Daniel con `git log --oneline` el 10/07/2026. Pendiente deployar/verificar en Railway.
+
+### Sesión 08/07/2026 (cont. 3) — Unificados los botones "Probá gratis" de la landing + limpieza del modal viejo ✅ COMMITEADO Y PUSHEADO (commit `875eb03`)
 Seguimiento directo del bug de Ricardo Jordan: Daniel pidió controlar que **todos** los botones "Probar la App" de la landing lleven al mismo lugar, después de que otra prueba (Anibal Roca) sí funcionó pero por un botón distinto.
 
 **Encontrado:** en `templates/landing.html` convivían 2 caminos de alta: el modal viejo `modalInscripcion` (activación manual, el que rompió con Ricardo) y `/registro` (alta instantánea, prueba gratis). 6 botones distintos en la página ("PROBALA GRATIS" en el nav x2, hero, sección PDF, precios y CTA final) apuntaban todavía al modal viejo vía `data-bs-toggle="modal" data-bs-target="#modalInscripcion"`.
@@ -285,14 +619,7 @@ Seguimiento directo del bug de Ricardo Jordan: Daniel pidió controlar que **tod
 **Respuesta a la otra pregunta de Daniel (instalar la app / caso Anibal Roca):** el cartel para "bajar/instalar la app" que apareció es el prompt nativo de Chrome/Android para instalar una PWA (Progressive Web App) — no es algo que el código dispare a propósito por cada alta nueva. `templates/base.html` registra un manifest (`manifest.json`) y un service worker en TODAS las páginas que extienden `base.html` (dashboard, login, registro, trial_vencido, etc.). Apenas un usuario llega a una de esas páginas en un navegador compatible (típicamente Chrome en Android), el navegador puede ofrecer instalarla como app — es comportamiento estándar del navegador, no algo exclusivo de una activación. La landing pública (`landing.html`) es standalone y NO dispara esto. Conclusión: sí, va a poder volver a pasar con cualquier usuario nuevo que entre al dashboard desde Chrome/Android — es normal y no es un bug.
 
 **Archivos tocados:** `templates/landing.html`.
-**Pendiente:** commitear vía Git Bash.
-```
-cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
-rm -f .git/index.lock
-git add templates/landing.html
-git commit -m "fix: unificar todos los botones Probar gratis a /registro + limpiar modal de inscripcion viejo (codigo muerto)"
-git push
-```
+**Estado:** ✅ commiteado y pusheado a `origin/main` (`875eb03`, 1 file changed, 22 insertions) — confirmado por Daniel el 10/07/2026.
 
 ### Sesión 08/07/2026 (cont. 2) — 🔴 BUG GRAVE: tabla `leads` no existe en producción (caso Ricardo Jordan) ⚠️ SIN COMMITEAR
 Daniel reportó: Ricardo Jordan completó la inscripción, le apareció el cartel de éxito ("en breve te activamos por WhatsApp o email"), pero no llegó ningún aviso ni aparece en ningún listado.

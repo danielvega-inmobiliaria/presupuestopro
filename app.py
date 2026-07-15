@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from config import Config
 from database import init_db, migrate_db
-from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual
+from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual, whatsapp_bot
 
 
 def create_app():
@@ -20,6 +20,7 @@ def create_app():
     app.register_blueprint(costo_m2.bp)
     app.register_blueprint(sugerencias.bp)
     app.register_blueprint(manual.bp)
+    app.register_blueprint(whatsapp_bot.bp)
 
     with app.app_context():
         init_db()

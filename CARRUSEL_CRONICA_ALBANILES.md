@@ -32,9 +32,9 @@ _Actualizado: 08/07/2026 — rediseño a pedido de Daniel, más impacto tipo pla
 - Nombre "PresupuestoPRO" + frase ancla "De los metros a los pesos, en minutos."
 - Botón naranja: "¡LA PODÉS PROBAR GRATIS!"
 
-### Placa 6 — Qué es (reusa diseño de la v1, párrafo final corregido)
+### Placa 6 — Qué es (reusa diseño de la v1, párrafo final acortado)
 - Ícono materiales, título "PresupuestoPRO"
-- Cuerpo: "Cargás los m² de tu obra. La app calcula materiales, mano de obra y cuadro de pagos. Todo en minutos, no en horas de Excel o peor a mano."
+- Cuerpo: "Cargás los m² de tu obra. La app calcula materiales, mano de obra y cuadro de pagos. Todo en minutos."
 
 ### Placa 7 — Diferencial de precios (corregido "contra" → "por")
 - Ícono precios, título "Nunca más un presupuesto viejo"
@@ -46,7 +46,7 @@ _Actualizado: 08/07/2026 — rediseño a pedido de Daniel, más impacto tipo pla
 
 ### Placa 9 — Oferta (acortada, sin el paso de WhatsApp)
 - Banner diagonal "TIEMPO LIMITADO", título "POR AHORA, ES GRATIS"
-- Cuerpo: "A cambio de una ayuda: seguinos, dale like a este posteo y etiquetá a 3 colegas." (termina ahí, sin mencionar WhatsApp — ese paso ya lo cubre el caption/comentarios)
+- Cuerpo: "Solo tenés que seguir la cuenta, dar like a este post y etiquetar a 3 colegas."
 
 ### Placa 10 — Cierre final
 - Logo arriba, título "Esta historia sigue en tus manos"
@@ -54,6 +54,35 @@ _Actualizado: 08/07/2026 — rediseño a pedido de Daniel, más impacto tipo pla
 - Línea nueva: "Probala gratis ingresando a:"
 - Botón naranja con **solo la URL**: presupuestopro.com.ar
 - Frase ancla chica debajo
+
+---
+
+## Copy para acompañar el carrusel (Facebook e Instagram)
+
+### Facebook (grupos de albañiles/constructores)
+
+> 🚨 SE BUSCAN ALBAÑILES 🚨
+>
+> No es un aviso clasificado. Es peor: todos los días un colega pierde plata por presupuestar a ojo.
+>
+> Deslizá el carrusel completo — te contamos cómo se soluciona, y por tiempo limitado es gratis.
+>
+> Etiquetá a los colegas que también se quedan cortos con el presupuesto. De obra a obra.
+>
+> 👉 presupuestopro.com.ar
+
+### Instagram (mismo carrusel, caption con hashtags)
+
+> 🚨 SE BUSCAN ALBAÑILES 🚨
+>
+> No, no es una changa. Es peor: todos los días un colega pierde plata por presupuestar a ojo mientras el corralón le sube los precios a mitad de obra.
+>
+> Deslizá — hay una solución, y por ahora es gratis. Solo tenés que seguir esta cuenta, dar like a este posteo y etiquetar a 3 colegas.
+>
+> De los metros a los pesos, en minutos.
+>
+> .
+> #presupuestopro #construccion #albañiles #contratistas #obra #maestromayordeobras #argentina #corralon #materialesdeconstruccion #manodeobra #excel #presupuestodeobra #construccionargentina #albañilargentino #rosario #buenosaires #zonasur #obraencurso #reformas #ampliaciones #refacciones #costosdeobra #calculodemateriales #appdeconstruccion #saasargentina #proptech #tecnologiaparaobra #precioscorralones #contratistaindependiente #obrasenargentina #presupuestogratis
 
 ---
 
