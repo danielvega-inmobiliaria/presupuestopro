@@ -144,6 +144,10 @@ def registro():
 
     if not nombre or not apellido or not email or not password:
         return _error("Completá los campos obligatorios.")
+    if not como_conocio:
+        return _error("Contanos cómo nos conociste.")
+    if not presupuestaba:
+        return _error("Contanos cómo venís presupuestando.")
     if len(password) < 6:
         return _error("La contraseña debe tener al menos 6 caracteres.")
     if metodo_verif == 'whatsapp' and not telefono:

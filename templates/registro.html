@@ -102,7 +102,7 @@
             </div>
             <div class="col-md-6">
               <label class="form-label small">¿Cómo nos conociste?</label>
-              <select name="como_nos_conocio" id="como-conocio" class="form-select">
+              <select name="como_nos_conocio" id="como-conocio" class="form-select" required>
                 <option value="">Elegí una opción...</option>
                 {% for op in como_opciones %}
                 <option value="{{ op }}" {% if prev and prev.como_nos_conocio == op %}selected{% endif %}>{{ op }}</option>
@@ -115,7 +115,7 @@
             </div>
             <div class="col-md-6">
               <label class="form-label small">¿Cómo venís presupuestando?</label>
-              <select name="como_presupuestaba" id="presupuestaba" class="form-select">
+              <select name="como_presupuestaba" id="presupuestaba" class="form-select" required>
                 <option value="">Elegí una opción...</option>
                 {% for op in presupuestaba_opciones %}
                 <option value="{{ op }}" {% if prev and prev.como_presupuestaba == op %}selected{% endif %}>{{ op }}</option>
