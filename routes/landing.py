@@ -40,6 +40,10 @@ COMO_NOS_CONOCIO_OPCIONES = [
     'Facebook', 'Instagram', 'Recomendación de alguien', 'Búsqueda en Google', 'Otro',
 ]
 
+COMO_PRESUPUESTABA_OPCIONES = [
+    'A mano (papel)', 'Excel o planilla', 'Otra app', 'Todavía no presupuesto', 'Otro',
+]
+
 
 def _guardar_localidad(ciudad_libre, provincia):
     """Agrupa `ciudad_libre` contra lo ya cargado por otros usuarios (misma
@@ -103,6 +107,7 @@ def registro():
                                 max_dias=TRIAL_MAX_DIAS,
                                 provincias=PROVINCIAS_AR,
                                 como_opciones=COMO_NOS_CONOCIO_OPCIONES,
+                                presupuestaba_opciones=COMO_PRESUPUESTABA_OPCIONES,
                                 localidades=localidades,
                                 whatsapp_disponible=whatsapp_configurado())
 
@@ -116,13 +121,16 @@ def registro():
     password  = f.get('password', '')
     como_conocio       = f.get('como_nos_conocio', '').strip()
     como_conocio_otro  = f.get('como_nos_conocio_otro', '').strip()
+    presupuestaba      = f.get('como_presupuestaba', '').strip()
+    presupuestaba_otro = f.get('como_presupuestaba_otro', '').strip()
     metodo_verif       = f.get('metodo_verificacion', 'email').strip()
     if metodo_verif not in ('email', 'whatsapp'):
         metodo_verif = 'email'
 
     prev = dict(nombre=nombre, apellido=apellido, telefono=telefono,
                 email=email, ciudad=ciudad, provincia=provincia,
-                como_nos_conocio=como_conocio, metodo_verificacion=metodo_verif)
+                como_nos_conocio=como_conocio, como_presupuestaba=presupuestaba,
+                metodo_verificacion=metodo_verif)
 
     def _error(msg):
         return render_template('registro.html', error=msg, prev=prev,
@@ -130,6 +138,7 @@ def registro():
                                 max_dias=TRIAL_MAX_DIAS,
                                 provincias=PROVINCIAS_AR,
                                 como_opciones=COMO_NOS_CONOCIO_OPCIONES,
+                                presupuestaba_opciones=COMO_PRESUPUESTABA_OPCIONES,
                                 localidades=[],
                                 whatsapp_disponible=whatsapp_configurado())
 
@@ -144,6 +153,11 @@ def registro():
         como_conocio_final = f"Otro: {como_conocio_otro}"
     else:
         como_conocio_final = como_conocio
+
+    if presupuestaba == 'Otro' and presupuestaba_otro:
+        presupuestaba_final = f"Otro: {presupuestaba_otro}"
+    else:
+        presupuestaba_final = presupuestaba
 
     db = get_db()
     existing = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
@@ -181,10 +195,10 @@ def registro():
             """INSERT INTO users
                (email, password_hash, nombre, apellido, telefono, ciudad, provincia,
                 pais, active, es_trial, trial_visto, subscription_expires,
-                como_nos_conocio, metodo_verificacion)
-               VALUES (?,?,?,?,?,?,?,?,1,1,0,?,?,?)""",
+                como_nos_conocio, como_presupuestaba, metodo_verificacion)
+               VALUES (?,?,?,?,?,?,?,?,1,1,0,?,?,?,?)""",
             (email, password_hash, nombre, apellido, telefono, ciudad_final, provincia,
-             'AR', vence, como_conocio_final, metodo_verif)
+             'AR', vence, como_conocio_final, presupuestaba_final, metodo_verif)
         )
         user_id = cursor.lastrowid
         db.commit()

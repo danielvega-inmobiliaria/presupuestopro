@@ -2386,6 +2386,20 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2v: whatsapp_consultas_sin_responder agregada (bot de FAQ)")
 
+        # ── 2w. Registro: pregunta "¿Cómo venís presupuestando?" ──────────
+        # Mismo patrón que como_nos_conocio (2t): select con opciones fijas
+        # + "Otro" con texto libre, para saber si el usuario viene de Excel,
+        # a mano, otra app, o ninguna todavía (input para marketing/producto).
+        ya_2w = db.execute("SELECT valor FROM config WHERE clave='2w_done'").fetchone()
+        if not ya_2w:
+            cols_users_2w = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            if 'como_presupuestaba' not in cols_users_2w:
+                db.execute("ALTER TABLE users ADD COLUMN como_presupuestaba TEXT DEFAULT ''")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2w_done','2026-07-16')")
+            db.commit()
+            print("[migrate_db] 2w: users.como_presupuestaba agregado (pregunta de registro)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

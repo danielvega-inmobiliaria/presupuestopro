@@ -158,6 +158,9 @@
             {% if u.como_nos_conocio %}
             <div class="small text-muted"><i class="bi bi-megaphone"></i> {{ u.como_nos_conocio }}</div>
             {% endif %}
+            {% if u.como_presupuestaba %}
+            <div class="small text-muted"><i class="bi bi-calculator"></i> {{ u.como_presupuestaba }}</div>
+            {% endif %}
             {% if u.metodo_verificacion %}
               {% set validado = (u.metodo_verificacion == 'whatsapp' and u.phone_verificado) or (u.metodo_verificacion != 'whatsapp' and u.email_verificado) %}
               <span class="badge {% if validado %}bg-success{% else %}bg-warning text-dark{% endif %} mt-1">
