@@ -152,12 +152,15 @@ def usuarios_exportar_contactar():
     (capturas de pantalla de esta misma tabla + transcripción manual a un
     Excel — lento y con riesgo de error en teléfonos/contadores). Este botón
     arma el mismo Excel en un click, leyendo directo de la base. Ver
-    utils/exportar_contactos.py para la lógica de segmentación exacta."""
+    utils/exportar_contactos.py para la lógica de segmentación exacta
+    (incluye Segmento C — validado sin ninguna actividad — agregado el mismo
+    día a pedido de Daniel, por eso también se trae n_costo_m2 acá)."""
     db = get_db()
     usuarios = db.execute(
         """SELECT u.*,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
-                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
+                  (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
            FROM users u
            WHERE u.is_admin=0
            ORDER BY u.created_at DESC"""
@@ -881,6 +884,15 @@ def configuracion():
             if n_grandfather:
                 print(f"[admin.configuracion] verificacion_activa prendida: "
                       f"{n_grandfather} cuenta(s) existente(s) marcadas como ya validadas (no retroactivo)")
+
+        # Fix 18/07/2026: switch aparte para mostrar "Por WhatsApp" en el
+        # registro, desacoplado de si las variables de entorno están
+        # cargadas (ver utils/verificacion.py::whatsapp_configurado).
+        whatsapp_val = '1' if request.form.get('whatsapp_validacion_habilitada') == 'on' else '0'
+        db.execute(
+            "INSERT OR REPLACE INTO config (clave, valor) VALUES ('whatsapp_validacion_habilitada', ?)",
+            (whatsapp_val,)
+        )
         db.commit()
         db.close()
         if se_esta_prendiendo and n_grandfather:

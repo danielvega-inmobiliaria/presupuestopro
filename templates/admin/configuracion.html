@@ -43,6 +43,20 @@
         {% endif %}
         <br>Recomendado: probalo primero con tu propia cuenta antes de dejarlo prendido para todos.
       </p>
+      <hr>
+      <div class="mb-2 form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" name="whatsapp_validacion_habilitada"
+               id="whatsapp_validacion_habilitada" {% if cfg.get('whatsapp_validacion_habilitada') == '1' %}checked{% endif %}>
+        <label class="form-check-label fw-semibold" for="whatsapp_validacion_habilitada">
+          Mostrar "Por WhatsApp" como opción de validación en el registro
+        </label>
+      </div>
+      <p class="form-text mt-0">
+        Apagado por defecto aunque WHATSAPP_TOKEN/WHATSAPP_PHONE_ID ya estén cargadas en
+        Railway — así podés tener las credenciales listas sin que la opción se muestre a los
+        usuarios todavía. Prendelo recién cuando Meta apruebe el negocio y hayas probado el
+        envío real con tu propia cuenta.
+      </p>
       <button type="submit" class="btn btn-warning fw-bold w-100">
         <i class="bi bi-save"></i> Guardar configuración
       </button>

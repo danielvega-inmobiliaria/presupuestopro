@@ -124,12 +124,22 @@ def enviar_codigo_email(email, nombre, codigo):
 
 
 def whatsapp_configurado():
-    """True si WHATSAPP_TOKEN y WHATSAPP_PHONE_ID están cargados en Railway.
-    Agregado 10/07/2026: se usa para ocultar la opción 'Por WhatsApp' en el
-    registro mientras el trámite de Meta no esté listo, evitando que alguien
-    la elija y quede en un canal que todavía no manda nada real. El día que
-    Daniel cargue esas dos variables en Railway, la opción vuelve a aparecer
-    sola — no hace falta tocar código de nuevo."""
+    """True si WHATSAPP_TOKEN y WHATSAPP_PHONE_ID están cargados en Railway
+    Y ADEMÁS el switch 'whatsapp_validacion_habilitada' está prendido en
+    Admin > Configuración. Se usa para ocultar la opción 'Por WhatsApp' en el
+    registro mientras el trámite de Meta no esté listo (o no se haya probado
+    en vivo), evitando que alguien la elija y quede en un canal que todavía
+    no manda nada real.
+
+    Fix 18/07/2026: antes esto dependía solo de las 2 variables de entorno,
+    así que Daniel las había cargado en Railway para tenerlas listas y la
+    opción apareció sola en producción antes de tiempo. Se agregó el switch
+    en config para desacoplar "las credenciales están cargadas" de "mostrar
+    la opción a los usuarios" — así las variables pueden estar en Railway
+    de antemano sin activar nada, y Daniel prende el switch a mano cuando
+    esté todo probado."""
+    if _config('whatsapp_validacion_habilitada', '0') != '1':
+        return False
     return bool(os.environ.get('WHATSAPP_TOKEN') and os.environ.get('WHATSAPP_PHONE_ID'))
 
 
