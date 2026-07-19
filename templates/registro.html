@@ -71,8 +71,8 @@
                      value="{{ prev.apellido if prev else '' }}">
             </div>
             <div class="col-md-6">
-              <label class="form-label small">Teléfono / WhatsApp</label>
-              <input type="text" name="telefono" class="form-control"
+              <label class="form-label small">Teléfono / WhatsApp *</label>
+              <input type="text" name="telefono" class="form-control" required
                      value="{{ prev.telefono if prev else '' }}">
             </div>
             <div class="col-md-6">
@@ -81,9 +81,9 @@
                      value="{{ prev.email if prev else '' }}">
             </div>
             <div class="col-md-6">
-              <label class="form-label small">Ciudad</label>
+              <label class="form-label small">Ciudad *</label>
               <input type="text" name="ciudad" class="form-control" list="lista-localidades"
-                     autocomplete="off"
+                     autocomplete="off" required
                      value="{{ prev.ciudad if prev else '' }}">
               <datalist id="lista-localidades">
                 {% for loc in localidades %}
@@ -92,8 +92,8 @@
               </datalist>
             </div>
             <div class="col-md-6">
-              <label class="form-label small">Provincia</label>
-              <select name="provincia" class="form-select">
+              <label class="form-label small">Provincia *</label>
+              <select name="provincia" class="form-select" required>
                 <option value="">Elegí una provincia...</option>
                 {% for p in provincias %}
                 <option value="{{ p }}" {% if prev and prev.provincia == p %}selected{% endif %}>{{ p }}</option>
@@ -172,12 +172,17 @@
 </div>
 <script>
   // Muestra el campo de texto libre solo si elige "Otro" en cómo nos conoció.
+  // Fix 18/07/2026: cuando se muestra, también se vuelve obligatorio (si no,
+  // el navegador no lo puede validar porque el input queda con d-none).
   (function () {
     var select = document.getElementById('como-conocio');
     var wrap = document.getElementById('como-conocio-otro-wrap');
-    if (!select || !wrap) return;
+    var input = document.getElementById('como-conocio-otro');
+    if (!select || !wrap || !input) return;
     function toggle() {
-      wrap.classList.toggle('d-none', select.value !== 'Otro');
+      var esOtro = select.value === 'Otro';
+      wrap.classList.toggle('d-none', !esOtro);
+      input.required = esOtro;
     }
     select.addEventListener('change', toggle);
     toggle();
@@ -186,9 +191,12 @@
   (function () {
     var select = document.getElementById('presupuestaba');
     var wrap = document.getElementById('presupuestaba-otro-wrap');
-    if (!select || !wrap) return;
+    var input = document.getElementById('presupuestaba-otro');
+    if (!select || !wrap || !input) return;
     function toggle() {
-      wrap.classList.toggle('d-none', select.value !== 'Otro');
+      var esOtro = select.value === 'Otro';
+      wrap.classList.toggle('d-none', !esOtro);
+      input.required = esOtro;
     }
     select.addEventListener('change', toggle);
     toggle();

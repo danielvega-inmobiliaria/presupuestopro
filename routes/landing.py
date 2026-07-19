@@ -144,10 +144,20 @@ def registro():
 
     if not nombre or not apellido or not email or not password:
         return _error("Completá los campos obligatorios.")
+    if not telefono:
+        return _error("Completá tu teléfono / WhatsApp.")
+    if not ciudad:
+        return _error("Completá tu ciudad.")
+    if not provincia:
+        return _error("Elegí tu provincia.")
     if not como_conocio:
         return _error("Contanos cómo nos conociste.")
+    if como_conocio == 'Otro' and not como_conocio_otro:
+        return _error("Contanos cómo nos conociste (detalle de 'Otro').")
     if not presupuestaba:
         return _error("Contanos cómo venís presupuestando.")
+    if presupuestaba == 'Otro' and not presupuestaba_otro:
+        return _error("Contanos cómo venís presupuestando (detalle de 'Otro').")
     if len(password) < 6:
         return _error("La contraseña debe tener al menos 6 caracteres.")
     if metodo_verif == 'whatsapp' and not telefono:
