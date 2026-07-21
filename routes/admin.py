@@ -601,7 +601,7 @@ def seguimiento_whatsapp(uid):
         return redirect(volver)
 
     from routes.whatsapp_bot import enviar_plantilla_whatsapp
-    ok = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros=[u['nombre'] or ''])
+    ok = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros={'nombre': u['nombre'] or ''})
     db.execute(
         "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
         (uid, 'whatsapp', tipo, plantilla, 'ok' if ok else 'error')

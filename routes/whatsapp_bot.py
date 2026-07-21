@@ -419,10 +419,17 @@ def enviar_plantilla_whatsapp(telefono, nombre_plantilla, parametros=None, idiom
     por Meta (mensaje que arranca la empresa, fuera de la ventana de 24hs,
     a diferencia de enviar_mensaje_whatsapp que solo sirve dentro de esa
     ventana). Se usa desde admin.seguimiento_whatsapp para la campaña de
-    retención. `parametros` es una lista de strings que reemplazan
-    {{1}}, {{2}}... del body del template, en orden. `nombre_plantilla`
-    tiene que coincidir EXACTO con el nombre aprobado en Meta Business
-    Manager, si no la Cloud API devuelve error y esto vuelve False."""
+    retención. `nombre_plantilla` tiene que coincidir EXACTO con el nombre
+    aprobado en Meta Business Manager, si no la Cloud API devuelve error y
+    esto vuelve False.
+
+    `parametros`: dict {nombre_variable: valor} — ACTUALIZADO 21/07/2026:
+    Meta dejó de aceptar variables posicionales ({{1}}, {{2}}) en plantillas
+    nuevas, ahora exige variables con nombre ({{nombre}}, {{fecha}}, etc.),
+    minúsculas y guion bajo. Cada key de `parametros` tiene que coincidir
+    EXACTO con el nombre de la variable tal como quedó en el body aprobado
+    en Meta (ej. si el body dice "Hola {{nombre}}!", pasar
+    parametros={'nombre': 'Alejandro'})."""
     body = {
         "messaging_product": "whatsapp",
         "to": telefono,
@@ -435,7 +442,10 @@ def enviar_plantilla_whatsapp(telefono, nombre_plantilla, parametros=None, idiom
     if parametros:
         body["template"]["components"] = [{
             "type": "body",
-            "parameters": [{"type": "text", "text": p} for p in parametros],
+            "parameters": [
+                {"type": "text", "parameter_name": nombre_var, "text": valor}
+                for nombre_var, valor in parametros.items()
+            ],
         }]
     return _enviar_payload(telefono, body)
 
