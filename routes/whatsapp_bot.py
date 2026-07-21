@@ -134,10 +134,7 @@ FAQ_DATA = [
     },
 ]
 
-FALLBACK_RESPUESTA = (
-    "No tengo la respuesta a mano para eso. Dejé tu consulta anotada, "
-    "te contestamos apenas la vea el equipo."
-)
+FALLBACK_RESPUESTA = "¡Hola! Para arrancar, escribí: menú"
 
 # ─── menú de bienvenida (mensaje interactivo tipo lista) ──────────────────────
 # Se manda cuando arranca una conversación nueva (o pasaron más de 24hs desde
@@ -538,10 +535,7 @@ def recibir_mensaje():
                 enviar_mensaje_whatsapp(telefono, respuesta)
             else:
                 _guardar_consulta_sin_responder(telefono, texto)
-                enviar_mensaje_whatsapp(
-                    telefono,
-                    FALLBACK_RESPUESTA + ' Escribí "menú" para ver todos los temas.',
-                )
+                enviar_mensaje_whatsapp(telefono, FALLBACK_RESPUESTA)
 
         _actualizar_sesion(telefono)
     except Exception as e:
