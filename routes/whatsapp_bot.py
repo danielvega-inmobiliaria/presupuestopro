@@ -420,12 +420,21 @@ def _actualizar_sesion(telefono):
 
 def _enviar_payload(telefono, body):
     """POST genérico a la Cloud API de mensajes — usado tanto para texto
-    libre como para el mensaje interactivo del menú."""
+    libre como para el mensaje interactivo del menú.
+
+    Cambio 21/07/2026 (pedido de Daniel, tras un error real con
+    'retencion_sin_uso' que solo mostraba un mensaje genérico): ahora
+    devuelve una tupla (ok, detalle). `detalle` es None si salió bien, o el
+    motivo real que contestó Meta (código + mensaje de error de la Graph
+    API, ej. "132001: Template name does not exist in the translation" —
+    típico cuando el nombre no matchea exacto o el idioma de la plantilla
+    aprobada no es el mismo que se manda acá) para poder mostrárselo a
+    Daniel en vez de la lista genérica de sospechosos habituales."""
     token = os.environ.get('WHATSAPP_TOKEN')
     phone_id = os.environ.get('WHATSAPP_PHONE_ID')
     if not token or not phone_id:
         logger.warning("[whatsapp_bot] Sin WHATSAPP_TOKEN/WHATSAPP_PHONE_ID — no se puede responder a %s", telefono)
-        return False
+        return False, "Falta WHATSAPP_TOKEN o WHATSAPP_PHONE_ID en las variables de entorno de Railway."
     req = urllib.request.Request(
         f"https://graph.facebook.com/v20.0/{phone_id}/messages",
         data=json.dumps(body).encode('utf-8'),
@@ -438,19 +447,28 @@ def _enviar_payload(telefono, body):
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             resp.read()
-        return True
+        return True, None
     except urllib.error.HTTPError as e:
-        logger.error("[whatsapp_bot] Error WhatsApp API (%s): %s", e.code, e.read())
-        return False
+        cuerpo = e.read()
+        detalle = None
+        try:
+            data = json.loads(cuerpo)
+            err = data.get('error', {})
+            detalle = f"{err.get('code', e.code)}: {err.get('error_data', {}).get('details') or err.get('message', '')}"
+        except (json.JSONDecodeError, AttributeError):
+            detalle = f"{e.code}: {cuerpo[:300]}"
+        logger.error("[whatsapp_bot] Error WhatsApp API (%s): %s", e.code, cuerpo)
+        return False, detalle
     except Exception as e:
         logger.error("[whatsapp_bot] Error enviando mensaje a %s: %s", telefono, e)
-        return False
+        return False, str(e)
 
 
 def enviar_mensaje_whatsapp(telefono, texto):
     """Manda un mensaje de texto libre (dentro de la ventana de 24hs de la
     conversación iniciada por el usuario — no requiere template aprobado,
-    a diferencia de enviar_codigo_whatsapp en utils/verificacion.py)."""
+    a diferencia de enviar_codigo_whatsapp en utils/verificacion.py).
+    Devuelve (ok, detalle) — ver _enviar_payload."""
     body = {
         "messaging_product": "whatsapp",
         "to": telefono,
@@ -467,7 +485,8 @@ def enviar_plantilla_whatsapp(telefono, nombre_plantilla, parametros=None, idiom
     ventana). Se usa desde admin.seguimiento_whatsapp para la campaña de
     retención. `nombre_plantilla` tiene que coincidir EXACTO con el nombre
     aprobado en Meta Business Manager, si no la Cloud API devuelve error y
-    esto vuelve False.
+    esto vuelve (False, detalle). Devuelve (ok, detalle) — ver
+    _enviar_payload.
 
     `parametros`: dict {nombre_variable: valor} — ACTUALIZADO 21/07/2026:
     Meta dejó de aceptar variables posicionales ({{1}}, {{2}}) en plantillas

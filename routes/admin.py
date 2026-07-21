@@ -601,19 +601,25 @@ def seguimiento_whatsapp(uid):
         return redirect(volver)
 
     from routes.whatsapp_bot import enviar_plantilla_whatsapp
-    ok = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros={'nombre': u['nombre'] or ''})
+    ok, detalle = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros={'nombre': u['nombre'] or ''})
+    # Fix 21/07/2026: antes solo se guardaba 'ok'/'error' sin el motivo real
+    # de Meta, y el flash mostraba un mensaje genérico adivinando la causa.
+    # Ahora el detalle real (código + mensaje de la Graph API) queda en el
+    # campo 'mensaje' del historial (visible en Seguimiento > Ver) y en el
+    # flash de esta pantalla — 'resultado' se deja intacto ('ok'/'error')
+    # porque los badges de la lista comparan ese valor exacto.
+    mensaje_guardado = plantilla if ok else f"{plantilla} — ERROR: {detalle}"
     db.execute(
         "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
-        (uid, 'whatsapp', tipo, plantilla, 'ok' if ok else 'error')
+        (uid, 'whatsapp', tipo, mensaje_guardado, 'ok' if ok else 'error')
     )
     db.commit()
     db.close()
     if ok:
         flash(f'WhatsApp ({plantilla}) enviado a {u["nombre"] or u["email"]}.', 'success')
     else:
-        flash(f'No se pudo enviar. Revisá que "{plantilla}" esté aprobada en Meta con ese nombre '
-              f'exacto, y que WHATSAPP_TOKEN/WHATSAPP_PHONE_ID estén cargados en Railway. Mientras '
-              f'tanto usá "Abrir en WhatsApp (manual)" desde el detalle del usuario.', 'error')
+        flash(f'No se pudo enviar "{plantilla}": {detalle}. Mientras tanto usá "Abrir en WhatsApp '
+              f'(manual)" desde el detalle del usuario.', 'error')
     return redirect(request.referrer or url_for('admin.seguimiento'))
 
 
@@ -1187,7 +1193,7 @@ def whatsapp_responder(cid):
         return redirect(url_for('admin.whatsapp_inbox'))
 
     from routes.whatsapp_bot import enviar_mensaje_whatsapp
-    ok = enviar_mensaje_whatsapp(consulta['telefono'], texto)
+    ok, detalle = enviar_mensaje_whatsapp(consulta['telefono'], texto)
     if ok:
         db.execute(
             "UPDATE whatsapp_consultas_sin_responder SET respondida=1, respuesta_admin=? WHERE id=?",
@@ -1196,10 +1202,9 @@ def whatsapp_responder(cid):
         db.commit()
         flash('Respuesta enviada.', 'success')
     else:
-        flash('No se pudo enviar. Si ya pasaron las 24hs desde que esa persona escribió, Meta '
-              'exige una plantilla aprobada para mandarle texto libre (no es un error nuestro) '
-              '— revisá también que WHATSAPP_TOKEN/WHATSAPP_PHONE_ID estén cargados en Railway.',
-              'error')
+        flash(f'No se pudo enviar: {detalle}. Si ya pasaron las 24hs desde que esa persona '
+              'escribió, Meta exige una plantilla aprobada para mandarle texto libre (no es un '
+              'error nuestro).', 'error')
     db.close()
     return redirect(url_for('admin.whatsapp_inbox'))
 
