@@ -47,6 +47,14 @@ from openpyxl.utils import get_column_letter
 
 APP_URL = 'https://web-production-0c9c1.up.railway.app/login'
 
+# 21/07/2026: los emails de retención salen de noreply@presupuestopro.com.ar
+# sin reply_to (nadie lee las respuestas a ese mail). Para que el usuario
+# pueda contestar y así abrir la ventana de 24h de WhatsApp (y quedar
+# habilitado para mensajes libres desde el 2009), cada mensaje de email suma
+# esta línea con el link de WhatsApp al final.
+WA_LINK = 'https://wa.me/5493417542009'
+WA_CTA = f"\n\nTambién podés escribirnos por WhatsApp, es más rápido: {WA_LINK}"
+
 HEADERS_SEGMENTO = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Estado activación", "Creado", "Vence",
                      "Mensaje WhatsApp sugerido", "Mensaje email sugerido"]
@@ -90,7 +98,7 @@ def _mensaje_activacion(nombre):
     email = (f"Hola {nombre}, notamos que todavía no confirmaste tu cuenta en "
              f"PresupuestoPRO. Es un paso rápido y te deja usar la app sin "
              f"restricciones. Si tuviste alguna dificultad para activarla, "
-             f"respondé este mail y te ayudamos.")
+             f"contanos." + WA_CTA)
     return wa, email
 
 
@@ -103,7 +111,7 @@ def _mensaje_seguimiento(nombre):
     email = (f"Hola {nombre}, gracias por probar PresupuestoPRO. Nos gustaría saber "
              f"qué te pareció y si encontraste alguna dificultad al usarla. Tu "
              f"feedback nos ayuda a mejorar, y estamos para ayudarte con tu "
-             f"próximo presupuesto.")
+             f"próximo presupuesto." + WA_CTA)
     return wa, email
 
 
@@ -115,7 +123,7 @@ def _mensaje_sin_uso(nombre):
           f"unos minutos. Ingresá en: {APP_URL}")
     email = (f"Hola {nombre}, notamos que activaste tu cuenta en PresupuestoPRO pero "
              f"todavía no armaste tu primer presupuesto. Si tuviste alguna dificultad "
-             f"para empezar, contanos — te ayudamos con el primero.")
+             f"para empezar, contanos — te ayudamos con el primero." + WA_CTA)
     return wa, email
 
 
@@ -127,7 +135,7 @@ def _mensaje_solo_costo_m2(nombre):
           f"armar el primero?")
     email = (f"Hola {nombre}, notamos que usaste la calculadora de Costo/m² en "
              f"PresupuestoPRO pero todavía no armaste un presupuesto completo. Si "
-             f"querés, te ayudamos a dar ese paso — contanos si tuviste alguna duda.")
+             f"querés, te ayudamos a dar ese paso — contanos si tuviste alguna duda." + WA_CTA)
     return wa, email
 
 
@@ -140,7 +148,7 @@ def _mensaje_prueba_por_vencer(nombre):
           f"cortes. Cualquier duda sobre el pago, contanos.")
     email = (f"Hola {nombre}, tu prueba gratis de PresupuestoPRO está por terminar. "
              f"Si te resultó útil, podés suscribirte desde la app para seguir "
-             f"usándola sin interrupciones.")
+             f"usándola sin interrupciones." + WA_CTA)
     return wa, email
 
 
@@ -153,7 +161,7 @@ def _mensaje_suscripcion_vencida(nombre):
           f"— si querés reactivarla, te ayudamos.")
     email = (f"Hola {nombre}, notamos que tu suscripción a PresupuestoPRO venció. Si "
              f"tuviste algún problema con el pago o decidiste no continuar, nos "
-             f"ayuda mucho que nos cuentes por qué. Y si querés reactivarla, avisanos.")
+             f"ayuda mucho que nos cuentes por qué. Y si querés reactivarla, avisanos." + WA_CTA)
     return wa, email
 
 

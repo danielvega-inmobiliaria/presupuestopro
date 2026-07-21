@@ -6,7 +6,40 @@
 
 ---
 
-_Última actualización: 15/07/2026 — 15:15 ART_
+## Descripción del proyecto
+PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos de obra de construcción en minutos: carga de rubros e ítems, cálculo automático de materiales, mano de obra (oficial y ayudante) y costo por m², con precios actualizados para el mercado argentino. Funciona por suscripción mensual vía Mercado Pago ($12.500 ARS). Lanzada el 01/07/2026, apunta a contratistas, albañiles y profesionales de la construcción que hoy arman presupuestos a mano o en planillas. Slogan: "De los metros a los pesos, en minutos."
+
+---
+
+_Última actualización: 18/07/2026 — 22:58 ART_
+
+### Sesión 16-18/07/2026 — Formulario de registro: nueva pregunta + todo obligatorio + fix WhatsApp prematuro ✅ COMMITEADO (parte 1) / ✅ COMMITEADO Y PROBADO (parte 2)
+Pedido de Daniel: agregar al formulario de registro una pregunta sobre el método actual del usuario (app, Excel/planilla, a mano), para tener ese dato de producto/marketing. Implementado con el mismo patrón que "¿Cómo nos conociste?" (select cerrado + "Otro" con texto libre).
+**Hecho:**
+- `database.py`: migración `2w` — agrega columna `users.como_presupuestaba TEXT DEFAULT ''`.
+- `routes/landing.py`: constante `COMO_PRESUPUESTABA_OPCIONES` (`A mano (papel)`, `Excel o planilla`, `Otra app`, `Todavía no presupuesto`, `Otro`); lee `como_presupuestaba`/`como_presupuestaba_otro` del form, arma el valor final (igual que `como_conocio`) y lo guarda en el INSERT de `users`.
+- `templates/registro.html`: nuevo select "¿Cómo venís presupuestando?" al lado del de "cómo nos conociste", con su campo "Otro" y el mismo toggle JS.
+- `templates/admin/usuarios.html`: se muestra el dato en la ficha de cada usuario (ícono calculadora), igual que "cómo nos conoció".
+- `templates/manual.html`: actualizada la sección de registro para mencionar el nuevo campo (regla de mantener el Manual al día).
+- **Actualización (mismo día):** Daniel detectó que un usuario nuevo se registró sin que aparecieran ni "cómo nos conoció" ni "cómo presupuestaba" — eran opcionales (ni el `<select>` tenía `required` ni el backend los validaba), así que el usuario los dejó en blanco y la ficha de Admin no muestra la línea si está vacío (comportamiento esperado, no bug). Pedido explícito: pasar ambos a **obligatorios**. ✅ Hecho: `required` agregado a los dos `<select>` en `templates/registro.html` + validación server-side en `routes/landing.py` (`_error` si falta cualquiera de los dos).
+- **Actualización 18/07/2026:** mismo patrón — Daniel notó que a otro usuario nuevo no le figuraban Ciudad ni Provincia (también eran opcionales). Pedido: pasar **las 4 restantes a obligatorias** (Teléfono, Ciudad, Provincia, y el texto libre de "Otro" en ambos selects). ✅ Hecho:
+  - `templates/registro.html`: `required` agregado a Teléfono, Ciudad y Provincia. Los inputs "Contanos cuál" (de "cómo nos conociste" y "cómo presupuestaba") ahora se marcan `required` por JS solo cuando están visibles (cuando el select correspondiente vale "Otro") — si no, el navegador no puede validar un campo oculto con `d-none`.
+  - `routes/landing.py`: validación server-side agregada para Teléfono, Ciudad, Provincia, y para el texto libre de "Otro" en ambos selects (si eligió "Otro" pero no completó el detalle, rechaza el registro).
+  - Con esto, del formulario de registro **todos los campos son obligatorios excepto el método de validación** (hoy fijo en email, radio oculto).
+**Archivos tocados (parte 1):** `database.py`, `routes/landing.py`, `templates/registro.html`, `templates/admin/usuarios.html`, `templates/manual.html`.
+**✅ Confirmado por Daniel 18/07/2026: "Ya está todo commiteado".**
+
+**Parte 2 — fix del switch de WhatsApp prematuro (mismo día, después del commit de arriba):** Daniel notó en producción que el registro dejaba elegir "Por WhatsApp" para validar la cuenta — no debía pasar todavía (sigue esperando la aprobación de Meta). Causa: había cargado `WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID`/`WHATSAPP_VERIFY_TOKEN` en Railway de antemano (para tenerlas listas), y `whatsapp_configurado()` solo miraba esas 2 variables de entorno — apenas estuvieron, la opción se mostró sola. Daniel preguntó cómo recuperar las variables si las borraba; en vez de eso se agregó un switch para no depender de tocar Railway:
+  - `utils/verificacion.py::whatsapp_configurado()`: ahora exige TAMBIÉN el config flag `whatsapp_validacion_habilitada='1'` (además de las 2 variables de entorno). Apagado por defecto.
+  - `templates/admin/configuracion.html`: nuevo switch "Mostrar 'Por WhatsApp' como opción de validación en el registro".
+  - `routes/admin.py::configuracion()`: guarda el nuevo flag (mismo patrón que `verificacion_activa`).
+  - Con esto, las credenciales pueden quedar cargadas en Railway sin riesgo — la opción no aparece a los usuarios hasta que Daniel prenda el switch a mano desde Admin > Configuración, el día que Meta apruebe y se pruebe en vivo.
+**Archivos tocados (parte 2):** `utils/verificacion.py`, `templates/admin/configuracion.html`, `routes/admin.py`.
+**✅ Confirmado por Daniel 18/07/2026: ya estaba commiteado y probado — "Por WhatsApp" ya no aparece en `/registro` (switch apagado por defecto en Admin > Configuración).**
+
+**Dos cosas que Daniel reportó como "bug" durante las pruebas y NO lo eran (sin cambios de código):**
+- Email de validación no llegaba a `itaauto03@gmail.com` → revisado en el dashboard de Resend: **Bounced** en el primer envío, **Suppressed** en el reintento (Resend deja de mandarle a una dirección que ya rebotó). El dominio y Resend están bien (la notificación al admin llegó `Delivered` sin problema) — probablemente typo en esa dirección de prueba.
+- "El mail ya está en uso" al re-registrar después de borrar una cuenta de prueba → Daniel confirmó que en realidad no la había borrado. El botón "Eliminar" de Admin > Usuarios sí libera el email al instante cuando se usa.
 
 ### Sesión 15/07/2026 — Bot de FAQ por WhatsApp: primera versión del código ⚠️ SIN COMMITEAR
 Trabajo hecho desde el proyecto paralelo `CHATBOT_WHATSAPP_BUSINESS` (ver ese `PROYECTO.md` para el contexto completo de por qué y las preguntas/respuestas fuente en `FAQ_BOT.md`). Se dejó preparada la arquitectura técnica aunque el número 341 754-2009 todavía no está dado de alta en Meta — no se puede probar en vivo todavía.
