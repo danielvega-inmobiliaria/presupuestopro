@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, render_template_string, request, r
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
 from utils.calculations import PAISES
-from utils.normalizacion import PROVINCIAS_AR
+from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado
 from utils.exportar_contactos import (
     generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D,
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
@@ -1047,18 +1047,23 @@ def whatsapp_inbox():
     (routes/whatsapp_bot.py) no supo contestar solo. Pedido de Daniel
     20/07/2026.
 
-    Importante — por qué existe esta pantalla y qué NO resuelve: el número
-    341 754-2009 quedó dado de alta en Meta como WhatsApp Business Platform
-    (Cloud API), no como un WhatsApp común. Eso tiene una regla que no
-    depende de nuestro código: se puede mandar texto libre por acá SOLO
-    dentro de las 24hs desde que la persona escribió (columna
-    `dentro_ventana` de abajo); pasadas esas 24hs, Meta rechaza el envío de
-    texto libre y exige una plantilla (template) pre-aprobada por Meta —
-    igual que ya pasa con el código de verificación en
-    utils/verificacion.py::enviar_codigo_whatsapp. Por eso esta bandeja NO
-    sirve para la campaña de retención (contactar a los 33 usuarios que
-    nunca escribieron al 2009) — para eso hace falta esa plantilla aprobada.
-    Esta pantalla es para conversaciones que YA arrancó la otra persona."""
+    Importante — regla de Meta que no depende de nuestro código: se puede
+    mandar texto libre por acá SOLO dentro de las 24hs desde que la persona
+    escribió (columna `dentro_ventana` de abajo); pasadas esas 24hs, Meta
+    rechaza el envío de texto libre y exige una plantilla (template)
+    pre-aprobada — igual que ya pasa con el código de verificación en
+    utils/verificacion.py::enviar_codigo_whatsapp.
+
+    Actualizado 21/07/2026: esta bandeja SÍ sirve para la campaña de
+    retención — antes solo servía para conversaciones que la otra persona
+    arrancaba de cero, pero una vez que un usuario de retención RESPONDE al
+    mensaje que le mandamos (plantilla aprobada por Cloud API), esa
+    respuesta entra por el mismo webhook y cae acá igual que cualquier otro
+    mensaje entrante, abriendo la ventana de 24hs para contestarle texto
+    libre de verdad. Para dar contexto de quién escribe, se cruza el
+    teléfono contra `users` (incluso si vino con formato distinto:
+    telefono_normalizado se queda con los últimos 10 dígitos) y contra el
+    último envío de `retencion_contactos` para ese usuario."""
     db = get_db()
     consultas = db.execute(
         """SELECT c.*, v.ultima_interaccion
@@ -1066,6 +1071,18 @@ def whatsapp_inbox():
            LEFT JOIN whatsapp_conversaciones v ON v.telefono = c.telefono
            ORDER BY c.respondida ASC, c.created_at DESC"""
     ).fetchall()
+
+    usuarios_por_tel = {}
+    for u in db.execute("SELECT id, nombre, email, telefono FROM users WHERE telefono IS NOT NULL AND telefono != ''").fetchall():
+        usuarios_por_tel[telefono_normalizado(u['telefono'])] = dict(u)
+
+    ultimo_contacto_por_user = {}
+    for r in db.execute(
+        """SELECT rc.user_id, rc.segmento, rc.mensaje, rc.canal, rc.created_at
+           FROM retencion_contactos rc
+           ORDER BY rc.created_at DESC"""
+    ).fetchall():
+        ultimo_contacto_por_user.setdefault(r['user_id'], dict(r))
     db.close()
 
     ahora = datetime.utcnow()
@@ -1080,6 +1097,9 @@ def whatsapp_inbox():
                 dentro_ventana = None
         fila = dict(c)
         fila['dentro_ventana'] = dentro_ventana
+        usuario = usuarios_por_tel.get(telefono_normalizado(c['telefono']))
+        fila['usuario'] = usuario
+        fila['retencion'] = ultimo_contacto_por_user.get(usuario['id']) if usuario else None
         filas.append(fila)
 
     return render_template_string("""
@@ -1112,7 +1132,8 @@ def whatsapp_inbox():
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-start mb-1">
         <div>
-          <strong>{{ c.telefono }}</strong>
+          <strong>{{ c.usuario.nombre if c.usuario and c.usuario.nombre else c.telefono }}</strong>
+          {% if c.usuario %}<small class="text-muted">({{ c.telefono }})</small>{% endif %}
           {% if not c.respondida %}<span class="badge bg-warning text-dark ms-2">PENDIENTE</span>{% endif %}
           {% if c.respondida %}<span class="badge bg-success ms-2">Respondida</span>{% endif %}
           {% if c.dentro_ventana %}
@@ -1123,6 +1144,15 @@ def whatsapp_inbox():
         </div>
         <small class="text-muted text-nowrap ms-2">{{ c.created_at[:16] }}</small>
       </div>
+      {% if c.retencion %}
+      <p class="mb-1 small text-primary">
+        <i class="bi bi-reply"></i> Responde a un mensaje de retención — Segmento {{ c.retencion.segmento }},
+        enviado por {{ c.retencion.canal }} el {{ c.retencion.created_at[:10] }}
+      </p>
+      {% endif %}
+      {% if c.usuario %}
+      <p class="mb-1 small"><a href="{{ url_for('admin.seguimiento_detalle', uid=c.usuario.id) }}">Ver perfil completo en Seguimiento →</a></p>
+      {% endif %}
       <p class="mb-2 border rounded p-2 bg-white">{{ c.mensaje }}</p>
       {% if c.respondida %}
       <p class="mb-0 small text-muted"><strong>Tu respuesta:</strong> {{ c.respuesta_admin }}</p>
