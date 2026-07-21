@@ -30,6 +30,7 @@ import re
 import unicodedata
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta
 
 from flask import Blueprint, request
 
@@ -138,6 +139,178 @@ FALLBACK_RESPUESTA = (
     "te contestamos apenas la vea el equipo."
 )
 
+# ─── menú de bienvenida (mensaje interactivo tipo lista) ──────────────────────
+# Se manda cuando arranca una conversación nueva (o pasaron más de 24hs desde
+# el último mensaje) para guiar al usuario a una respuesta más precisa en vez
+# de depender solo del matching por palabras clave. WhatsApp permite hasta 10
+# filas en total por lista — exactamente las 10 categorías del FAQ.
+SALUDO_MENU = (
+    "¡Hola! 👋 Soy el asistente de *PresupuestoPRO*. Elegí un tema de la "
+    "lista para ayudarte más rápido, o escribime tu consulta directamente."
+)
+
+CATEGORIAS = [
+    {
+        "id": "cat_registro",
+        "title": "Registro y prueba",
+        "description": "Cómo empezar a usar la app gratis",
+        "respuesta": (
+            "*Registro y prueba gratis*\n\n"
+            "▸ *¿Cómo me registro?*\nEntrá a presupuestopro.com.ar/registro, "
+            "completá tus datos y elegí una contraseña. Quedás adentro al "
+            "instante, sin pagar nada.\n\n"
+            "▸ *¿La prueba gratis tiene límite?*\nSí: hasta 3 presupuestos "
+            "completos o 14 días, lo que se cumpla primero. En el panel "
+            "principal siempre ves cuánto te queda.\n\n"
+            "▸ *¿Dónde cargo el código de verificación?*\nTe llega por email "
+            "un código de 6 dígitos, se carga en la pantalla que aparece "
+            "después del registro."
+        ),
+    },
+    {
+        "id": "cat_pago",
+        "title": "Suscripción y pago",
+        "description": "Precio, cómo suscribirte y problemas de pago",
+        "respuesta": (
+            "*Suscripción y pago*\n\n"
+            "▸ *¿Cuánto cuesta / cómo me suscribo?*\nCuando se cumple el "
+            "límite de la prueba gratis, la app te invita a suscribirte. "
+            "Desde \"Suscribirme\" se abre Mercado Pago para el pago "
+            "recurrente mensual.\n\n"
+            "▸ *Pagué y no se activó / tengo un problema con el pago*\n"
+            "Escribinos desde \"Sugerencias\" dentro de la app y lo revisamos."
+        ),
+    },
+    {
+        "id": "cat_login",
+        "title": "Login y contraseña",
+        "description": "Recuperar o cambiar tu contraseña",
+        "respuesta": (
+            "*Login y contraseña*\n\n"
+            "▸ *Olvidé mi contraseña*\nEn la pantalla de inicio de sesión, "
+            "tocá \"Olvidé mi contraseña\", escribí tu email y te llega un "
+            "link para crear una nueva.\n\n"
+            "▸ *¿Cómo la cambio estando logueado?*\nMenú de usuario (arriba "
+            "a la derecha) → \"Cambiar contraseña\".\n\n"
+            "▸ *¿Puedo estar logueado en el celu y la compu a la vez?*\n"
+            "No — por seguridad, iniciar sesión en un dispositivo nuevo "
+            "cierra la sesión en el otro."
+        ),
+    },
+    {
+        "id": "cat_dashboard",
+        "title": "Panel principal",
+        "description": "Dashboard, borradores y presupuestos",
+        "respuesta": (
+            "*Panel principal (Dashboard)*\n\n"
+            "▸ *¿Dónde veo mis presupuestos?*\nEn el Dashboard, pantalla "
+            "principal al iniciar sesión: ahí están tus borradores en "
+            "progreso y tus presupuestos completos.\n\n"
+            "▸ *¿Qué es un borrador?*\nUn presupuesto que empezaste pero no "
+            "terminaste. Tocá \"Retomar\" para seguir, o el tacho para "
+            "eliminarlo.\n\n"
+            "▸ *¿Dónde arranco un presupuesto nuevo?*\nBotón \"Nuevo "
+            "presupuesto\" en el Dashboard.\n\n"
+            "▸ *¿Dónde está la calculadora de Costo/m²?*\nBotón \"Costo/m²\" "
+            "en el Dashboard, junto a \"Nuevo presupuesto\"."
+        ),
+    },
+    {
+        "id": "cat_presupuesto",
+        "title": "Crear un presupuesto",
+        "description": "El asistente de 8 pasos, paso a paso",
+        "respuesta": (
+            "*Crear un presupuesto (asistente de 8 pasos)*\n\n"
+            "▸ *¿Cómo hago un presupuesto?*\nDashboard → \"Nuevo "
+            "presupuesto\": datos del cliente/obra, cómputo, subcontratos, "
+            "costos indirectos, modo de cotización, materiales, forma de "
+            "pago y resumen final. Se guarda solo a medida que avanzás.\n\n"
+            "▸ *Se me cortó la conexión, ¿perdí lo que cargué?*\nNo. Cada "
+            "paso se guarda al tocar \"Siguiente\". Solo se pierde lo que "
+            "escribiste en la pantalla actual si todavía no la guardaste.\n\n"
+            "▸ *¿Puedo volver a un paso anterior sin perder lo cargado?*\n"
+            "Sí, con los íconos de la barra superior del asistente. Los "
+            "pasos visitados quedan en verde.\n\n"
+            "▸ *¿Cómo retomo un borrador después?*\nDashboard → \"Retomar\" "
+            "en \"Borradores en progreso\"."
+        ),
+    },
+    {
+        "id": "cat_ver_editar",
+        "title": "Ver, editar y PDF",
+        "description": "Editar presupuestos y descargar el PDF",
+        "respuesta": (
+            "*Ver, editar y descargar presupuestos*\n\n"
+            "▸ *¿Puedo editar un presupuesto después de guardarlo?*\nSí, "
+            "con el botón \"Editar\" desde el Dashboard.\n\n"
+            "▸ *¿Cómo descargo el PDF?*\nDesde el Dashboard, en cada "
+            "presupuesto completo tenés el botón \"PDF\" (para el cliente) "
+            "o \"Constr.\" (con detalle de costos internos).\n\n"
+            "▸ *¿Cuál es la diferencia entre los dos PDF?*\nEl Propietario "
+            "es para el cliente, sin costos internos. El Constructor "
+            "incluye mano de obra, materiales y márgenes."
+        ),
+    },
+    {
+        "id": "cat_costo_m2",
+        "title": "Costo por m²",
+        "description": "Cómo usar la calculadora de Costo/m²",
+        "respuesta": (
+            "*Costo por m²*\n\n"
+            "Dashboard → \"Costo/m²\", elegís un ítem de la lista y te "
+            "muestra mano de obra, materiales y total. Los jornales y "
+            "precios son editables ahí mismo para simular variaciones."
+        ),
+    },
+    {
+        "id": "cat_mi_empresa",
+        "title": "Mi empresa",
+        "description": "Logo, nombre y datos para tus PDFs",
+        "respuesta": (
+            "*Mi Empresa*\n\n"
+            "Menú de usuario → \"Mi empresa\". Ahí subís logo, nombre, "
+            "eslogan y datos de contacto — aparecen en los PDFs que le "
+            "mandás a tus clientes."
+        ),
+    },
+    {
+        "id": "cat_sugerencias",
+        "title": "Sugerencias y soporte",
+        "description": "Pedir mejoras, avisar errores o precios",
+        "respuesta": (
+            "*Sugerencias / soporte*\n\n"
+            "▸ *Quiero pedir una mejora o avisar de un error*\nMenú "
+            "principal → \"Sugerencias\". Cuando se responde o implementa "
+            "se marca \"Respondida\" en tu lista.\n\n"
+            "▸ *¿Los precios de materiales se actualizan solos?*\nSí, los "
+            "actualiza el equipo tomando como referencia listas de "
+            "corralones de primera línea. Si notás alguno desactualizado, "
+            "avisanos desde \"Sugerencias\"."
+        ),
+    },
+    {
+        "id": "cat_instalar",
+        "title": "Instalar en el celular",
+        "description": "Instalar la app como acceso directo",
+        "respuesta": (
+            "*Instalar la app en el celular*\n\n"
+            "Menú de usuario → \"Instalar app\". En Android/Chrome abre el "
+            "instalador directo; en iPhone te explica el paso a paso de "
+            "Safari (compartir → \"Agregar a pantalla de inicio\")."
+        ),
+    },
+]
+
+_KEYWORDS_MENU = {"menu", "menú", "opciones", "ayuda", "inicio", "hola", "buenas"}
+
+
+def buscar_categoria(categoria_id):
+    """Devuelve la categoría del menú por id, o None si no existe."""
+    for cat in CATEGORIAS:
+        if cat["id"] == categoria_id:
+            return cat
+    return None
+
 
 def _normalizar(texto):
     """minúsculas, sin tildes, espacios simples — para matching tolerante."""
@@ -168,21 +341,46 @@ def _guardar_consulta_sin_responder(telefono, mensaje):
     db.close()
 
 
-def enviar_mensaje_whatsapp(telefono, texto):
-    """Manda un mensaje de texto libre (dentro de la ventana de 24hs de la
-    conversación iniciada por el usuario — no requiere template aprobado,
-    a diferencia de enviar_codigo_whatsapp en utils/verificacion.py)."""
+def _sesion_vencida(telefono):
+    """True si es la primera vez que este teléfono escribe, o si pasaron más
+    de 24hs desde su última interacción (mismo criterio que la "ventana de
+    servicio al cliente" de WhatsApp) — en ese caso conviene mandar el
+    saludo + menú en vez de ir directo al matching."""
+    db = get_db()
+    fila = db.execute(
+        "SELECT ultima_interaccion FROM whatsapp_conversaciones WHERE telefono=?",
+        (telefono,),
+    ).fetchone()
+    db.close()
+    if not fila or not fila[0]:
+        return True
+    try:
+        ultima = datetime.fromisoformat(str(fila[0]))
+    except ValueError:
+        return True
+    return (datetime.utcnow() - ultima) > timedelta(hours=24)
+
+
+def _actualizar_sesion(telefono):
+    db = get_db()
+    db.execute(
+        "INSERT INTO whatsapp_conversaciones (telefono, ultima_interaccion) "
+        "VALUES (?, CURRENT_TIMESTAMP) "
+        "ON CONFLICT(telefono) DO UPDATE SET ultima_interaccion=CURRENT_TIMESTAMP",
+        (telefono,),
+    )
+    db.commit()
+    db.close()
+
+
+def _enviar_payload(telefono, body):
+    """POST genérico a la Cloud API de mensajes — usado tanto para texto
+    libre como para el mensaje interactivo del menú."""
     token = os.environ.get('WHATSAPP_TOKEN')
     phone_id = os.environ.get('WHATSAPP_PHONE_ID')
     if not token or not phone_id:
         logger.warning("[whatsapp_bot] Sin WHATSAPP_TOKEN/WHATSAPP_PHONE_ID — no se puede responder a %s", telefono)
         return False
-    body = {
-        "messaging_product": "whatsapp",
-        "to": telefono,
-        "type": "text",
-        "text": {"body": texto},
-    }
     req = urllib.request.Request(
         f"https://graph.facebook.com/v20.0/{phone_id}/messages",
         data=json.dumps(body).encode('utf-8'),
@@ -202,6 +400,51 @@ def enviar_mensaje_whatsapp(telefono, texto):
     except Exception as e:
         logger.error("[whatsapp_bot] Error enviando mensaje a %s: %s", telefono, e)
         return False
+
+
+def enviar_mensaje_whatsapp(telefono, texto):
+    """Manda un mensaje de texto libre (dentro de la ventana de 24hs de la
+    conversación iniciada por el usuario — no requiere template aprobado,
+    a diferencia de enviar_codigo_whatsapp en utils/verificacion.py)."""
+    body = {
+        "messaging_product": "whatsapp",
+        "to": telefono,
+        "type": "text",
+        "text": {"body": texto},
+    }
+    return _enviar_payload(telefono, body)
+
+
+def enviar_menu_whatsapp(telefono):
+    """Manda el saludo + lista interactiva con las 10 categorías del FAQ."""
+    body = {
+        "messaging_product": "whatsapp",
+        "to": telefono,
+        "type": "interactive",
+        "interactive": {
+            "type": "list",
+            "header": {"type": "text", "text": "PresupuestoPRO"},
+            "body": {"text": SALUDO_MENU},
+            "footer": {"text": "Escribí \"menú\" en cualquier momento para volver a ver esta lista."},
+            "action": {
+                "button": "Ver temas",
+                "sections": [
+                    {
+                        "title": "Temas",
+                        "rows": [
+                            {
+                                "id": cat["id"],
+                                "title": cat["title"],
+                                "description": cat["description"],
+                            }
+                            for cat in CATEGORIAS
+                        ],
+                    }
+                ],
+            },
+        },
+    }
+    return _enviar_payload(telefono, body)
 
 
 @bp.route('', methods=['GET'])
@@ -232,16 +475,49 @@ def recibir_mensaje():
             return '', 200
         msg = mensajes[0]
         telefono = msg.get('from', '')
-        texto = (msg.get('text') or {}).get('body', '')
-        if not telefono or not texto:
+        tipo = msg.get('type', 'text')
+        if not telefono:
             return '', 200
 
-        respuesta = buscar_respuesta(texto)
-        if respuesta:
-            enviar_mensaje_whatsapp(telefono, respuesta)
+        # Selección de una opción del menú interactivo → responde directo con
+        # el contenido compilado de esa categoría, sin pasar por el matching.
+        if tipo == 'interactive':
+            list_reply = (msg.get('interactive') or {}).get('list_reply') or {}
+            categoria = buscar_categoria(list_reply.get('id', ''))
+            if categoria:
+                enviar_mensaje_whatsapp(telefono, categoria["respuesta"])
+            _actualizar_sesion(telefono)
+            return '', 200
+
+        texto = (msg.get('text') or {}).get('body', '')
+        if not texto:
+            return '', 200
+
+        normalizado = _normalizar(texto)
+        nueva_conversacion = _sesion_vencida(telefono)
+
+        # Saludo/pedido explícito de menú, o conversación nueva/inactiva
+        # hace más de 24hs → mandar bienvenida + lista de temas primero.
+        if normalizado in _KEYWORDS_MENU or nueva_conversacion:
+            enviar_menu_whatsapp(telefono)
+            # Si además el mensaje ya trae una pregunta puntual con match,
+            # respondemos también — no hace falta que el usuario repita.
+            if normalizado not in _KEYWORDS_MENU:
+                respuesta = buscar_respuesta(texto)
+                if respuesta:
+                    enviar_mensaje_whatsapp(telefono, respuesta)
         else:
-            _guardar_consulta_sin_responder(telefono, texto)
-            enviar_mensaje_whatsapp(telefono, FALLBACK_RESPUESTA)
+            respuesta = buscar_respuesta(texto)
+            if respuesta:
+                enviar_mensaje_whatsapp(telefono, respuesta)
+            else:
+                _guardar_consulta_sin_responder(telefono, texto)
+                enviar_mensaje_whatsapp(
+                    telefono,
+                    FALLBACK_RESPUESTA + ' Escribí "menú" para ver todos los temas.',
+                )
+
+        _actualizar_sesion(telefono)
     except Exception as e:
         logger.error("[whatsapp_bot] Error procesando webhook: %s", e)
     return '', 200

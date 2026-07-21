@@ -2400,6 +2400,23 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2w: users.como_presupuestaba agregado (pregunta de registro)")
 
+        # ── 2x. Bot de FAQ por WhatsApp: menú interactivo de bienvenida ───
+        # Guarda la última interacción por teléfono para detectar si hay que
+        # mandar el saludo + lista de temas (conversación nueva o inactiva
+        # hace más de 24hs) o seguir con matching normal (routes/whatsapp_bot.py).
+        ya_2x = db.execute("SELECT valor FROM config WHERE clave='2x_done'").fetchone()
+        if not ya_2x:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS whatsapp_conversaciones (
+                    telefono TEXT PRIMARY KEY,
+                    ultima_interaccion DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2x_done','2026-07-20')")
+            db.commit()
+            print("[migrate_db] 2x: whatsapp_conversaciones agregada (menu de bienvenida del bot)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
