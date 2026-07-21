@@ -143,7 +143,9 @@ FALLBACK_RESPUESTA = "¡Hola! Para arrancar, escribí: menú"
 # filas en total por lista — exactamente las 10 categorías del FAQ.
 SALUDO_MENU = (
     "¡Hola! 👋 Soy el asistente de *PresupuestoPRO*. Elegí un tema de la "
-    "lista para ayudarte más rápido, o escribime tu consulta directamente."
+    "lista para ayudarte más rápido, o escribime tu consulta directamente.\n\n"
+    "¿No encontrás lo que buscás o querés dejarnos un comentario? "
+    "Contanos desde la app: Menú → Sugerencias."
 )
 
 CATEGORIAS = [
@@ -529,6 +531,11 @@ def recibir_mensaje():
                 respuesta = buscar_respuesta(texto)
                 if respuesta:
                     enviar_mensaje_whatsapp(telefono, respuesta)
+                else:
+                    # Antes se perdía: si el primer mensaje de una conversación
+                    # nueva no matcheaba ninguna FAQ, se mandaba el menú pero
+                    # la pregunta en sí no quedaba guardada para revisión.
+                    _guardar_consulta_sin_responder(telefono, texto)
         else:
             respuesta = buscar_respuesta(texto)
             if respuesta:
