@@ -425,7 +425,7 @@ def enviar_menu_whatsapp(telefono):
             "type": "list",
             "header": {"type": "text", "text": "PresupuestoPRO"},
             "body": {"text": SALUDO_MENU},
-            "footer": {"text": "Escribí \"menú\" en cualquier momento para volver a ver esta lista."},
+            "footer": {"text": "Escribí \"menú\" para volver a ver esta lista."},
             "action": {
                 "button": "Ver temas",
                 "sections": [
