@@ -415,6 +415,32 @@ def enviar_mensaje_whatsapp(telefono, texto):
     return _enviar_payload(telefono, body)
 
 
+def enviar_plantilla_whatsapp(telefono, nombre_plantilla, parametros=None, idioma='es_AR'):
+    """Agregado 20/07/2026, pedido de Daniel — manda un template PRE-APROBADO
+    por Meta (mensaje que arranca la empresa, fuera de la ventana de 24hs,
+    a diferencia de enviar_mensaje_whatsapp que solo sirve dentro de esa
+    ventana). Se usa desde admin.seguimiento_whatsapp para la campaña de
+    retención. `parametros` es una lista de strings que reemplazan
+    {{1}}, {{2}}... del body del template, en orden. `nombre_plantilla`
+    tiene que coincidir EXACTO con el nombre aprobado en Meta Business
+    Manager, si no la Cloud API devuelve error y esto vuelve False."""
+    body = {
+        "messaging_product": "whatsapp",
+        "to": telefono,
+        "type": "template",
+        "template": {
+            "name": nombre_plantilla,
+            "language": {"code": idioma},
+        },
+    }
+    if parametros:
+        body["template"]["components"] = [{
+            "type": "body",
+            "parameters": [{"type": "text", "text": p} for p in parametros],
+        }]
+    return _enviar_payload(telefono, body)
+
+
 def enviar_menu_whatsapp(telefono):
     """Manda el saludo + lista interactiva con las 10 categorías del FAQ."""
     body = {

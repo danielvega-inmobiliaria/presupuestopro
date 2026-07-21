@@ -2417,6 +2417,51 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2x: whatsapp_conversaciones agregada (menu de bienvenida del bot)")
 
+        # ── 2y. Bandeja de WhatsApp: guardar la respuesta que mandó Daniel ──
+        # Pedido de Daniel 20/07/2026: pantalla en Admin para responder a
+        # mano las consultas que el bot no supo contestar (ver
+        # routes/admin.py::whatsapp_inbox). Falta guardar qué se le contestó
+        # a cada una, para tener el historial a la vista.
+        ya_2y = db.execute("SELECT valor FROM config WHERE clave='2y_done'").fetchone()
+        if not ya_2y:
+            cols_wcsr_2y = [r[1] for r in db.execute(
+                "PRAGMA table_info(whatsapp_consultas_sin_responder)"
+            ).fetchall()]
+            if 'respuesta_admin' not in cols_wcsr_2y:
+                db.execute(
+                    "ALTER TABLE whatsapp_consultas_sin_responder ADD COLUMN respuesta_admin TEXT DEFAULT ''"
+                )
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2y_done','2026-07-20')")
+            db.commit()
+            print("[migrate_db] 2y: whatsapp_consultas_sin_responder.respuesta_admin agregada")
+
+        # ── 2z. Admin > Seguimiento: historial de contactos de retención ──
+        # Pedido de Daniel 20/07/2026: en vez de bajar la planilla, poder
+        # contactar y hacerle seguimiento a cada usuario desde la propia app
+        # (WhatsApp con plantilla aprobada, o email) para los segmentos A/B/C/D
+        # de utils/exportar_contactos.py, más "prueba por vencer" y
+        # "suscripción vencida". Esta tabla guarda qué se le mandó a cada uno
+        # y cuándo, para no perder el registro ni escribirle dos veces sin
+        # querer (ver routes/admin.py::seguimiento).
+        ya_2z = db.execute("SELECT valor FROM config WHERE clave='2z_done'").fetchone()
+        if not ya_2z:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS retencion_contactos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    canal TEXT NOT NULL,
+                    segmento TEXT NOT NULL,
+                    mensaje TEXT NOT NULL,
+                    resultado TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('2z_done','2026-07-20')")
+            db.commit()
+            print("[migrate_db] 2z: retencion_contactos agregada (Admin > Seguimiento)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

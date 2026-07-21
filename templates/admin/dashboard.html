@@ -80,6 +80,18 @@
           <span class="badge bg-dark ms-1">{{ stats.sugerencias_nuevas }} nueva{% if stats.sugerencias_nuevas > 1 %}s{% endif %}</span>
           {% endif %}
         </a>
+        <a href="{{ url_for('admin.whatsapp_inbox') }}" class="btn btn-success fw-bold">
+          <i class="bi bi-whatsapp"></i> WhatsApp (consultas sin responder)
+          {% if stats.whatsapp_pendientes > 0 %}
+          <span class="badge bg-dark ms-1">{{ stats.whatsapp_pendientes }} pendiente{% if stats.whatsapp_pendientes > 1 %}s{% endif %}</span>
+          {% endif %}
+        </a>
+        <a href="{{ url_for('admin.seguimiento') }}" class="btn btn-primary fw-bold">
+          <i class="bi bi-graph-up-arrow"></i> Seguimiento de usuarios (retención)
+          {% if stats.seguimiento_pendientes > 0 %}
+          <span class="badge bg-warning text-dark ms-1">{{ stats.seguimiento_pendientes }}</span>
+          {% endif %}
+        </a>
         <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-primary">
           <i class="bi bi-people"></i> Gestionar usuarios
         </a>

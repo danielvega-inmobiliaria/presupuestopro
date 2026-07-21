@@ -1,14 +1,66 @@
 import json
 import os
 import urllib.request
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g, send_file
 from werkzeug.security import generate_password_hash
 from utils.auth import admin_required
 from utils.calculations import PAISES
 from utils.normalizacion import PROVINCIAS_AR
-from utils.exportar_contactos import generar_excel_usuarios_a_contactar
+from utils.exportar_contactos import (
+    generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D,
+    _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
+    _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida,
+)
 from database import get_db, recalcular_precio_mo_ars
+
+# Admin > Seguimiento (20/07/2026): nombres de plantilla EXACTOS que hay que
+# dar de alta en Meta Business Manager para que esto funcione — ver
+# conversación del proyecto para el texto completo de cada una.
+TEMPLATES_WHATSAPP = {
+    'A': 'retencion_activar_cuenta',
+    'B': 'retencion_primer_presupuesto',
+    'C': 'retencion_sin_uso',
+    'D': 'retencion_solo_costo_m2',
+    'trial': 'retencion_prueba_por_vencer',
+    'vencido': 'retencion_suscripcion_vencida',
+}
+
+MENSAJES_EMAIL = {
+    'A': _mensaje_activacion,
+    'B': _mensaje_seguimiento,
+    'C': _mensaje_sin_uso,
+    'D': _mensaje_solo_costo_m2,
+    'trial': _mensaje_prueba_por_vencer,
+    'vencido': _mensaje_suscripcion_vencida,
+}
+
+TIPO_LABEL = {
+    'A': 'Activar cuenta',
+    'B': '1 presup./borrador',
+    'C': 'Sin actividad',
+    'D': 'Solo Costo/m²',
+    'trial': 'Prueba por vencer',
+    'vencido': 'Suscripción vencida',
+}
+
+SEG_A_CODE = {SEG_A: 'A', SEG_B: 'B', SEG_C: 'C', SEG_D: 'D'}
+
+
+def _tipos_aplicables(fila):
+    """Devuelve la lista de tipos de mensaje que aplican a esta fila (0, 1 o
+    2: el segmento de uso A/B/C/D es mutuamente excluyente, pero los
+    triggers de ciclo de vida -- prueba por vencer / suscripción vencida --
+    son independientes y pueden sumarse al mismo usuario)."""
+    tipos = []
+    code = SEG_A_CODE.get(fila['segmento'])
+    if code:
+        tipos.append(code)
+    if fila.get('trial_por_vencer'):
+        tipos.append('trial')
+    if fila.get('suscripcion_vencida'):
+        tipos.append('vencido')
+    return tipos
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -28,7 +80,19 @@ def dashboard():
         # inscripto nuevo (ej. Ricardo Jordan) pasaba desapercibido salvo que
         # Daniel entrara a revisar la lista sin motivo aparente.
         'leads_nuevos': db.execute("SELECT COUNT(*) as c FROM leads WHERE estado='nuevo'").fetchone()['c'],
+        # Fix 20/07/2026, pedido de Daniel: badge de consultas de WhatsApp sin
+        # responder (el bot no supo contestar y quedaron para revisión manual
+        # -- ver admin.whatsapp_inbox).
+        'whatsapp_pendientes': db.execute(
+            "SELECT COUNT(*) as c FROM whatsapp_consultas_sin_responder WHERE respondida=0"
+        ).fetchone()['c'],
     }
+    # Fix 20/07/2026, pedido de Daniel: badge de usuarios con algo pendiente
+    # en Admin > Seguimiento (segmento A/B/C/D, prueba por vencer o
+    # suscripción vencida). Se calcula en Python (no en SQL) porque el
+    # segmento sale de utils.exportar_contactos._segmento — misma lógica
+    # que usa esa pantalla, sin duplicar la regla acá.
+    stats['seguimiento_pendientes'] = len([f for f in _usuarios_seguimiento() if f['tipos']])
     proximos = db.execute(
         "SELECT * FROM users WHERE subscription_expires >= date('now') AND is_admin=0 ORDER BY subscription_expires LIMIT 5"
     ).fetchall()
@@ -171,6 +235,234 @@ def usuarios_exportar_contactar():
     return send_file(buf,
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                       as_attachment=True, download_name=download_name)
+
+
+def _usuarios_seguimiento():
+    """Arma la lista de usuarios con su segmento de uso (A/B/C/D, misma
+    lógica que el Excel de utils/exportar_contactos.py) + los dos triggers
+    de ciclo de vida que pidió Daniel 20/07/2026: prueba gratis por vencer
+    (usa el mismo criterio que utils/trial.py, calculado acá para no abrir
+    una conexión a DB por usuario) y suscripción vencida (mismo criterio que
+    el contador 'vencidos' del dashboard). Devuelve la lista ya con
+    'segmento', 'trial_por_vencer', 'dias_restantes', 'presup_restantes',
+    'suscripcion_vencida' y 'ultimo_contacto' agregados a cada fila."""
+    db = get_db()
+    usuarios = db.execute(
+        """SELECT u.*,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
+                  (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2,
+                  (SELECT MAX(created_at) FROM retencion_contactos rc WHERE rc.user_id=u.id)          AS ultimo_contacto
+           FROM users u
+           WHERE u.is_admin=0
+           ORDER BY u.created_at DESC"""
+    ).fetchall()
+    db.close()
+
+    hoy_str = date.today().isoformat()
+    ahora = datetime.utcnow()
+    filas = []
+    for u in usuarios:
+        fila = dict(u)
+        fila['segmento'] = _segmento(u)
+
+        trial_por_vencer = False
+        dias_restantes = presup_restantes = None
+        if u['es_trial']:
+            try:
+                creado = datetime.fromisoformat((u['created_at'] or '').replace(' ', 'T'))
+                dias_pasados = (ahora - creado).days
+            except (ValueError, TypeError):
+                dias_pasados = 0
+            dias_restantes = max(0, 14 - dias_pasados)
+            presup_restantes = max(0, 3 - u['n_presupuestos'])
+            vencido_trial = u['n_presupuestos'] >= 3 or dias_pasados >= 14
+            trial_por_vencer = (not vencido_trial) and (dias_restantes <= 3 or presup_restantes <= 1)
+        fila['trial_por_vencer'] = trial_por_vencer
+        fila['dias_restantes'] = dias_restantes
+        fila['presup_restantes'] = presup_restantes
+
+        fila['suscripcion_vencida'] = bool(u['subscription_expires']) and u['subscription_expires'] < hoy_str
+
+        fila['tipos'] = _tipos_aplicables(fila)
+        filas.append(fila)
+    return filas
+
+
+@bp.route('/seguimiento')
+@admin_required
+def seguimiento():
+    """Pedido de Daniel 20/07/2026: en vez de bajar la planilla, poder ver a
+    todos los usuarios con su segmento y mandarles el WhatsApp (plantilla
+    aprobada por Meta) o el email ya redactado, directo desde acá. Por
+    default solo muestra a quien tiene algo para hacer (algún tipo en
+    'tipos'); ?todos=1 muestra la lista completa igual que Admin > Usuarios."""
+    mostrar_todos = request.args.get('todos') == '1'
+    filas = _usuarios_seguimiento()
+    if not mostrar_todos:
+        filas = [f for f in filas if f['tipos']]
+
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguimiento - Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+  .badge-seg { font-size: .72rem; }
+</style>
+</head><body class="bg-light">
+<div class="container-fluid py-4" style="max-width:1100px">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-2">Volver</a>
+      <h4 class="fw-bold mb-0">Seguimiento de usuarios</h4>
+    </div>
+    <a href="{{ url_for('admin.seguimiento', todos=0 if mostrar_todos else 1) }}" class="btn btn-outline-primary btn-sm">
+      {% if mostrar_todos %}Ver solo accionables{% else %}Ver todos los usuarios{% endif %}
+    </a>
+  </div>
+  <div class="alert alert-warning small">
+    <i class="bi bi-exclamation-triangle"></i> El botón de WhatsApp solo funciona una vez que la
+    plantilla correspondiente esté <strong>aprobada en Meta Business Manager</strong> con el nombre
+    exacto (ver <code>TEMPLATES_WHATSAPP</code> en <code>routes/admin.py</code>). Hasta entonces va a
+    devolver error — no es un bug.
+  </div>
+  <p class="text-muted small">{{ filas|length }} usuario{{ 's' if filas|length != 1 else '' }}
+    {% if not mostrar_todos %}con algo para hacer{% endif %}</p>
+
+  {% for f in filas %}
+  <div class="card mb-2 shadow-sm">
+    <div class="card-body py-2">
+      <div class="row align-items-center g-2">
+        <div class="col-md-3">
+          <div class="fw-semibold">{{ f.nombre or '—' }}</div>
+          <div class="small text-muted">{{ f.email }}</div>
+          {% if f.telefono %}<div class="small text-success"><i class="bi bi-whatsapp"></i> {{ f.telefono }}</div>{% endif %}
+        </div>
+        <div class="col-md-3">
+          <span class="badge bg-secondary badge-seg">{{ f.segmento }}</span>
+          {% if f.trial_por_vencer %}
+          <span class="badge bg-warning text-dark badge-seg">Prueba: {{ f.dias_restantes }}d / {{ f.presup_restantes }} presup. restantes</span>
+          {% endif %}
+          {% if f.suscripcion_vencida %}
+          <span class="badge bg-danger badge-seg">Suscripción vencida ({{ f.subscription_expires }})</span>
+          {% endif %}
+        </div>
+        <div class="col-md-2 small text-muted">
+          {% if f.ultimo_contacto %}Último contacto:<br>{{ f.ultimo_contacto[:16] }}
+          {% else %}Sin contactar todavía{% endif %}
+        </div>
+        <div class="col-md-4">
+          {% for tipo in f.tipos %}
+          <div class="d-flex gap-1 mb-1 align-items-center">
+            <span class="small text-muted" style="min-width:120px">{{ tipo_label[tipo] }}:</span>
+            <form method="POST" action="{{ url_for('admin.seguimiento_whatsapp', uid=f.id) }}">
+              <input type="hidden" name="tipo" value="{{ tipo }}">
+              <button type="submit" class="btn btn-sm btn-success" {{ 'disabled title=Sin teléfono' if not f.telefono }}>
+                <i class="bi bi-whatsapp"></i>
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.seguimiento_email', uid=f.id) }}">
+              <input type="hidden" name="tipo" value="{{ tipo }}">
+              <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-envelope"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted text-center py-4">No hay usuarios {{ 'registrados' if mostrar_todos else 'con algo pendiente para hacer' }}.</p>
+  {% endfor %}
+</div></body></html>
+""", filas=filas, mostrar_todos=mostrar_todos, tipo_label=TIPO_LABEL, user=g.user)
+
+
+@bp.route('/seguimiento/<int:uid>/whatsapp', methods=['POST'])
+@admin_required
+def seguimiento_whatsapp(uid):
+    tipo = request.form.get('tipo', '')
+    plantilla = TEMPLATES_WHATSAPP.get(tipo)
+    if not plantilla:
+        flash('Tipo de mensaje no reconocido.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        db.close()
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+    if not u['telefono']:
+        db.close()
+        flash(f'{u["email"]} no tiene teléfono cargado.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    from routes.whatsapp_bot import enviar_plantilla_whatsapp
+    ok = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros=[u['nombre'] or ''])
+    db.execute(
+        "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
+        (uid, 'whatsapp', tipo, plantilla, 'ok' if ok else 'error')
+    )
+    db.commit()
+    db.close()
+    if ok:
+        flash(f'WhatsApp ({plantilla}) enviado a {u["nombre"] or u["email"]}.', 'success')
+    else:
+        flash(f'No se pudo enviar. Revisá que "{plantilla}" esté aprobada en Meta con ese nombre '
+              f'exacto, y que WHATSAPP_TOKEN/WHATSAPP_PHONE_ID estén cargados en Railway.', 'error')
+    return redirect(url_for('admin.seguimiento'))
+
+
+@bp.route('/seguimiento/<int:uid>/email', methods=['POST'])
+@admin_required
+def seguimiento_email(uid):
+    tipo = request.form.get('tipo', '')
+    generador = MENSAJES_EMAIL.get(tipo)
+    if not generador:
+        flash('Tipo de mensaje no reconocido.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        db.close()
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    _, cuerpo_email = generador(u['nombre'])
+
+    ok = False
+    api_key = os.environ.get('RESEND_API_KEY')
+    if api_key:
+        try:
+            import resend
+            resend.api_key = api_key
+            resend.Emails.send({
+                "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
+                "to": [u['email']],
+                "subject": "PresupuestoPRO",
+                "text": cuerpo_email,
+            })
+            ok = True
+        except Exception as e:
+            print(f"[seguimiento_email] error enviando a {u['email']}: {e}")
+
+    db.execute(
+        "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
+        (uid, 'email', tipo, cuerpo_email[:200], 'ok' if ok else 'error')
+    )
+    db.commit()
+    db.close()
+    if ok:
+        flash(f'Email enviado a {u["email"]}.', 'success')
+    else:
+        flash('No se pudo enviar el email (revisar RESEND_API_KEY en Railway).', 'error')
+    return redirect(url_for('admin.seguimiento'))
 
 
 @bp.route('/localidades')
@@ -536,6 +828,141 @@ def sugerencia_respondida(mid):
         db.commit()
     db.close()
     return redirect(url_for('admin.sugerencias'))
+
+
+# WHATSAPP (bandeja de respuesta manual, 20/07/2026)
+@bp.route('/whatsapp')
+@admin_required
+def whatsapp_inbox():
+    """Bandeja para responder a mano las consultas que el bot de WhatsApp
+    (routes/whatsapp_bot.py) no supo contestar solo. Pedido de Daniel
+    20/07/2026.
+
+    Importante — por qué existe esta pantalla y qué NO resuelve: el número
+    341 754-2009 quedó dado de alta en Meta como WhatsApp Business Platform
+    (Cloud API), no como un WhatsApp común. Eso tiene una regla que no
+    depende de nuestro código: se puede mandar texto libre por acá SOLO
+    dentro de las 24hs desde que la persona escribió (columna
+    `dentro_ventana` de abajo); pasadas esas 24hs, Meta rechaza el envío de
+    texto libre y exige una plantilla (template) pre-aprobada por Meta —
+    igual que ya pasa con el código de verificación en
+    utils/verificacion.py::enviar_codigo_whatsapp. Por eso esta bandeja NO
+    sirve para la campaña de retención (contactar a los 33 usuarios que
+    nunca escribieron al 2009) — para eso hace falta esa plantilla aprobada.
+    Esta pantalla es para conversaciones que YA arrancó la otra persona."""
+    db = get_db()
+    consultas = db.execute(
+        """SELECT c.*, v.ultima_interaccion
+           FROM whatsapp_consultas_sin_responder c
+           LEFT JOIN whatsapp_conversaciones v ON v.telefono = c.telefono
+           ORDER BY c.respondida ASC, c.created_at DESC"""
+    ).fetchall()
+    db.close()
+
+    ahora = datetime.utcnow()
+    filas = []
+    for c in consultas:
+        dentro_ventana = None
+        if c['ultima_interaccion']:
+            try:
+                ultima = datetime.fromisoformat(str(c['ultima_interaccion']))
+                dentro_ventana = (ahora - ultima) <= timedelta(hours=24)
+            except ValueError:
+                dentro_ventana = None
+        fila = dict(c)
+        fila['dentro_ventana'] = dentro_ventana
+        filas.append(fila)
+
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp - Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+  .card-pendiente { border-left: 4px solid #ffc107; }
+  .card-respondida { border-left: 4px solid #198754; }
+</style>
+</head><body class="bg-light">
+<div class="container py-4" style="max-width:760px">
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">Volver</a>
+  <h4 class="fw-bold mb-1">WhatsApp — consultas sin responder por el bot</h4>
+  <p class="text-muted small mb-3">
+    <span class="badge bg-warning text-dark">{{ consultas|selectattr('respondida','equalto',0)|list|length }} pendientes</span>
+    <span class="badge bg-success ms-1">{{ consultas|selectattr('respondida','equalto',1)|list|length }} respondidas</span>
+  </p>
+  <div class="alert alert-info small">
+    <i class="bi bi-info-circle"></i> Solo se puede responder texto libre si la persona escribió
+    hace menos de 24hs (columna "ventana"). Pasado ese plazo, Meta exige una plantilla aprobada —
+    no es algo que se pueda evitar desde acá.
+  </div>
+  {% if not consultas %}<p class="text-muted">No hay consultas todavía.</p>{% endif %}
+  {% for c in consultas %}
+  <div class="card mb-3 shadow-sm {{ 'card-respondida' if c.respondida else 'card-pendiente' }}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <div>
+          <strong>{{ c.telefono }}</strong>
+          {% if not c.respondida %}<span class="badge bg-warning text-dark ms-2">PENDIENTE</span>{% endif %}
+          {% if c.respondida %}<span class="badge bg-success ms-2">Respondida</span>{% endif %}
+          {% if c.dentro_ventana %}
+          <span class="badge bg-success ms-1"><i class="bi bi-clock-history"></i> dentro de ventana (24hs)</span>
+          {% elif c.dentro_ventana is not none %}
+          <span class="badge bg-danger ms-1"><i class="bi bi-clock-history"></i> fuera de ventana</span>
+          {% endif %}
+        </div>
+        <small class="text-muted text-nowrap ms-2">{{ c.created_at[:16] }}</small>
+      </div>
+      <p class="mb-2 border rounded p-2 bg-white">{{ c.mensaje }}</p>
+      {% if c.respondida %}
+      <p class="mb-0 small text-muted"><strong>Tu respuesta:</strong> {{ c.respuesta_admin }}</p>
+      {% else %}
+      <form method="POST" action="{{ url_for('admin.whatsapp_responder', cid=c.id) }}">
+        <div class="input-group">
+          <textarea name="respuesta" class="form-control" rows="2" placeholder="Escribí la respuesta..." required></textarea>
+          <button type="submit" class="btn btn-success">Enviar</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div></body></html>
+""", consultas=filas, user=g.user)
+
+
+@bp.route('/whatsapp/<int:cid>/responder', methods=['POST'])
+@admin_required
+def whatsapp_responder(cid):
+    texto = (request.form.get('respuesta') or '').strip()
+    if not texto:
+        flash('Escribí un mensaje antes de enviar.', 'error')
+        return redirect(url_for('admin.whatsapp_inbox'))
+
+    db = get_db()
+    consulta = db.execute("SELECT * FROM whatsapp_consultas_sin_responder WHERE id=?", (cid,)).fetchone()
+    if not consulta:
+        db.close()
+        flash('Consulta no encontrada.', 'error')
+        return redirect(url_for('admin.whatsapp_inbox'))
+
+    from routes.whatsapp_bot import enviar_mensaje_whatsapp
+    ok = enviar_mensaje_whatsapp(consulta['telefono'], texto)
+    if ok:
+        db.execute(
+            "UPDATE whatsapp_consultas_sin_responder SET respondida=1, respuesta_admin=? WHERE id=?",
+            (texto, cid)
+        )
+        db.commit()
+        flash('Respuesta enviada.', 'success')
+    else:
+        flash('No se pudo enviar. Si ya pasaron las 24hs desde que esa persona escribió, Meta '
+              'exige una plantilla aprobada para mandarle texto libre (no es un error nuestro) '
+              '— revisá también que WHATSAPP_TOKEN/WHATSAPP_PHONE_ID estén cargados en Railway.',
+              'error')
+    db.close()
+    return redirect(url_for('admin.whatsapp_inbox'))
+
 
 # PRECIOS MATERIALES
 _LISTA_PRECIOS = [
