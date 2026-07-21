@@ -2,8 +2,12 @@
 Blueprint: whatsapp_bot
 Bot de FAQ para WhatsApp Business Platform (Meta Cloud API) — responde
 preguntas frecuentes sobre uso y ubicación de funciones de PresupuestoPRO.
-No deriva a un humano: si no encuentra una respuesta, guarda la consulta en
+Si no encuentra una respuesta, guarda la consulta en
 `whatsapp_consultas_sin_responder` para revisión manual desde Admin.
+Excepción agregada 21/07/2026: a quien responde un mensaje de la campaña
+de retención (`_contacto_retencion_reciente`) NO se le manda el menú de
+FAQ ni se intenta matching — se deriva directo a revisión humana, para
+tener una conversación real en vez de que el bot lo maree.
 
 Contenido de las preguntas/respuestas: ver CHATBOT_WHATSAPP_BUSINESS/FAQ_BOT.md
 (fuente editable en texto plano) — las FAQ_DATA de acá abajo son la versión
@@ -340,6 +344,48 @@ def _guardar_consulta_sin_responder(telefono, mensaje):
     db.close()
 
 
+_DIAS_VENTANA_RETENCION = 30
+
+
+def _contacto_retencion_reciente(telefono, dias=_DIAS_VENTANA_RETENCION):
+    """Agregado 21/07/2026, pedido de Daniel: cuando alguien de la campaña de
+    retención responde al template que le mandamos, NO lo queremos mandar al
+    menú de 10 categorías del bot de FAQ — Daniel quiere una conversación
+    real para escuchar la experiencia del usuario, y el menú automático
+    puede marearlo y hacer que abandone el chat sin decir lo que quería
+    decir. Esta función devuelve el nombre del usuario si `telefono`
+    pertenece a alguien que recibió un mensaje de retención (WhatsApp o
+    email, da igual el canal) en los últimos `dias` días, o None si no.
+
+    Comparación tolerante a formato: usa telefono_normalizado (mismo criterio
+    que ya usa admin.whatsapp_inbox para cruzar teléfono ↔ usuario), así no
+    importa si el teléfono entrante trae +54, el 9 extra, espacios, etc."""
+    from utils.normalizacion import telefono_normalizado
+    tel_norm = telefono_normalizado(telefono)
+    if not tel_norm:
+        return None
+    db = get_db()
+    filas = db.execute(
+        """SELECT u.nombre, u.telefono, rc.created_at
+           FROM retencion_contactos rc
+           JOIN users u ON u.id = rc.user_id
+           WHERE u.telefono IS NOT NULL AND u.telefono != ''
+           ORDER BY rc.created_at DESC"""
+    ).fetchall()
+    db.close()
+    limite = datetime.utcnow() - timedelta(days=dias)
+    for f in filas:
+        if telefono_normalizado(f['telefono']) != tel_norm:
+            continue
+        try:
+            creado = datetime.fromisoformat(str(f['created_at']))
+        except (ValueError, TypeError):
+            continue
+        if creado >= limite:
+            return f['nombre'] or ''
+    return None
+
+
 def _sesion_vencida(telefono):
     """True si es la primera vez que este teléfono escribe, o si pasaron más
     de 24hs desde su última interacción (mismo criterio que la "ventana de
@@ -530,6 +576,24 @@ def recibir_mensaje():
 
         normalizado = _normalizar(texto)
         nueva_conversacion = _sesion_vencida(telefono)
+
+        # Prioridad 21/07/2026: si este teléfono respondió a un mensaje de la
+        # campaña de retención hace poco, no lo mandamos al bot de FAQ (menú
+        # de 10 categorías) — Daniel quiere una conversación humana real acá,
+        # no que se muestre el menú y la persona se maree y abandone antes
+        # de contar su experiencia. Se guarda para Admin > WhatsApp y se
+        # avisa que un humano va a responder, nada de matching automático.
+        nombre_retencion = _contacto_retencion_reciente(telefono)
+        if nombre_retencion is not None:
+            _guardar_consulta_sin_responder(telefono, texto)
+            saludo = f", {nombre_retencion.split()[0]}" if nombre_retencion else ""
+            enviar_mensaje_whatsapp(
+                telefono,
+                f"¡Gracias por contarnos{saludo}! Te responde en breve alguien "
+                "del equipo de PresupuestoPRO (no un bot) 🙂",
+            )
+            _actualizar_sesion(telefono)
+            return '', 200
 
         # Saludo/pedido explícito de menú, o conversación nueva/inactiva
         # hace más de 24hs → mandar bienvenida + lista de temas primero.
