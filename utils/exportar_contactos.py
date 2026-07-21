@@ -53,7 +53,8 @@ APP_URL = 'https://web-production-0c9c1.up.railway.app/login'
 # habilitado para mensajes libres desde el 2009), cada mensaje de email suma
 # esta línea con el link de WhatsApp al final.
 WA_LINK = 'https://wa.me/5493417542009'
-WA_CTA = f"\n\nTambién podés escribirnos por WhatsApp, es más rápido: {WA_LINK}"
+WA_CTA = (f"\n\nEste mail es solo informativo — no lo respondas, esa casilla no la "
+          f"lee nadie. Para hablar con nosotros, escribinos por WhatsApp: {WA_LINK}")
 
 HEADERS_SEGMENTO = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Estado activación", "Creado", "Vence",
