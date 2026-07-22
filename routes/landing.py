@@ -301,7 +301,13 @@ def validar_cuenta():
         else:
             codigo_ingresado = request.form.get('codigo', '').strip()
             if validar_codigo(g.user['id'], status['metodo'], codigo_ingresado):
-                return redirect(url_for('dashboard.index'))
+                # Fix 22/07/2026: con verificacion_activa=ON el registro nuevo
+                # pasa por acá (no por el redirect de registro()) y nunca
+                # llevaba ?nuevo_registro=1 — el Pixel de Meta (CompleteRegistration
+                # en dashboard.html) no disparaba para NINGÚN registro validado
+                # desde que se prendió el switch (18/07/2026). Bug detectado
+                # por el aviso de Ads Manager "sin actividad del píxel en 7+ días".
+                return redirect(url_for('dashboard.index', nuevo_registro=1))
             error = "Código incorrecto o vencido. Podés pedir uno nuevo."
 
     return render_template('validar_cuenta.html', user=g.user, metodo=status['metodo'],
