@@ -841,7 +841,8 @@ def usuario_eliminar(uid):
         return redirect(url_for('admin.usuarios'))
 
     for tabla in ('presupuestos', 'suscripciones', 'costo_m2_consultas', 'sugerencias',
-                  'empresa_perfil', 'password_reset_tokens', 'verificacion_codigos'):
+                  'empresa_perfil', 'password_reset_tokens', 'verificacion_codigos',
+                  'retencion_contactos'):
         db.execute(f"DELETE FROM {tabla} WHERE user_id=?", (uid,))
     db.execute("DELETE FROM users WHERE id=?", (uid,))
     db.commit()
