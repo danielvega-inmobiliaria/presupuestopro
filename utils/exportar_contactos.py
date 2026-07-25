@@ -47,14 +47,19 @@ from openpyxl.utils import get_column_letter
 
 APP_URL = 'https://web-production-0c9c1.up.railway.app/login'
 
-# 21/07/2026: los emails de retención salen de noreply@presupuestopro.com.ar
-# sin reply_to (nadie lee las respuestas a ese mail). Para que el usuario
-# pueda contestar y así abrir la ventana de 24h de WhatsApp (y quedar
-# habilitado para mensajes libres desde el 2009), cada mensaje de email suma
-# esta línea con el link de WhatsApp al final.
+# 21/07/2026: los emails de retención salen de noreply@presupuestopro.com.ar.
+# Para que el usuario tenga cómo contestar, cada mensaje de email suma esta
+# línea con el link de WhatsApp al final (además, si responde por WhatsApp
+# se abre la ventana de 24h para mensajes libres desde el 2009).
+# Actualizado 24/07/2026: desde ahora el mail SÍ se puede responder --
+# `reply_to` en admin.py::seguimiento_email lo manda a
+# contacto@presupuestopro.com.ar (Cloudflare Email Routing, ya armado y
+# activo, reenvía a presupuestopro.app@gmail.com) -- se saca el aviso de
+# "no respondas, no lo lee nadie" que ya no es cierto, y se deja como una
+# segunda opción además de WhatsApp.
 WA_LINK = 'https://wa.me/5493417542009'
-WA_CTA = (f"\n\nEste mail es solo informativo — no lo respondas, esa casilla no la "
-          f"lee nadie. Para hablar con nosotros, escribinos por WhatsApp: {WA_LINK}")
+WA_CTA = (f"\n\nPodés responder este mail directamente, o si preferís, "
+          f"escribinos por WhatsApp: {WA_LINK}")
 
 HEADERS_SEGMENTO = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Estado activación", "Creado", "Vence",

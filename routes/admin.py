@@ -696,6 +696,13 @@ def seguimiento_email(uid):
                 "to": [u['email']],
                 "subject": "PresupuestoPRO",
                 "text": cuerpo_email,
+                # Fix 24/07/2026, pedido de Daniel: antes no tenía reply_to,
+                # así que si el usuario contestaba el mail, la respuesta se
+                # perdía (iba a noreply@, que nadie lee). Ahora va a
+                # contacto@presupuestopro.com.ar, que Cloudflare Email
+                # Routing (ya armado y activo, confirmado por Daniel
+                # 24/07/2026) reenvía a presupuestopro.app@gmail.com.
+                "reply_to": ["contacto@presupuestopro.com.ar"],
             })
             ok = True
         except Exception as e:
