@@ -2462,6 +2462,34 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 2z: retencion_contactos agregada (Admin > Seguimiento)")
 
+        # ── 3a. CRM unificado (fase 1): bandeja de Messenger/Instagram ─────
+        # Pedido de Daniel 25/07/2026: quiere ver en un solo lugar los
+        # contactos de WhatsApp, Email, Facebook Messenger e Instagram. Se
+        # decidió construir esto dentro de la app (routes/social_bot.py),
+        # replicando el patrón de whatsapp_consultas_sin_responder pero para
+        # los dos canales de Meta que faltan. Ojo: a diferencia de WhatsApp,
+        # acá NO hay teléfono/email para cruzar contra `users` -- Messenger
+        # e Instagram solo dan un ID de plataforma (PSID/IGSID) que no
+        # identifica a la persona salvo que ella misma lo cuente en el chat.
+        ya_3a = db.execute("SELECT valor FROM config WHERE clave='3a_done'").fetchone()
+        if not ya_3a:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS redes_consultas_sin_responder (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    canal TEXT NOT NULL,
+                    remitente_id TEXT NOT NULL,
+                    nombre_remitente TEXT DEFAULT '',
+                    mensaje TEXT NOT NULL,
+                    respondida INTEGER DEFAULT 0,
+                    respuesta_admin TEXT DEFAULT '',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3a_done','2026-07-25')")
+            db.commit()
+            print("[migrate_db] 3a: redes_consultas_sin_responder agregada (Messenger/Instagram)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

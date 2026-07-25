@@ -86,6 +86,11 @@ def dashboard():
         'whatsapp_pendientes': db.execute(
             "SELECT COUNT(*) as c FROM whatsapp_consultas_sin_responder WHERE respondida=0"
         ).fetchone()['c'],
+        # Fix 25/07/2026, pedido de Daniel (fase 1 del CRM unificado): mismo
+        # badge que WhatsApp, para Messenger + Instagram (routes/social_bot.py).
+        'redes_pendientes': db.execute(
+            "SELECT COUNT(*) as c FROM redes_consultas_sin_responder WHERE respondida=0"
+        ).fetchone()['c'],
     }
     # Fix 20/07/2026, pedido de Daniel: badge de usuarios con algo pendiente
     # en Admin > Seguimiento (segmento A/B/C/D, prueba por vencer o
@@ -1249,6 +1254,112 @@ def whatsapp_responder(cid):
               'error nuestro).', 'error')
     db.close()
     return redirect(url_for('admin.whatsapp_inbox'))
+
+
+@bp.route('/redes')
+@admin_required
+def social_inbox():
+    """Agregado 25/07/2026, fase 1 del CRM unificado (WhatsApp + Email +
+    Messenger + Instagram en un solo lugar, pedido de Daniel). Bandeja para
+    Facebook Messenger e Instagram DM -- mismo patrón que whatsapp_inbox,
+    pero SIN cruce contra `users` todavía: Messenger/Instagram solo dan un
+    ID de plataforma (PSID/IGSID), no hay teléfono ni email para matchear.
+    Si Daniel confirma que quiere vincular estos contactos a un usuario real
+    de la app, se agrega en una fase 2 (pidiéndole el dato en el chat)."""
+    db = get_db()
+    consultas = db.execute(
+        "SELECT * FROM redes_consultas_sin_responder ORDER BY respondida ASC, created_at DESC"
+    ).fetchall()
+    db.close()
+
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redes sociales - Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+  .card-pendiente { border-left: 4px solid #ffc107; }
+  .card-respondida { border-left: 4px solid #198754; }
+</style>
+</head><body class="bg-light">
+<div class="container py-4" style="max-width:760px">
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">Volver</a>
+  <h4 class="fw-bold mb-1">Messenger / Instagram — consultas sin responder</h4>
+  """ + _FLASH_BLOCK + """
+  <p class="text-muted small mb-3">
+    <span class="badge bg-warning text-dark">{{ consultas|selectattr('respondida','equalto',0)|list|length }} pendientes</span>
+    <span class="badge bg-success ms-1">{{ consultas|selectattr('respondida','equalto',1)|list|length }} respondidas</span>
+  </p>
+  <div class="alert alert-info small">
+    <i class="bi bi-info-circle"></i> Estos contactos NO están vinculados a ningún usuario de la app
+    todavía — Messenger e Instagram no comparten teléfono ni email, solo un ID de la plataforma.
+    Si la persona cuenta quién es en el chat, buscala a mano en Admin &gt; Usuarios.
+  </div>
+  {% if not consultas %}<p class="text-muted">No hay consultas todavía.</p>{% endif %}
+  {% for c in consultas %}
+  <div class="card mb-3 shadow-sm {{ 'card-respondida' if c.respondida else 'card-pendiente' }}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <div>
+          <span class="badge {{ 'bg-primary' if c.canal == 'messenger' else 'bg-danger' }}">
+            <i class="bi {{ 'bi-messenger' if c.canal == 'messenger' else 'bi-instagram' }}"></i>
+            {{ 'Messenger' if c.canal == 'messenger' else 'Instagram' }}
+          </span>
+          <small class="text-muted ms-1">{{ c.remitente_id }}</small>
+          {% if not c.respondida %}<span class="badge bg-warning text-dark ms-2">PENDIENTE</span>{% endif %}
+          {% if c.respondida %}<span class="badge bg-success ms-2">Respondida</span>{% endif %}
+        </div>
+        <small class="text-muted text-nowrap ms-2">{{ c.created_at|local_dt }}</small>
+      </div>
+      <p class="mb-2 border rounded p-2 bg-white">{{ c.mensaje }}</p>
+      {% if c.respondida %}
+      <p class="mb-0 small text-muted"><strong>Tu respuesta:</strong> {{ c.respuesta_admin }}</p>
+      {% else %}
+      <form method="POST" action="{{ url_for('admin.social_responder', cid=c.id) }}">
+        <div class="input-group">
+          <textarea name="respuesta" class="form-control" rows="2" placeholder="Escribí la respuesta..." required></textarea>
+          <button type="submit" class="btn btn-success">Enviar</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div></body></html>
+""", consultas=consultas, user=g.user)
+
+
+@bp.route('/redes/<int:cid>/responder', methods=['POST'])
+@admin_required
+def social_responder(cid):
+    texto = (request.form.get('respuesta') or '').strip()
+    if not texto:
+        flash('Escribí un mensaje antes de enviar.', 'error')
+        return redirect(url_for('admin.social_inbox'))
+
+    db = get_db()
+    consulta = db.execute("SELECT * FROM redes_consultas_sin_responder WHERE id=?", (cid,)).fetchone()
+    if not consulta:
+        db.close()
+        flash('Consulta no encontrada.', 'error')
+        return redirect(url_for('admin.social_inbox'))
+
+    from routes.social_bot import enviar_mensaje_social
+    ok, detalle = enviar_mensaje_social(consulta['remitente_id'], texto)
+    if ok:
+        db.execute(
+            "UPDATE redes_consultas_sin_responder SET respondida=1, respuesta_admin=? WHERE id=?",
+            (texto, cid)
+        )
+        db.commit()
+        flash('Respuesta enviada.', 'success')
+    else:
+        flash(f'No se pudo enviar: {detalle}. Si ya pasaron las 24hs desde que esa persona '
+              'escribió, Meta exige un mensaje "fuera de ventana" especial (no es un error '
+              'nuestro).', 'error')
+    db.close()
+    return redirect(url_for('admin.social_inbox'))
 
 
 # PRECIOS MATERIALES

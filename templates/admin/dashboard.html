@@ -92,6 +92,12 @@
           <span class="badge bg-warning text-dark ms-1">{{ stats.seguimiento_pendientes }}</span>
           {% endif %}
         </a>
+        <a href="{{ url_for('admin.social_inbox') }}" class="btn btn-danger fw-bold">
+          <i class="bi bi-instagram"></i> Messenger / Instagram (consultas sin responder)
+          {% if stats.redes_pendientes > 0 %}
+          <span class="badge bg-dark ms-1">{{ stats.redes_pendientes }} pendiente{% if stats.redes_pendientes > 1 %}s{% endif %}</span>
+          {% endif %}
+        </a>
         <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-primary">
           <i class="bi bi-people"></i> Gestionar usuarios
         </a>
