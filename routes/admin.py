@@ -449,6 +449,21 @@ def seguimiento_detalle(uid):
     historial = db.execute(
         "SELECT * FROM retencion_contactos WHERE user_id=? ORDER BY created_at DESC", (uid,)
     ).fetchall()
+
+    # Fix 24/07/2026, pedido de Daniel: probó el flujo real con un usuario
+    # (Rafael) que respondió por WhatsApp a un mensaje de retención, y esa
+    # respuesta no aparecía en ninguna parte de ESTA pantalla — solo estaba
+    # en Admin > WhatsApp, una página distinta. Acá se agrega también,
+    # cruzando por teléfono (mismo criterio que whatsapp_inbox).
+    eventos = [dict(h, tipo_evento='enviado') for h in historial]
+    if u['telefono']:
+        tel_norm = telefono_normalizado(u['telefono'])
+        for c in db.execute(
+            "SELECT * FROM whatsapp_consultas_sin_responder ORDER BY created_at DESC"
+        ).fetchall():
+            if telefono_normalizado(c['telefono']) == tel_norm:
+                eventos.append(dict(c, tipo_evento='recibido'))
+    eventos.sort(key=lambda e: e['created_at'] or '', reverse=True)
     db.close()
 
     fila = dict(u)
@@ -554,12 +569,23 @@ def seguimiento_detalle(uid):
   <div class="card">
     <div class="card-header fw-bold">Historial de contactos</div>
     <ul class="list-group list-group-flush">
-      {% for h in historial %}
+      {% for e in eventos %}
+      {% if e.tipo_evento == 'enviado' %}
       <li class="list-group-item small">
-        <strong>{{ h.created_at[:16] }}</strong> — {{ h.canal }} ({{ tipo_label.get(h.segmento, h.segmento) }})
-        <span class="badge {{ 'bg-success' if h.resultado == 'ok' else 'bg-danger' }}">{{ h.resultado }}</span>
-        <div class="text-muted">{{ h.mensaje }}</div>
+        <strong>{{ e.created_at|local_dt }}</strong> — {{ e.canal }} ({{ tipo_label.get(e.segmento, e.segmento) }})
+        <span class="badge {{ 'bg-success' if e.resultado == 'ok' else 'bg-danger' }}">{{ e.resultado }}</span>
+        <div class="text-muted">{{ e.mensaje }}</div>
       </li>
+      {% else %}
+      <li class="list-group-item small bg-light">
+        <strong>{{ e.created_at|local_dt }}</strong> — <i class="bi bi-reply"></i> respondió por WhatsApp
+        {% if e.respondida %}<span class="badge bg-success">respondida</span>
+        {% else %}<span class="badge bg-warning text-dark">sin responder</span>{% endif %}
+        <div>{{ e.mensaje }}</div>
+        {% if e.respondida %}<div class="text-muted"><strong>Tu respuesta:</strong> {{ e.respuesta_admin }}</div>
+        {% else %}<a href="{{ url_for('admin.whatsapp_inbox') }}" class="small">Responder en Admin &gt; WhatsApp →</a>{% endif %}
+      </li>
+      {% endif %}
       {% else %}
       <li class="list-group-item text-muted small">Sin contactos registrados todavía.</li>
       {% endfor %}
@@ -576,7 +602,7 @@ function abrirWhatsapp(tel, mensaje) {
 }
 </script>
 </body></html>
-""", f=fila, tipos=tipos, mensajes=mensajes, tipo_label=TIPO_LABEL, historial=historial, user=g.user)
+""", f=fila, tipos=tipos, mensajes=mensajes, tipo_label=TIPO_LABEL, eventos=eventos, user=g.user)
 
 
 @bp.route('/seguimiento/<int:uid>/whatsapp', methods=['POST'])
@@ -608,7 +634,15 @@ def seguimiento_whatsapp(uid):
     # campo 'mensaje' del historial (visible en Seguimiento > Ver) y en el
     # flash de esta pantalla — 'resultado' se deja intacto ('ok'/'error')
     # porque los badges de la lista comparan ese valor exacto.
-    mensaje_guardado = plantilla if ok else f"{plantilla} — ERROR: {detalle}"
+    # Fix 24/07/2026: lo de arriba solo guardaba el NOMBRE de la plantilla
+    # (ej. "retencion_sin_uso"), no el texto real mandado -- a diferencia del
+    # email, que sí guarda el cuerpo completo. Ahora se arma el mismo texto
+    # que ya usa el botón "Abrir en WhatsApp (manual)" (MENSAJES_EMAIL[tipo]
+    # devuelve (texto_whatsapp, texto_email)) para que el Historial muestre
+    # el mensaje real, igual que el email.
+    generador = MENSAJES_EMAIL.get(tipo)
+    wa_texto, _ = generador(u['nombre']) if generador else ('', '')
+    mensaje_guardado = wa_texto if ok else f"{plantilla} — ERROR: {detalle}"
     db.execute(
         "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
         (uid, 'whatsapp', tipo, mensaje_guardado, 'ok' if ok else 'error')
@@ -932,7 +966,7 @@ def contactos():
           {% if not m.leido %}<span class="badge bg-primary ms-2">NUEVO</span>{% endif %}
           {% if m.contestado %}<span class="badge bg-success ms-2">Contestado</span>{% endif %}
         </div>
-        <small class="text-muted text-nowrap ms-2">{{ m.created_at[:16] }}</small>
+        <small class="text-muted text-nowrap ms-2">{{ m.created_at|local_dt }}</small>
       </div>
       <div class="text-muted small mb-2">
         {% if m.email %}<a href="mailto:{{ m.email }}">{{ m.email }}</a>&nbsp;{% endif %}
@@ -1011,7 +1045,7 @@ def sugerencias():
           {% if not m.leido %}<span class="badge bg-primary ms-2">NUEVA</span>{% endif %}
           {% if m.respondida %}<span class="badge bg-success ms-2">Respondida</span>{% endif %}
         </div>
-        <small class="text-muted text-nowrap ms-2">{{ m.created_at[:16] }}</small>
+        <small class="text-muted text-nowrap ms-2">{{ m.created_at|local_dt }}</small>
       </div>
       <div class="text-muted small mb-2">
         {% if m.user_email %}<a href="mailto:{{ m.user_email }}">{{ m.user_email }}</a>{% endif %}
@@ -1149,12 +1183,12 @@ def whatsapp_inbox():
           <span class="badge bg-danger ms-1"><i class="bi bi-clock-history"></i> fuera de ventana</span>
           {% endif %}
         </div>
-        <small class="text-muted text-nowrap ms-2">{{ c.created_at[:16] }}</small>
+        <small class="text-muted text-nowrap ms-2">{{ c.created_at|local_dt }}</small>
       </div>
       {% if c.retencion %}
       <p class="mb-1 small text-primary">
         <i class="bi bi-reply"></i> Responde a un mensaje de retención — Segmento {{ c.retencion.segmento }},
-        enviado por {{ c.retencion.canal }} el {{ c.retencion.created_at[:10] }}
+        enviado por {{ c.retencion.canal }} el {{ c.retencion.created_at|local_dt('%d/%m/%Y') }}
       </p>
       {% endif %}
       {% if c.usuario %}

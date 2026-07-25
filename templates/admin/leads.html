@@ -45,7 +45,7 @@
             {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td>{{ l.ciudad }}{% if l.provincia %}, {{ l.provincia }}{% endif %}</td>
-          <td class="text-muted small">{{ l.created_at[:16] }}</td>
+          <td class="text-muted small">{{ l.created_at|local_dt }}</td>
           <td>
             {% if l.estado == 'nuevo' %}
               <span class="badge bg-danger">Nuevo</span>

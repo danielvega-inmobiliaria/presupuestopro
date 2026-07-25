@@ -40,7 +40,7 @@
         <span class="badge bg-secondary ms-2 text-nowrap">Enviada</span>
         {% endif %}
       </div>
-      <small class="text-muted">{{ s.created_at[:16].replace('T',' ') if s.created_at else '' }}</small>
+      <small class="text-muted">{{ s.created_at|local_dt if s.created_at else '' }}</small>
     </div>
   </div>
   {% endfor %}
