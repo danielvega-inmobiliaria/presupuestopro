@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from flask import Flask
 from config import Config
 from database import init_db, migrate_db
-from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual, whatsapp_bot, social_bot
+from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual, whatsapp_bot, social_bot, email_bot
 
 
 def local_dt(value, fmt='%d/%m %H:%M'):
@@ -40,6 +40,7 @@ def create_app():
     app.register_blueprint(manual.bp)
     app.register_blueprint(whatsapp_bot.bp)
     app.register_blueprint(social_bot.bp)
+    app.register_blueprint(email_bot.bp)
 
     with app.app_context():
         init_db()

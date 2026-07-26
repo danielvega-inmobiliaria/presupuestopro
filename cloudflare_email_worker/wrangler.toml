@@ -1,0 +1,16 @@
+name = "presupuestopro-email-webhook"
+main = "src/index.js"
+compatibility_date = "2024-09-01"
+
+# Nota: message.forward() (usado en src/index.js para seguir mandando copia
+# a Gmail) NO necesita ningún binding de "Send Email" -- eso solo hace falta
+# si el Worker mandara mails nuevos desde cero, que no es este caso.
+#
+# EMAIL_WEBHOOK_SECRET se carga como secreto (no acá):
+#   wrangler secret put EMAIL_WEBHOOK_SECRET
+#
+# RAILWAY_APP_URL es opcional -- si no se carga, el Worker usa la URL
+# hardcodeada en src/index.js. Si el dominio de Railway cambia algún día,
+# se puede sobreescribir sin tocar código:
+# [vars]
+# RAILWAY_APP_URL = "https://web-production-0c9c1.up.railway.app"

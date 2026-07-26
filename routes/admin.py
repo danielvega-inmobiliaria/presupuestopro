@@ -91,6 +91,12 @@ def dashboard():
         'redes_pendientes': db.execute(
             "SELECT COUNT(*) as c FROM redes_consultas_sin_responder WHERE respondida=0"
         ).fetchone()['c'],
+        # Fix 25/07/2026, pedido de Daniel (CRM unificado, paso 1 -- webhook
+        # de mail entrante): mismo badge que WhatsApp/Redes, para el mail
+        # entrante a contacto@presupuestopro.com.ar (ver routes/email_bot.py).
+        'email_pendientes': db.execute(
+            "SELECT COUNT(*) as c FROM email_consultas_entrantes WHERE respondida=0"
+        ).fetchone()['c'],
     }
     # Fix 20/07/2026, pedido de Daniel: badge de usuarios con algo pendiente
     # en Admin > Seguimiento (segmento A/B/C/D, prueba por vencer o
@@ -1360,6 +1366,136 @@ def social_responder(cid):
               'nuestro).', 'error')
     db.close()
     return redirect(url_for('admin.social_inbox'))
+
+
+# EMAIL (bandeja de respuesta manual, 25/07/2026 -- paso 1 del CRM unificado)
+@bp.route('/email')
+@admin_required
+def email_inbox():
+    """Bandeja para el mail entrante a contacto@presupuestopro.com.ar --
+    mismo patrón que whatsapp_inbox, pero cruzando por email en vez de
+    teléfono (ver routes/email_bot.py). El mail sigue llegando también a
+    Gmail (el Worker de Cloudflare lo reenvía además de mandarlo acá), así
+    que esta pantalla es un complemento, no un reemplazo."""
+    db = get_db()
+    consultas = db.execute(
+        "SELECT * FROM email_consultas_entrantes ORDER BY respondida ASC, created_at DESC"
+    ).fetchall()
+
+    usuarios_por_email = {}
+    for u in db.execute("SELECT id, nombre, email FROM users WHERE email IS NOT NULL AND email != ''").fetchall():
+        usuarios_por_email[u['email'].strip().lower()] = dict(u)
+
+    ultimo_contacto_por_user = {}
+    for r in db.execute(
+        """SELECT rc.user_id, rc.segmento, rc.mensaje, rc.canal, rc.created_at
+           FROM retencion_contactos rc
+           ORDER BY rc.created_at DESC"""
+    ).fetchall():
+        ultimo_contacto_por_user.setdefault(r['user_id'], dict(r))
+    db.close()
+
+    filas = []
+    for c in consultas:
+        fila = dict(c)
+        usuario = usuarios_por_email.get(c['email_remitente'])
+        fila['usuario'] = usuario
+        fila['retencion'] = ultimo_contacto_por_user.get(usuario['id']) if usuario else None
+        filas.append(fila)
+
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email - Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+  .card-pendiente { border-left: 4px solid #ffc107; }
+  .card-respondida { border-left: 4px solid #198754; }
+</style>
+</head><body class="bg-light">
+<div class="container py-4" style="max-width:760px">
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-3">Volver</a>
+  <h4 class="fw-bold mb-1">Email — mail entrante a contacto@presupuestopro.com.ar</h4>
+  """ + _FLASH_BLOCK + """
+  <p class="text-muted small mb-3">
+    <span class="badge bg-warning text-dark">{{ consultas|selectattr('respondida','equalto',0)|list|length }} pendientes</span>
+    <span class="badge bg-success ms-1">{{ consultas|selectattr('respondida','equalto',1)|list|length }} respondidas</span>
+  </p>
+  <div class="alert alert-info small">
+    <i class="bi bi-info-circle"></i> Este mail también sigue llegando a Gmail como antes --
+    acá es solo para verlo cruzado con el usuario y responder sin salir de la app.
+  </div>
+  {% if not consultas %}<p class="text-muted">No hay mails todavía.</p>{% endif %}
+  {% for c in consultas %}
+  <div class="card mb-3 shadow-sm {{ 'card-respondida' if c.respondida else 'card-pendiente' }}">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-1">
+        <div>
+          <strong>{{ c.usuario.nombre if c.usuario and c.usuario.nombre else c.email_remitente }}</strong>
+          {% if c.usuario %}<small class="text-muted">({{ c.email_remitente }})</small>{% endif %}
+          {% if not c.respondida %}<span class="badge bg-warning text-dark ms-2">PENDIENTE</span>{% endif %}
+          {% if c.respondida %}<span class="badge bg-success ms-2">Respondida</span>{% endif %}
+        </div>
+        <small class="text-muted text-nowrap ms-2">{{ c.created_at|local_dt }}</small>
+      </div>
+      {% if c.retencion %}
+      <p class="mb-1 small text-primary">
+        <i class="bi bi-reply"></i> Responde a un mensaje de retención — Segmento {{ c.retencion.segmento }},
+        enviado por {{ c.retencion.canal }} el {{ c.retencion.created_at|local_dt('%d/%m/%Y') }}
+      </p>
+      {% endif %}
+      {% if c.usuario %}
+      <p class="mb-1 small"><a href="{{ url_for('admin.seguimiento_detalle', uid=c.usuario.id) }}">Ver perfil completo en Seguimiento →</a></p>
+      {% endif %}
+      {% if c.asunto %}<p class="mb-1 small text-muted"><strong>Asunto:</strong> {{ c.asunto }}</p>{% endif %}
+      <p class="mb-2 border rounded p-2 bg-white" style="white-space:pre-wrap">{{ c.mensaje }}</p>
+      {% if c.respondida %}
+      <p class="mb-0 small text-muted"><strong>Tu respuesta:</strong> {{ c.respuesta_admin }}</p>
+      {% else %}
+      <form method="POST" action="{{ url_for('admin.email_responder', cid=c.id) }}">
+        <div class="input-group">
+          <textarea name="respuesta" class="form-control" rows="2" placeholder="Escribí la respuesta..." required></textarea>
+          <button type="submit" class="btn btn-success">Enviar</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div></body></html>
+""", consultas=filas, user=g.user)
+
+
+@bp.route('/email/<int:cid>/responder', methods=['POST'])
+@admin_required
+def email_responder(cid):
+    texto = (request.form.get('respuesta') or '').strip()
+    if not texto:
+        flash('Escribí un mensaje antes de enviar.', 'error')
+        return redirect(url_for('admin.email_inbox'))
+
+    db = get_db()
+    consulta = db.execute("SELECT * FROM email_consultas_entrantes WHERE id=?", (cid,)).fetchone()
+    if not consulta:
+        db.close()
+        flash('Consulta no encontrada.', 'error')
+        return redirect(url_for('admin.email_inbox'))
+
+    from routes.email_bot import enviar_respuesta_email
+    asunto_resp = f"Re: {consulta['asunto']}" if consulta['asunto'] else "Re: PresupuestoPRO"
+    ok, detalle = enviar_respuesta_email(consulta['email_remitente'], texto, asunto_resp)
+    if ok:
+        db.execute(
+            "UPDATE email_consultas_entrantes SET respondida=1, respuesta_admin=? WHERE id=?",
+            (texto, cid)
+        )
+        db.commit()
+        flash('Respuesta enviada.', 'success')
+    else:
+        flash(f'No se pudo enviar: {detalle}.', 'error')
+    db.close()
+    return redirect(url_for('admin.email_inbox'))
 
 
 # PRECIOS MATERIALES

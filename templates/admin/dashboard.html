@@ -98,6 +98,12 @@
           <span class="badge bg-dark ms-1">{{ stats.redes_pendientes }} pendiente{% if stats.redes_pendientes > 1 %}s{% endif %}</span>
           {% endif %}
         </a>
+        <a href="{{ url_for('admin.email_inbox') }}" class="btn btn-secondary fw-bold">
+          <i class="bi bi-envelope"></i> Email (mail entrante)
+          {% if stats.email_pendientes > 0 %}
+          <span class="badge bg-dark ms-1">{{ stats.email_pendientes }} pendiente{% if stats.email_pendientes > 1 %}s{% endif %}</span>
+          {% endif %}
+        </a>
         <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-primary">
           <i class="bi bi-people"></i> Gestionar usuarios
         </a>

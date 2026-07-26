@@ -1,0 +1,14 @@
+{
+  "name": "presupuestopro-email-webhook",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put EMAIL_WEBHOOK_SECRET"
+  },
+  "dependencies": {
+    "postal-mime": "^2.2.7"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

@@ -2490,6 +2490,35 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3a: redes_consultas_sin_responder agregada (Messenger/Instagram)")
 
+        # ── 3b. CRM unificado (fase 1): mail entrante vía Cloudflare Worker ──
+        # Pedido de Daniel 25/07/2026: las respuestas al mail de retención
+        # (contacto@presupuestopro.com.ar) hoy solo llegan a Gmail vía
+        # Cloudflare Email Routing -- no quedan en la app. Se agrega un
+        # Cloudflare Worker (cloudflare_email_worker/) que intercepta el mail,
+        # lo sigue reenviando a Gmail igual que antes, y además manda una
+        # copia parseada (from/asunto/texto) a routes/email_bot.py. A
+        # diferencia de Messenger/Instagram, acá SÍ hay email para cruzar
+        # contra `users` -- mismo criterio que whatsapp_consultas_sin_responder
+        # pero matcheando por email en vez de teléfono.
+        ya_3b = db.execute("SELECT valor FROM config WHERE clave='3b_done'").fetchone()
+        if not ya_3b:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS email_consultas_entrantes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email_remitente TEXT NOT NULL,
+                    nombre_remitente TEXT DEFAULT '',
+                    asunto TEXT DEFAULT '',
+                    mensaje TEXT NOT NULL,
+                    respondida INTEGER DEFAULT 0,
+                    respuesta_admin TEXT DEFAULT '',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3b_done','2026-07-25')")
+            db.commit()
+            print("[migrate_db] 3b: email_consultas_entrantes agregada (webhook de mail entrante)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
