@@ -2,131 +2,69 @@
 {% block title %}Admin — PresupuestoPRO{% endblock %}
 
 {% block content %}
-<h4 class="mb-4"><i class="bi bi-speedometer2"></i> Panel de administración</h4>
+<div class="pp2">
+  <div style="font-weight:700;font-size:21px;margin-bottom:14px"><i class="bi bi-speedometer2"></i> Panel de administración</div>
 
-<div class="row g-3 mb-4">
-  <div class="col-sm-3">
-    <div class="card text-white bg-primary">
-      <div class="card-body">
-        <div class="fs-2 fw-bold">{{ stats.total_users }}</div>
-        <div class="small">Usuarios totales</div>
-      </div>
-    </div>
+  <div class="kpis">
+    <div class="kpi dato"><b>{{ stats.total_users }}</b><span>Usuarios totales</span></div>
+    <div class="kpi bien"><b>{{ stats.activos }}</b><span>Activos</span></div>
+    <div class="kpi alerta"><b>{{ stats.vencidos }}</b><span>Suscripciones vencidas</span></div>
+    <div class="kpi"><b>{{ stats.presupuestos }}</b><span>Presupuestos totales</span></div>
   </div>
-  <div class="col-sm-3">
-    <div class="card text-white bg-success">
-      <div class="card-body">
-        <div class="fs-2 fw-bold">{{ stats.activos }}</div>
-        <div class="small">Activos</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-3">
-    <div class="card text-white bg-danger">
-      <div class="card-body">
-        <div class="fs-2 fw-bold">{{ stats.vencidos }}</div>
-        <div class="small">Suscripciones vencidas</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-3">
-    <div class="card text-white bg-dark">
-      <div class="card-body">
-        <div class="fs-2 fw-bold">{{ stats.presupuestos }}</div>
-        <div class="small">Presupuestos totales</div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<div class="row g-3">
-  <div class="col-lg-6">
-    <div class="card">
-      <div class="card-header fw-bold">Próximos vencimientos</div>
-      <ul class="list-group list-group-flush">
-        {% for u in proximos %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-semibold">{{ u.nombre or u.email }}</div>
-            <small class="text-muted">{{ u.email }}</small>
-          </div>
-          <span class="badge bg-warning text-dark">{{ u.subscription_expires }}</span>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted text-center">Sin vencimientos próximos</li>
-        {% endfor %}
-      </ul>
-    </div>
+  <div class="bloque">
+    <div class="bloque-hd">Requiere respuesta</div>
+    <a class="adm-fila" href="{{ url_for('admin.whatsapp_inbox') }}">
+      <div class="t"><b><i class="bi bi-whatsapp"></i> WhatsApp</b><span>Consultas sin responder</span></div>
+      <span class="pend {{ '' if stats.whatsapp_pendientes else 'q' }}">{{ stats.whatsapp_pendientes or 0 }}</span>
+    </a>
+    <a class="adm-fila" href="{{ url_for('admin.leads') }}">
+      <div class="t"><b>Inscriptos</b><span>Ver y contactar</span></div>
+      <span class="pend {{ '' if stats.leads_nuevos else 'q' }}">{{ stats.leads_nuevos or 0 }}</span>
+    </a>
+    <a class="adm-fila" href="{{ url_for('admin.social_inbox') }}">
+      <div class="t"><b><i class="bi bi-instagram"></i> Messenger / Instagram</b><span>Consultas sin responder</span></div>
+      <span class="pend {{ '' if stats.redes_pendientes else 'q' }}">{{ stats.redes_pendientes or 0 }}</span>
+    </a>
+    <a class="adm-fila" href="{{ url_for('admin.contactos') }}">
+      <div class="t"><b>Mensajes de contacto</b><span>Formulario web</span></div>
+      <span class="pend {{ '' if stats.mensajes_nuevos else 'q' }}">{{ stats.mensajes_nuevos or 0 }}</span>
+    </a>
+    <a class="adm-fila" href="{{ url_for('admin.email_inbox') }}">
+      <div class="t"><b>Email entrante</b></div>
+      <span class="pend {{ '' if stats.email_pendientes else 'q' }}">{{ stats.email_pendientes or 0 }}</span>
+    </a>
+    <a class="adm-fila" href="{{ url_for('admin.sugerencias') }}">
+      <div class="t"><b><i class="bi bi-lightbulb"></i> Sugerencias</b><span>De usuarios</span></div>
+      <span class="pend {{ '' if stats.sugerencias_nuevas else 'q' }}">{{ stats.sugerencias_nuevas or 0 }}</span>
+    </a>
+    <a class="adm-fila" href="{{ url_for('admin.seguimiento') }}">
+      <div class="t"><b>Seguimiento</b><span>Retención de usuarios</span></div>
+      <span class="pend {{ '' if stats.seguimiento_pendientes else 'q' }}">{{ stats.seguimiento_pendientes or 0 }}</span>
+    </a>
   </div>
-  <div class="col-lg-6">
-    <div class="card">
-      <div class="card-header fw-bold">Acceso rápido</div>
-      <div class="card-body d-grid gap-2">
-        <a href="{{ url_for('admin.contactos') }}" class="btn btn-primary fw-bold">
-          <i class="bi bi-chat-left-text"></i> 💬 Mensajes de contacto
-          {% if stats.mensajes_nuevos > 0 %}
-          <span class="badge bg-warning text-dark ms-1">{{ stats.mensajes_nuevos }} nuevo{% if stats.mensajes_nuevos > 1 %}s{% endif %}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.leads') }}" class="btn btn-danger fw-bold">
-          <i class="bi bi-person-lines-fill"></i> 🔔 Inscriptos (ver y contactar)
-          {% if stats.leads_nuevos > 0 %}
-          <span class="badge bg-warning text-dark ms-1">{{ stats.leads_nuevos }} nuevo{% if stats.leads_nuevos > 1 %}s{% endif %}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.sugerencias') }}" class="btn btn-warning fw-bold">
-          <i class="bi bi-lightbulb"></i> 💡 Sugerencias de usuarios
-          {% if stats.sugerencias_nuevas > 0 %}
-          <span class="badge bg-dark ms-1">{{ stats.sugerencias_nuevas }} nueva{% if stats.sugerencias_nuevas > 1 %}s{% endif %}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.whatsapp_inbox') }}" class="btn btn-success fw-bold">
-          <i class="bi bi-whatsapp"></i> WhatsApp (consultas sin responder)
-          {% if stats.whatsapp_pendientes > 0 %}
-          <span class="badge bg-dark ms-1">{{ stats.whatsapp_pendientes }} pendiente{% if stats.whatsapp_pendientes > 1 %}s{% endif %}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.seguimiento') }}" class="btn btn-primary fw-bold">
-          <i class="bi bi-graph-up-arrow"></i> Seguimiento de usuarios (retención)
-          {% if stats.seguimiento_pendientes > 0 %}
-          <span class="badge bg-warning text-dark ms-1">{{ stats.seguimiento_pendientes }}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.social_inbox') }}" class="btn btn-danger fw-bold">
-          <i class="bi bi-instagram"></i> Messenger / Instagram (consultas sin responder)
-          {% if stats.redes_pendientes > 0 %}
-          <span class="badge bg-dark ms-1">{{ stats.redes_pendientes }} pendiente{% if stats.redes_pendientes > 1 %}s{% endif %}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.email_inbox') }}" class="btn btn-secondary fw-bold">
-          <i class="bi bi-envelope"></i> Email (mail entrante)
-          {% if stats.email_pendientes > 0 %}
-          <span class="badge bg-dark ms-1">{{ stats.email_pendientes }} pendiente{% if stats.email_pendientes > 1 %}s{% endif %}</span>
-          {% endif %}
-        </a>
-        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-primary">
-          <i class="bi bi-people"></i> Gestionar usuarios
-        </a>
-        <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn btn-outline-success">
-          <i class="bi bi-person-plus"></i> Nuevo usuario
-        </a>
-        <a href="{{ url_for('admin.localidades') }}" class="btn btn-outline-secondary">
-          <i class="bi bi-geo-alt"></i> Localidades (fusionar duplicados)
-        </a>
-        <a href="{{ url_for('admin.precios') }}" class="btn btn-outline-secondary">
-          <i class="bi bi-tags"></i> Precios de materiales
-        </a>
-        <a href="{{ url_for('admin.tipos_cambio') }}" class="btn btn-outline-warning text-dark">
-          <i class="bi bi-currency-exchange"></i> Tipos de cambio
-        </a>
-        <a href="{{ url_for('admin.configuracion') }}" class="btn btn-outline-dark">
-          <i class="bi bi-sliders"></i> Configuración (GG%, Imp%, validación de cuenta)
-        </a>
-        <a href="{{ url_for('admin.rendimientos') }}" class="btn btn-outline-info">
-          <i class="bi bi-speedometer2"></i> Rendimientos HOF/HAY
-        </a>
-      </div>
+
+  <div class="bloque">
+    <div class="bloque-hd">Próximos vencimientos</div>
+    {% for u in proximos %}
+    <div class="adm-fila">
+      <div class="t"><b>{{ u.nombre or u.email }}</b><span>{{ u.email }}</span></div>
+      <span class="num" style="font-size:12px;font-weight:600;color:var(--rojo)">{{ u.subscription_expires }}</span>
     </div>
+    {% else %}
+    <div class="adm-fila"><div class="t" style="text-align:center;color:var(--gris)">Sin vencimientos próximos</div></div>
+    {% endfor %}
+  </div>
+
+  <div class="bloque">
+    <div class="bloque-hd">Gestión</div>
+    <a class="adm-fila" href="{{ url_for('admin.usuarios') }}"><div class="t"><b>Gestionar usuarios</b></div><i class="bi bi-chevron-right chev"></i></a>
+    <a class="adm-fila" href="{{ url_for('admin.usuario_nuevo') }}"><div class="t"><b>Nuevo usuario</b></div><i class="bi bi-chevron-right chev"></i></a>
+    <a class="adm-fila" href="{{ url_for('admin.localidades') }}"><div class="t"><b>Localidades</b><span>Fusionar duplicados</span></div><i class="bi bi-chevron-right chev"></i></a>
+    <a class="adm-fila" href="{{ url_for('admin.precios') }}"><div class="t"><b>Precios de materiales</b></div><i class="bi bi-chevron-right chev"></i></a>
+    <a class="adm-fila" href="{{ url_for('admin.tipos_cambio') }}"><div class="t"><b>Tipos de cambio</b></div><i class="bi bi-chevron-right chev"></i></a>
+    <a class="adm-fila" href="{{ url_for('admin.configuracion') }}"><div class="t"><b>Configuración</b><span>GG%, Imp%, validación de cuenta</span></div><i class="bi bi-chevron-right chev"></i></a>
+    <a class="adm-fila" href="{{ url_for('admin.rendimientos') }}"><div class="t"><b>Rendimientos HOF/HAY</b></div><i class="bi bi-chevron-right chev"></i></a>
   </div>
 </div>
 {% endblock %}

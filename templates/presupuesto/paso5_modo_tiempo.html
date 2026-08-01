@@ -1,212 +1,138 @@
 {% extends 'base.html' %}
 {% block title %}Modo y tiempo — Paso 5{% endblock %}
 
-{% block sticky_nav %}
-<div class="wizard-sticky-nav">
-  <!-- Fix 05/07/2026: "Anterior" ahora guarda este paso antes de volver (ver
-       _redir_next en routes/presupuesto.py) en vez de descartar cambios. -->
-  <button type="submit" form="formModo" name="_next" value="{{ url_for('presupuesto.indirectos') }}" class="btn btn-sm btn-outline-secondary">
-    <i class="bi bi-arrow-left"></i> Anterior
-  </button>
-  <button type="submit" form="formModo" class="btn btn-sm btn-warning fw-bold">
-    Siguiente <i class="bi bi-arrow-right"></i>
-  </button>
-</div>
-{% endblock %}
-
 {% block content %}
+<div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
-<div class="row justify-content-center">
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header card-header-blue">
-        <i class="bi bi-clock-history"></i> Paso 5 — Modo de cotizacion y tiempo de obra
+<form method="post" id="formModo" data-wizard-form>
+  <div class="bloque">
+    <div class="bloque-cuerpo">
+
+      <!-- Modo -->
+      <div class="grupo-tit primero">¿Qué incluye el presupuesto?</div>
+      <div class="sel">
+        <div>
+          <input class="sel-input" type="radio" name="modo" id="modo_mo_mat" value="mo_mat" autocomplete="off"
+                 {{ 'checked' if p.get('modo','mo_mat') != 'solo_mo' else '' }}>
+          <label class="sel-op" for="modo_mo_mat">
+            <span class="ic"><i class="bi bi-hammer"></i></span>
+            <b>MO + Materiales</b>
+            <span>Incluye mano de obra y materiales</span>
+          </label>
+        </div>
+        <div>
+          <input class="sel-input" type="radio" name="modo" id="modo_solo_mo" value="solo_mo" autocomplete="off"
+                 {{ 'checked' if p.get('modo') == 'solo_mo' else '' }}>
+          <label class="sel-op" for="modo_solo_mo">
+            <span class="ic"><i class="bi bi-person-raised-hand"></i></span>
+            <b>Solo mano de obra</b>
+            <span>El cliente pone los materiales</span>
+          </label>
+        </div>
       </div>
-      <div class="card-body">
-        <form method="post" id="formModo" data-wizard-form>
 
-          <!-- Modo -->
-          <h6 class="text-muted mb-3">Que incluye el presupuesto?</h6>
-          <div class="row g-3 mb-4">
-            <div class="col-6">
-              <input type="radio" class="btn-check" name="modo" id="modo_mo_mat"
-                     value="mo_mat" autocomplete="off"
-                     {{ 'checked' if p.get('modo','mo_mat') != 'solo_mo' else '' }}>
-              <label class="btn btn-outline-primary w-100 py-4" for="modo_mo_mat"
-                     style="height:auto; white-space:normal;">
-                <i class="bi bi-hammer d-block fs-2 mb-1"></i>
-                <strong>MO + Materiales</strong><br>
-                <small class="text-muted">Incluye mano de obra y materiales</small>
-              </label>
-            </div>
-            <div class="col-6">
-              <input type="radio" class="btn-check" name="modo" id="modo_solo_mo"
-                     value="solo_mo" autocomplete="off"
-                     {{ 'checked' if p.get('modo') == 'solo_mo' else '' }}>
-              <label class="btn btn-outline-warning w-100 py-4" for="modo_solo_mo"
-                     style="height:auto; white-space:normal;">
-                <i class="bi bi-person-raised-hand d-block fs-2 mb-1"></i>
-                <strong>Solo mano de obra</strong><br>
-                <small class="text-muted">El cliente pone los materiales</small>
-              </label>
-            </div>
-          </div>
+      <!-- Equipo de trabajo -->
+      <div class="grupo-tit">Equipo de trabajo</div>
+      <div class="duo">
+        <div class="campo" style="margin:0"><label>Oficiales</label>
+          <input class="n" type="number" name="n_oficiales" id="n_of" min="1" max="20" value="{{ p.get('n_oficiales', 1) }}" inputmode="numeric"></div>
+        <div class="campo" style="margin:0"><label>Ayudantes</label>
+          <input class="n" type="number" name="n_ayudantes" id="n_ay" min="0" max="20" value="{{ p.get('n_ayudantes', 1) }}" inputmode="numeric"></div>
+      </div>
+      <div class="duo" style="margin-top:13px">
+        <div class="campo" style="margin:0"><label>Jornal oficial ({{ simbolo }}/día)</label>
+          <input class="n" type="number" name="jornal_oficial" id="jornal_of" autocomplete="off" min="0" step="100"
+                 value="{{ p.get('jornal_oficial','') }}" placeholder="{{ simbolo }} 0" inputmode="decimal"></div>
+        <div class="campo" style="margin:0"><label>Jornal ayudante ({{ simbolo }}/día)</label>
+          <input class="n" type="number" name="jornal_ayudante" id="jornal_ay" autocomplete="off" min="0" step="100"
+                 value="{{ p.get('jornal_ayudante','') }}" placeholder="{{ simbolo }} 0" inputmode="decimal"></div>
+      </div>
 
-          <!-- Equipo de trabajo -->
-          <h6 class="text-muted mb-2">Equipo de trabajo</h6>
-          <div class="row g-3 mb-3">
-            <div class="col-6 col-md-3">
-              <label class="form-label form-label-sm">
-                Oficiales
-              </label>
-              <input type="number" name="n_oficiales" id="n_of" class="form-control"
-                     min="1" max="20" value="{{ p.get('n_oficiales', 1) }}" inputmode="numeric">
-            </div>
-            <div class="col-6 col-md-3">
-              <label class="form-label form-label-sm">
-                Ayudantes
-              </label>
-              <input type="number" name="n_ayudantes" id="n_ay" class="form-control"
-                     min="0" max="20" value="{{ p.get('n_ayudantes', 1) }}" inputmode="numeric">
-            </div>
-            <div class="col-6 col-md-3">
-              <label class="form-label form-label-sm">Jornal oficial ({{ simbolo }}/día)</label>
-              <input type="number" name="jornal_oficial" id="jornal_of" class="form-control" autocomplete="off"
-                     min="0" step="100"
-                     value="{{ p.get('jornal_oficial','') }}" placeholder="{{ simbolo }} 0"
-                     inputmode="decimal">
-            </div>
-            <div class="col-6 col-md-3">
-              <label class="form-label form-label-sm">Jornal ayudante ({{ simbolo }}/día)</label>
-              <input type="number" name="jornal_ayudante" id="jornal_ay" class="form-control" autocomplete="off"
-                     min="0" step="100"
-                     value="{{ p.get('jornal_ayudante','') }}" placeholder="{{ simbolo }} 0"
-                     inputmode="decimal">
-            </div>
-          </div>
+      <div class="grupo-tit">Duración</div>
+      {% if hh_total and hh_total > 0 %}
+      <div class="aviso aviso-i" style="align-items:center">
+        <div style="flex:1"><i class="bi bi-calculator"></i> Días totales sugeridos: <b id="dias-sugeridos">— días</b></div>
+        <button type="button" class="btn2-min" onclick="aplicarSugerido()">Aplicar</button>
+      </div>
+      {% else %}
+      <div class="aviso aviso-alerta"><i class="bi bi-exclamation-triangle"></i> HH no disponibles. Ingresá los días manualmente.</div>
+      {% endif %}
+      <div class="campo">
+        <label>Días de obra</label>
+        <input class="n" type="number" name="dias_obra" id="dias-obra" min="0" value="{{ p.get('dias_obra','') }}"
+               placeholder="Ingresá los días" inputmode="numeric">
+        <div class="pista">Editable manualmente o usá "Aplicar". <span id="tiempo-display"></span></div>
+      </div>
 
-          <!-- Info Días Totales (Items!G4) -->
-          {% if hh_total and hh_total > 0 %}
-          <div class="alert alert-info py-2 mb-3">
-            <i class="bi bi-calculator me-1"></i>
-            Dias Totales:
-            <strong id="dias-sugeridos" class="text-success">— dias</strong>
-            <button type="button" class="btn btn-sm btn-outline-success ms-2 py-0"
-                    onclick="aplicarSugerido()">Aplicar</button>
-          </div>
-          {% else %}
-          <div class="alert alert-warning py-2 mb-3">
-            <i class="bi bi-exclamation-triangle me-1"></i>
-            HH no disponibles. Ingresa los dias manualmente.
-          </div>
-          {% endif %}
-
-          <!-- Dias de obra -->
-          <div class="row g-3 mb-4">
-            <div class="col-md-4">
-              <label class="form-label fw-semibold">Dias de obra</label>
-              <input type="number" name="dias_obra" id="dias-obra" class="form-control"
-                     min="0" value="{{ p.get('dias_obra','') }}"
-                     placeholder="Ingresa los dias" inputmode="numeric">
-              <div class="form-text">Editable manualmente o usa "Aplicar".</div>
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-              <div class="text-muted small" id="tiempo-display"></div>
-            </div>
-          </div>
-
-          <!-- GG e Impuestos (movidos desde paso 4) -->
-          <h6 class="text-muted mb-2">Beneficio y cargas</h6>
-          <div class="row g-3 mb-4">
-            <div class="col-md-6">
-              <label class="form-label">% Gastos generales / Beneficio</label>
-              <div class="input-group">
-                <input type="number" name="pct_gg" id="pct_gg" class="form-control"
-                       min="0" max="100" step="0.5" value="{{ pct_gg }}">
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">% Impuestos y seguros</label>
-              <div class="input-group">
-                <input type="number" name="pct_imp" id="pct_imp" class="form-control"
-                       min="0" max="100" step="0.5" value="{{ pct_imp }}">
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- ══ BARRA 1: Costo base (azul) ═══════════════════════════════════ -->
-          <div class="totals-bar mb-2">
-            <div class="row text-center g-0">
-              <div class="col-6 col-md-3 border-end border-secondary py-2">
-                <div class="small opacity-75" id="lbl-costo-d">Costo Directo</div>
-                <div class="fw-bold" id="bar1-cd">{{ simbolo }} 0</div>
-              </div>
-              <div class="col-6 col-md-3 border-end border-secondary py-2">
-                <div class="small opacity-75">Subcontratos</div>
-                <div class="fw-bold" id="bar1-subc">{{ simbolo }} {{ "{:,.0f}".format(totales.get('total_subc',0)).replace(',','.') }}</div>
-              </div>
-              <div class="col-6 col-md-3 border-end border-secondary py-2">
-                <div class="small opacity-75">Indirectos</div>
-                <div class="fw-bold" id="bar1-ind">{{ simbolo }} {{ "{:,.0f}".format(totales.get('total_ind',0)).replace(',','.') }}</div>
-              </div>
-              <div class="col-6 col-md-3 py-2">
-                <div class="small opacity-75">TOTAL BASE</div>
-                <div class="fw-bold" id="bar1-base">{{ simbolo }} 0</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ══ BARRA 2: GG + Imp + Total final ══════════════════════════════ -->
-          <div class="totals-bar mb-2" style="background:linear-gradient(135deg,#1d44aa,#0f1e3c)">
-            <div class="row text-center g-0">
-              <div class="col-6 col-md-4 border-end border-secondary py-2">
-                <div class="small opacity-75">GG / Beneficio (<span id="lbl-pct-gg">{{ pct_gg }}</span>%)</div>
-                <div class="fw-bold" id="bar2-gg">{{ simbolo }} 0</div>
-              </div>
-              <div class="col-6 col-md-4 border-end border-secondary py-2">
-                <div class="small opacity-75">Imp. y seguros (<span id="lbl-pct-imp">{{ pct_imp }}</span>%)</div>
-                <div class="fw-bold" id="bar2-imp">{{ simbolo }} 0</div>
-              </div>
-              <div class="col-6 col-md-4 py-2">
-                <div class="small opacity-75">TOTAL FINAL</div>
-                <div class="fw-bold text-warning fs-6" id="bar2-total">{{ simbolo }} 0</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ══ BARRA 3: Ganancia Real ════════════════════════════════════════ -->
-          <div class="mb-4 p-3 rounded" style="background:#166534;color:#fff">
-            <div class="row align-items-center">
-              <div class="col-md-8">
-                <div class="small opacity-75 mb-1">
-                  Ganancia Real = MO cobrada + GG$ − Operarios reales
-                </div>
-                <div class="small opacity-75">
-                  Operarios reales: <span id="lbl-op-reales">—</span>
-                  &nbsp;|&nbsp; MO cobrada: <span id="lbl-mo-cobrada">—</span>
-                </div>
-              </div>
-              <div class="col-md-4 text-end">
-                <div class="fw-bold fs-5" id="bar3-ganancia">{{ simbolo }} 0</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="d-flex justify-content-between">
-            <button type="submit" name="_next" value="{{ url_for('presupuesto.indirectos') }}" class="btn btn-outline-secondary">
-              <i class="bi bi-arrow-left"></i> Anterior
-            </button>
-            <button type="submit" class="btn btn-warning fw-bold px-5">
-              Siguiente <i class="bi bi-arrow-right"></i>
-            </button>
-          </div>
-        </form>
+      <!-- GG e Impuestos (movidos desde paso 4) -->
+      <div class="grupo-tit">Beneficio y cargas</div>
+      <div class="duo">
+        <div class="campo" style="margin:0"><label>% Gastos generales / Beneficio</label>
+          <div class="sufijo"><input class="n" type="number" name="pct_gg" id="pct_gg" min="0" max="100" step="0.5" value="{{ pct_gg }}"><span>%</span></div></div>
+        <div class="campo" style="margin:0"><label>% Impuestos y seguros</label>
+          <div class="sufijo"><input class="n" type="number" name="pct_imp" id="pct_imp" min="0" max="100" step="0.5" value="{{ pct_imp }}"><span>%</span></div></div>
       </div>
     </div>
   </div>
+
+  <!-- ══ BARRA 1: Costo base ══ -->
+  <div class="bloque" style="background:var(--tinta);color:#fff;border:none">
+    <div class="trio" style="padding:14px;gap:0">
+      <div style="text-align:center;padding:4px;border-right:1px solid rgba(255,255,255,.15)">
+        <div style="font-size:11px;color:#9AA6BC;text-transform:uppercase;letter-spacing:.06em" id="lbl-costo-d">Costo Directo</div>
+        <div class="num" style="font-weight:700" id="bar1-cd">{{ simbolo }} 0</div>
+      </div>
+      <div style="text-align:center;padding:4px;border-right:1px solid rgba(255,255,255,.15)">
+        <div style="font-size:11px;color:#9AA6BC;text-transform:uppercase;letter-spacing:.06em">Subcontratos</div>
+        <div class="num" style="font-weight:700" id="bar1-subc">{{ simbolo }} {{ "{:,.0f}".format(totales.get('total_subc',0)).replace(',','.') }}</div>
+      </div>
+      <div style="text-align:center;padding:4px">
+        <div style="font-size:11px;color:#9AA6BC;text-transform:uppercase;letter-spacing:.06em">Indirectos</div>
+        <div class="num" style="font-weight:700" id="bar1-ind">{{ simbolo }} {{ "{:,.0f}".format(totales.get('total_ind',0)).replace(',','.') }}</div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:10px 14px;border-top:1px solid rgba(255,255,255,.15)">
+      <div style="font-size:11px;color:#9AA6BC;text-transform:uppercase;letter-spacing:.06em">Total base</div>
+      <div class="num" style="font-weight:700;font-size:18px" id="bar1-base">{{ simbolo }} 0</div>
+    </div>
+  </div>
+
+  <!-- ══ BARRA 2: GG + Imp + Total final ══ -->
+  <div class="bloque" style="background:linear-gradient(135deg,#1d44aa,#0f1e3c);color:#fff;border:none">
+    <div class="trio" style="padding:14px;gap:0">
+      <div style="text-align:center;padding:4px;border-right:1px solid rgba(255,255,255,.15)">
+        <div style="font-size:11px;color:#B9C3D6;text-transform:uppercase;letter-spacing:.06em">GG / Beneficio (<span id="lbl-pct-gg">{{ pct_gg }}</span>%)</div>
+        <div class="num" style="font-weight:700" id="bar2-gg">{{ simbolo }} 0</div>
+      </div>
+      <div style="text-align:center;padding:4px;border-right:1px solid rgba(255,255,255,.15)">
+        <div style="font-size:11px;color:#B9C3D6;text-transform:uppercase;letter-spacing:.06em">Imp. y seguros (<span id="lbl-pct-imp">{{ pct_imp }}</span>%)</div>
+        <div class="num" style="font-weight:700" id="bar2-imp">{{ simbolo }} 0</div>
+      </div>
+      <div style="text-align:center;padding:4px">
+        <div style="font-size:11px;color:#B9C3D6;text-transform:uppercase;letter-spacing:.06em">Total final</div>
+        <div class="num" style="font-weight:700;font-size:18px;color:var(--amarillo)" id="bar2-total">{{ simbolo }} 0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ BARRA 3: Ganancia real ══ -->
+  <div class="bloque" style="background:var(--verde);color:#fff;border:none">
+    <div class="bloque-cuerpo" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:12.5px;opacity:.85;margin-bottom:4px">Ganancia real = MO cobrada + GG$ − Operarios reales</div>
+        <div style="font-size:12.5px;opacity:.85">Operarios reales: <span id="lbl-op-reales">—</span> · MO cobrada: <span id="lbl-mo-cobrada">—</span></div>
+      </div>
+      <div class="num" style="font-weight:700;font-size:19px" id="bar3-ganancia">{{ simbolo }} 0</div>
+    </div>
+  </div>
+</form>
+
+<div class="barra-tot">
+  <a href="{{ url_for('presupuesto.indirectos') }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
+  <div class="bt-txt"><div class="bt-lbl">Paso 5 de 8</div><div style="font-size:14px;color:#C3CBD9">Modo y tiempo</div></div>
+  <button type="submit" form="formModo" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 {% endblock %}
 
@@ -241,7 +167,7 @@ function calcDias(){
   if(hhRef > 0 && workers > 0){
     _diasSugerido = Math.ceil(hhRef / (workers * 8));
     var dSug = document.getElementById('dias-sugeridos');
-    if(dSug){ dSug.textContent = _diasSugerido + ' dias'; }
+    if(dSug){ dSug.textContent = _diasSugerido + ' días'; }
     // Auto-completar solo si el campo está vacío o en cero (presupuesto nuevo)
     var diasInput = document.getElementById('dias-obra');
     if(!diasInput.value || parseInt(diasInput.value) === 0){

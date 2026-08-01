@@ -2,72 +2,45 @@
 {% block title %}Subcontratos — Paso 3{% endblock %}
 
 {% block content %}
+<div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
-<div class="card mx-auto" style="max-width:760px">
-  <div class="card-header card-header-blue">
-    <i class="bi bi-people"></i> Paso 3 — Subcontratos
-  </div>
-  <div class="card-body">
-    <p class="text-muted small mb-3">Marca los rubros que vas a subcontratar e ingresa los montos en {{ simbolo }}.</p>
+<form method="post" id="formSubc" data-wizard-form>
+  <div class="bloque">
+    <div class="ayuda">Marcá los rubros que vas a subcontratar y cargá los montos en {{ simbolo }}.</div>
 
-    <form method="post" id="formSubc" data-wizard-form>
-
-      <!-- Sugeridos -->
-      {% for s in sugeridos %}
-      <div class="card mb-2 border" id="card-{{ s.id }}">
-        <div class="card-body py-2">
-          <div class="row align-items-center g-2">
-            <div class="col-auto">
-              <input class="form-check-input" type="checkbox"
-                     name="subc_sel" value="{{ s.id }}" id="chk-{{ s.id }}"
-                     onchange="toggleSubc('{{ s.id }}')">
-            </div>
-            <div class="col-3">
-              <label class="form-check-label fw-semibold" for="chk-{{ s.id }}">{{ s.nombre }}</label>
-            </div>
-            <div class="col subc-fields-{{ s.id }}" style="display:none">
-              <div class="row g-2">
-                <div class="col-3">
-                  <input type="number" name="subc_{{ s.id }}_mo" class="form-control form-control-sm"
-                         min="0" step="1000" placeholder="MO ({{ simbolo }})">
-                </div>
-                <div class="col-3">
-                  <input type="number" name="subc_{{ s.id }}_mat" class="form-control form-control-sm"
-                         min="0" step="1000" placeholder="Materiales ({{ simbolo }})">
-                </div>
-                <div class="col-3">
-                  <input type="number" name="subc_{{ s.id }}_cant" class="form-control form-control-sm"
-                         min="0" step="1" value="1" placeholder="Cantidad">
-                </div>
-                <div class="col-3">
-                  <input type="text" name="subc_{{ s.id }}_unidad" class="form-control form-control-sm"
-                         value="Global" placeholder="Unidad">
-                </div>
-              </div>
-            </div>
-          </div>
+    <!-- Sugeridos -->
+    {% for s in sugeridos %}
+    <div class="sc" style="padding:0 14px" id="card-{{ s.id }}">
+      <div class="sc-hd">
+        <input type="checkbox" name="subc_sel" value="{{ s.id }}" id="chk-{{ s.id }}" onchange="toggleSubc('{{ s.id }}')">
+        <label for="chk-{{ s.id }}"><b>{{ s.nombre }}</b></label>
+      </div>
+      <div class="sc-cuerpo subc-fields-{{ s.id }}" style="display:none">
+        <div class="duo">
+          <div class="campo" style="margin:0"><label>Mano de obra</label><div class="sufijo"><input class="n" type="number" name="subc_{{ s.id }}_mo" min="0" step="1000" placeholder="0"><span>$</span></div></div>
+          <div class="campo" style="margin:0"><label>Materiales</label><div class="sufijo"><input class="n" type="number" name="subc_{{ s.id }}_mat" min="0" step="1000" placeholder="0"><span>$</span></div></div>
+        </div>
+        <div class="duo" style="margin-top:10px">
+          <div class="campo" style="margin:0"><label>Cantidad</label><input class="n" type="number" name="subc_{{ s.id }}_cant" min="0" step="1" value="1"></div>
+          <div class="campo" style="margin:0"><label>Unidad</label><input type="text" name="subc_{{ s.id }}_unidad" value="Global"></div>
         </div>
       </div>
-      {% endfor %}
-
-      <!-- Personalizados (dinámicos) -->
-      <div id="customs-container"></div>
-
-      <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="agregarSubc()">
-        <i class="bi bi-plus-circle"></i> Agregar otro subcontrato
-      </button>
-
-      <div class="d-flex justify-content-between mt-4">
-        <button type="submit" name="_next" value="{{ url_for('presupuesto.rubros') }}" class="btn btn-outline-secondary">
-          <i class="bi bi-arrow-left"></i> Anterior
-        </button>
-        <button type="submit" class="btn btn-warning fw-bold px-5">
-          Siguiente <i class="bi bi-arrow-right"></i>
-        </button>
-      </div>
-    </form>
+    </div>
+    {% endfor %}
   </div>
+
+  <!-- Personalizados (dinámicos) -->
+  <div id="customs-container"></div>
+
+  <button type="button" class="btn2-fant" onclick="agregarSubc()">＋ Agregar otro subcontrato</button>
+</form>
+
+<div class="barra-tot">
+  <a href="{{ url_for('presupuesto.rubros') }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
+  <div class="bt-txt"><div class="bt-lbl">Paso 3 de 8</div><div style="font-size:14px;color:#C3CBD9">Subcontratos</div></div>
+  <button type="submit" form="formSubc" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 {% endblock %}
 
@@ -102,38 +75,20 @@ window.addEventListener('DOMContentLoaded', function(){
 function agregarSubcPrellenado(nombre, mo, mat, cant, unidad){
   const n = customIdx++;
   const div = document.createElement('div');
-  div.className = 'card mb-2 mt-2';
-  div.style.border = '2px dashed #dee2e6';
+  div.className = 'bloque sc-custom';
+  div.style.marginTop = '10px';
   div.innerHTML = `
-    <div class="card-body py-2">
-      <div class="row g-2 align-items-center">
-        <div class="col-md-4">
-          <input type="text" name="custom_${n}_nombre" class="form-control form-control-sm"
-                 value="${nombre || ''}" placeholder="Nombre del subcontrato" required>
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="custom_${n}_mo" class="form-control form-control-sm"
-                 min="0" step="1000" value="${mo || 0}" placeholder="MO (${SIM})">
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="custom_${n}_mat" class="form-control form-control-sm"
-                 min="0" step="1000" value="${mat || 0}" placeholder="Materiales (${SIM})">
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="custom_${n}_cant" class="form-control form-control-sm"
-                 min="0" step="1" value="${(cant === undefined || cant === null) ? 1 : cant}" placeholder="Cantidad">
-        </div>
-        <div class="col-md-1">
-          <input type="text" name="custom_${n}_unidad" class="form-control form-control-sm"
-                 value="${unidad || 'Global'}" placeholder="Unidad">
-        </div>
-        <div class="col-auto">
-          <button type="button" class="btn btn-sm btn-outline-danger"
-                  onclick="this.closest('.card').remove()">
-            <i class="bi bi-trash"></i>
-          </button>
-        </div>
+    <div class="bloque-cuerpo">
+      <div class="campo"><label>Nombre del subcontrato</label><input type="text" name="custom_${n}_nombre" value="${nombre || ''}" required></div>
+      <div class="duo">
+        <div class="campo" style="margin:0"><label>Mano de obra</label><div class="sufijo"><input class="n" type="number" name="custom_${n}_mo" min="0" step="1000" value="${mo || 0}"><span>$</span></div></div>
+        <div class="campo" style="margin:0"><label>Materiales</label><div class="sufijo"><input class="n" type="number" name="custom_${n}_mat" min="0" step="1000" value="${mat || 0}"><span>$</span></div></div>
       </div>
+      <div class="duo" style="margin-top:10px">
+        <div class="campo" style="margin:0"><label>Cantidad</label><input class="n" type="number" name="custom_${n}_cant" min="0" step="1" value="${(cant === undefined || cant === null) ? 1 : cant}"></div>
+        <div class="campo" style="margin:0"><label>Unidad</label><input type="text" name="custom_${n}_unidad" value="${unidad || 'Global'}"></div>
+      </div>
+      <button type="button" class="btn2 btn2-2" style="color:var(--rojo);border-color:var(--rojo)" onclick="this.closest('.sc-custom').remove()"><i class="bi bi-trash"></i> Quitar</button>
     </div>`;
   document.getElementById('customs-container').appendChild(div);
 }
@@ -145,42 +100,7 @@ function toggleSubc(id){
 }
 
 function agregarSubc(){
-  const n = customIdx++;
-  const div = document.createElement('div');
-  div.className = 'card mb-2 border-dashed mt-2';
-  div.style.border = '2px dashed #dee2e6';
-  div.innerHTML = `
-    <div class="card-body py-2">
-      <div class="row g-2 align-items-center">
-        <div class="col-md-4">
-          <input type="text" name="custom_${n}_nombre" class="form-control form-control-sm"
-                 placeholder="Nombre del subcontrato" required>
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="custom_${n}_mo" class="form-control form-control-sm"
-                 min="0" step="1000" placeholder="MO (${SIM})">
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="custom_${n}_mat" class="form-control form-control-sm"
-                 min="0" step="1000" placeholder="Materiales (${SIM})">
-        </div>
-        <div class="col-md-2">
-          <input type="number" name="custom_${n}_cant" class="form-control form-control-sm"
-                 min="0" step="1" value="1" placeholder="Cantidad">
-        </div>
-        <div class="col-md-1">
-          <input type="text" name="custom_${n}_unidad" class="form-control form-control-sm"
-                 value="Global" placeholder="Unidad">
-        </div>
-        <div class="col-auto">
-          <button type="button" class="btn btn-sm btn-outline-danger"
-                  onclick="this.closest('.card').remove()">
-            <i class="bi bi-trash"></i>
-          </button>
-        </div>
-      </div>
-    </div>`;
-  document.getElementById('customs-container').appendChild(div);
+  agregarSubcPrellenado('', 0, 0, 1, 'Global');
 }
 </script>
 {% endblock %}

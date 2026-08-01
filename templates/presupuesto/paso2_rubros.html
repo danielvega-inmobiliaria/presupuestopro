@@ -1,208 +1,102 @@
 {% extends 'base.html' %}
 {% block title %}Paso 2: Computo de Obra{% endblock %}
 
-{% block sticky_nav %}
-<div class="wizard-sticky-nav">
-  <!-- Fix 05/07/2026: "Anterior" ahora guarda este paso antes de volver (ver
-       _redir_next en routes/presupuesto.py) en vez de descartar cambios. -->
-  <button type="submit" form="formComputo" name="_next" value="{{ url_for('presupuesto.nuevo') }}" class="btn btn-sm btn-outline-secondary">
-    <i class="bi bi-arrow-left"></i> Anterior
-  </button>
-  <button type="submit" form="formComputo" class="btn btn-sm btn-warning fw-bold">
-    Siguiente <i class="bi bi-arrow-right"></i>
-  </button>
-</div>
-{% endblock %}
-
 {% block content %}
+<div class="pp2 pp2-con-barra">
 <!-- Fix 05/07/2026: faltaba el include de _wizard_steps.html — paso 2 era la
      única ventana del wizard sin la barra de pasos (INICIO/COMPUTO/SUBCONT/...). -->
 {% include 'presupuesto/_wizard_steps.html' with context %}
-<div class="container-fluid px-2 px-md-3" style="max-width:960px; margin:0 auto;">
 
-  <!-- Encabezado -->
-  <div class="d-flex align-items-center gap-2 mb-3">
-    <span class="badge bg-warning text-dark fs-6 px-3 py-2">Paso 2 / 8</span>
-    <h5 class="mb-0 fw-bold">Computo de Obra</h5>
-  </div>
+<form method="post" id="formComputo" data-wizard-form>
 
-  <!-- Barra total sticky -->
-  <!-- Fix 04/07/2026: top bajado de 60px a 106px — con 60px esta barra (z-index:100)
-       quedaba pegada casi en el mismo lugar que .wizard-sticky-nav (top:56px,
-       z-index:99) y la tapaba por completo, ocultando los botones Anterior/Siguiente. -->
-  <div class="card border-0 shadow-sm mb-3" style="position:sticky; top:106px; z-index:90; background:#0f1e3c;">
-    <div class="card-body py-2 px-3">
-      <div class="row align-items-center g-2 text-white">
-        <div class="col-auto">
-          <small class="opacity-75">COSTO DIRECTO TOTAL</small><br>
-          <strong class="fs-5" id="totalGeneral">{{ simbolo }} 0</strong>
-        </div>
-        <div class="col-auto ms-3">
-          <small class="opacity-75">HH CALCULADAS</small><br>
-          <strong id="hhTotal">0 hs</strong>
-        </div>
-        <div class="col text-end">
-          <small class="opacity-50 d-none d-md-inline">Ingrese cantidades por item</small>
-        </div>
+  <!-- Superficie -->
+  <div class="bloque">
+    <div class="bloque-cuerpo" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px">
+      <label style="font-size:14.5px;font-weight:600;margin:0"><i class="bi bi-rulers" style="color:var(--amarillo)"></i> Superficie cubierta</label>
+      <div class="sufijo" style="width:140px">
+        <input type="text" class="n" name="superficie" value="{{ p.superficie or '' }}" placeholder="0" inputmode="decimal" style="min-height:40px">
+        <span style="height:38px">m2</span>
       </div>
+      <small style="color:var(--gris);font-size:12.5px">Para el resumen y PDF</small>
     </div>
   </div>
 
-  <form method="post" id="formComputo" data-wizard-form>
+  <!-- Rubros -->
+  <div id="accordionRubros">
+    {% for r in rubros_default %}
+    {% set rnum = r['num'] %}
+    {% set grupo = rubros_agrupados[rnum] %}
+    {% set items_list = grupo['items'] %}
 
-    <!-- Superficie -->
-    <div class="card mb-3 border-0 shadow-sm">
-      <div class="card-body py-2">
-        <div class="row align-items-center g-2">
-          <div class="col-auto">
-            <label class="form-label mb-0 fw-semibold">
-              <i class="bi bi-rulers text-warning"></i> Superficie cubierta
-            </label>
-          </div>
-          <div class="col-auto">
-            <div class="input-group input-group-sm" style="width:160px;">
-              <input type="text" class="form-control" name="superficie"
-                     value="{{ p.superficie or '' }}" placeholder="m2"
-                     inputmode="decimal">
-              <span class="input-group-text">m2</span>
+    <div class="rubro">
+      <button type="button" class="rubro-hd" data-bs-toggle="collapse" data-bs-target="#rubro{{ rnum }}" aria-expanded="false" style="border:none">
+        <span class="rubro-n">{{ rnum }}</span>
+        <span class="rubro-nom">{{ r['nombre'] }}</span>
+        <span class="rubro-tot cero" id="badge{{ rnum }}">{{ simbolo }} 0</span>
+        <i class="bi bi-chevron-down chev"></i>
+      </button>
+
+      <div id="rubro{{ rnum }}" class="collapse rubro-body" data-bs-parent="#accordionRubros">
+        {% if items_list %}
+          {% for it in items_list %}
+          {% set prev_cant = cantidades.get(it['id'], 0) %}
+          {% set precio_unit = (it['precio_mo_ars'] or 0) + (it['mat_ars'] or 0) %}
+          <div class="fila {{ 'activa' if prev_cant > 0 else '' }}" id="row-{{ it['id'] }}">
+            <div class="fila-nom">{{ it['nombre'] }}</div>
+            <div class="fila-dat">
+              <span class="unidad">{{ it['unidad'] }}</span>
+              <input type="text"
+                     class="cant cant-input"
+                     name="item_{{ it['id'] }}"
+                     id="cant_{{ it['id'] }}"
+                     data-mo="{{ it['precio_mo_ars'] or 0 }}"
+                     data-mat="{{ it['mat_ars'] or 0 }}"
+                     data-hof="{{ it['hof'] }}"
+                     data-hay="{{ it['hay'] }}"
+                     data-rubro="{{ rnum }}"
+                     data-subtotal="subtotal_{{ it['id'] }}"
+                     value="{{ prev_cant if prev_cant > 0 else '' }}"
+                     placeholder="0" inputmode="decimal">
+              <span class="sub {{ 'cero' if not prev_cant else '' }}" id="subtotal_{{ it['id'] }}">
+                {% if prev_cant > 0 %}{{ "{:,.0f}".format(prev_cant * precio_unit).replace(",",".") }}{% else %}—{% endif %}
+              </span>
             </div>
           </div>
-          <div class="col">
-            <small class="text-muted">Para el resumen y PDF</small>
-          </div>
-        </div>
+          {% endfor %}
+          <div class="rubro-cierre"><span>Total {{ r['nombre'] }}</span><span class="num" id="total{{ rnum }}">{{ simbolo }} 0</span></div>
+        {% else %}
+        <div class="ayuda"><i class="bi bi-info-circle"></i> Sin items para este rubro.</div>
+        {% endif %}
       </div>
     </div>
+    {% endfor %}
+  </div>
 
-    <!-- Acordeon -->
-    <div class="accordion" id="accordionRubros">
+  <!-- Resumen por rubros -->
+  <div class="bloque">
+    <div class="bloque-hd"><i class="bi bi-list-check"></i> Resumen de costos directos</div>
+    <table class="tot">
+      <tbody>
+        {% for r in rubros_default %}
+        <tr>
+          <td class="lbl"><span class="num" style="color:var(--gris-cl)">{{ r['num'] }}</span> {{ r['nombre'] }}</td>
+          <td id="resumen{{ r['num'] }}">—</td>
+        </tr>
+        {% endfor %}
+        <tr class="final"><td>COSTO DIRECTO TOTAL</td><td id="resumenTotal">{{ simbolo }} 0</td></tr>
+      </tbody>
+    </table>
+  </div>
+</form>
 
-      {% for r in rubros_default %}
-      {% set rnum = r['num'] %}
-      {% set grupo = rubros_agrupados[rnum] %}
-
-      <div class="accordion-item border-0 shadow-sm mb-2 rounded-3 overflow-hidden">
-        <h2 class="accordion-header" style="scroll-margin-top:120px;">
-          <button class="accordion-button collapsed fw-semibold py-3" type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#rubro{{ rnum }}"
-                  aria-expanded="false">
-            <span class="badge bg-secondary text-white me-2">{{ rnum }}</span>
-            {{ r['nombre'] }}
-            <span class="ms-auto me-2 badge bg-light text-dark border"
-                  id="badge{{ rnum }}">{{ simbolo }} 0</span>
-          </button>
-        </h2>
-
-        <div id="rubro{{ rnum }}" class="accordion-collapse collapse"
-             data-bs-parent="#accordionRubros">
-          <div class="accordion-body p-0">
-
-            {% set items_list = grupo['items'] %}
-            {% if items_list %}
-            <div class="table-responsive">
-              <table class="table table-sm table-hover mb-0" style="font-size:.85rem;">
-                <thead class="table-dark">
-                  <tr>
-                    <th style="min-width:200px;">Item</th>
-                    <th class="text-center" style="width:65px;">Unidad</th>
-                    <th class="text-center" style="width:110px;">Cantidad</th>
-                    <th class="text-end d-none d-md-table-cell" style="width:130px;">P. Unit ({{ simbolo }})</th>
-                    <th class="text-end" style="width:130px;">Subtotal ({{ simbolo }})</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for it in items_list %}
-                  {% set prev_cant = cantidades.get(it['id'], 0) %}
-                  {% set precio_unit = (it['precio_mo_ars'] or 0) + (it['mat_ars'] or 0) %}
-                  <tr id="row-{{ it['id'] }}" class="{{ 'table-warning' if prev_cant > 0 else '' }}">
-                    <td class="align-middle">{{ it['nombre'] }}</td>
-                    <td class="text-center align-middle">
-                      <span class="badge bg-secondary">{{ it['unidad'] }}</span>
-                    </td>
-                    <td class="text-center align-middle">
-                      <input type="text"
-                             class="form-control form-control-sm text-center cant-input"
-                             name="item_{{ it['id'] }}"
-                             id="cant_{{ it['id'] }}"
-                             data-mo="{{ it['precio_mo_ars'] or 0 }}"
-                             data-mat="{{ it['mat_ars'] or 0 }}"
-                             data-hof="{{ it['hof'] }}"
-                             data-hay="{{ it['hay'] }}"
-                             data-rubro="{{ rnum }}"
-                             data-subtotal="subtotal_{{ it['id'] }}"
-                             value="{{ prev_cant if prev_cant > 0 else '' }}"
-                             placeholder="0" inputmode="decimal">
-                    </td>
-                    <td class="text-end align-middle text-muted d-none d-md-table-cell">
-                      {{ "{:,.0f}".format(precio_unit).replace(",",".") }}
-                    </td>
-                    <td class="text-end align-middle fw-semibold" id="subtotal_{{ it['id'] }}">
-                      {% if prev_cant > 0 %}
-                      {{ "{:,.0f}".format(prev_cant * precio_unit).replace(",",".") }}
-                      {% else %}—{% endif %}
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-                <tfoot class="table-secondary">
-                  <tr>
-                    <td colspan="3" class="fw-bold ps-3">Total {{ r['nombre'] }}</td>
-                    <td class="d-none d-md-table-cell"></td>
-                    <td class="text-end fw-bold" id="total{{ rnum }}">{{ simbolo }} 0</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-            {% else %}
-            <div class="p-3 text-muted"><i class="bi bi-info-circle"></i> Sin items para este rubro.</div>
-            {% endif %}
-
-          </div>
-        </div>
-      </div>
-      {% endfor %}
-
-    </div><!-- /accordion -->
-
-    <!-- Resumen por rubros -->
-    <div class="card border-0 shadow-sm mt-3 mb-3">
-      <div class="card-header bg-dark text-white fw-bold py-2">
-        <i class="bi bi-list-check"></i> Resumen de Costos Directos
-      </div>
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <tbody>
-            {% for r in rubros_default %}
-            <tr>
-              <td class="ps-3 text-muted" style="font-size:.85rem;">
-                <span class="badge bg-secondary me-1">{{ r['num'] }}</span>{{ r['nombre'] }}
-              </td>
-              <td class="text-end pe-3 fw-semibold" id="resumen{{ r['num'] }}">—</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot class="table-warning">
-            <tr>
-              <td class="ps-3 fw-bold">COSTO DIRECTO TOTAL</td>
-              <td class="text-end pe-3 fw-bold fs-6" id="resumenTotal">{{ simbolo }} 0</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
-
-    <!-- Botones -->
-    <div class="d-flex justify-content-between pb-4">
-      <button type="submit" name="_next" value="{{ url_for('presupuesto.nuevo') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Anterior
-      </button>
-      <button type="submit" class="btn btn-warning fw-bold px-4">
-        Siguiente <i class="bi bi-arrow-right"></i>
-      </button>
-    </div>
-
-  </form>
+<div class="barra-tot">
+  <a href="{{ url_for('presupuesto.nuevo') }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
+  <div class="bt-txt">
+    <div class="bt-lbl">Costo directo · <span id="hhTotal">0 hs</span></div>
+    <div class="bt-val" id="totalGeneral">{{ simbolo }} 0</div>
+  </div>
+  <button type="submit" form="formComputo" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 
 <script>
@@ -228,11 +122,12 @@ function recalcularRubro(rnum) {
     var subtotalEl = document.getElementById(inp.dataset.subtotal);
     if (subtotalEl) {
       subtotalEl.textContent = cant > 0 ? fmt(sub) : '—';
+      subtotalEl.classList.toggle('cero', !(cant > 0));
     }
-    var row = inp.closest('tr');
+    var row = document.getElementById('row-' + inp.id.replace('cant_', ''));
     if (row) {
-      if (cant > 0) { row.classList.add('table-warning'); }
-      else { row.classList.remove('table-warning'); }
+      if (cant > 0) { row.classList.add('activa'); }
+      else { row.classList.remove('activa'); }
     }
   });
 
@@ -245,13 +140,8 @@ function recalcularRubro(rnum) {
 
   var badgeEl = document.getElementById('badge' + rnum);
   if (badgeEl) {
-    if (total > 0) {
-      badgeEl.textContent = SIMBOLO + ' ' + fmt(total);
-      badgeEl.className = 'ms-auto me-2 badge bg-warning text-dark';
-    } else {
-      badgeEl.textContent = SIMBOLO + ' 0';
-      badgeEl.className = 'ms-auto me-2 badge bg-light text-dark border';
-    }
+    badgeEl.textContent = SIMBOLO + ' ' + fmt(total);
+    badgeEl.classList.toggle('cero', !(total > 0));
   }
 
   var resumenEl = document.getElementById('resumen' + rnum);
@@ -291,13 +181,18 @@ document.addEventListener('DOMContentLoaded', function() {
   {% endfor %}
   recalcularHH();
 
-  // Scroll al header cuando se abre un acordeon
-  document.querySelectorAll(".accordion-collapse").forEach(function(el) {
-    el.addEventListener("shown.bs.collapse", function() {
-      var header = this.previousElementSibling;
-      if (header) {
-        setTimeout(function(){ header.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
-      }
+  // Abrir/cerrar visual del rubro (clase .abierto + rotar chevron).
+  // Fix 01/08/2026: se sacó el scrollIntoView() que había acá — con el
+  // header del rubro ahora sticky (ver rediseno.css), forzar un scroll
+  // automático justo al abrir competía con el posicionamiento sticky y
+  // generaba un salto raro. Ya no hace falta: al ser sticky, el header
+  // queda visible solo con que el usuario siga bajando naturalmente.
+  document.querySelectorAll('.rubro-body').forEach(function(el) {
+    el.addEventListener('shown.bs.collapse', function() {
+      this.closest('.rubro').classList.add('abierto');
+    });
+    el.addEventListener('hidden.bs.collapse', function() {
+      this.closest('.rubro').classList.remove('abierto');
     });
   });
 
@@ -310,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Normalizar coma → punto antes de submit (para que Python pueda parsear float)
-  document.querySelector('form').addEventListener('submit', function() {
+  document.getElementById('formComputo').addEventListener('submit', function() {
     document.querySelectorAll('.cant-input, input[name="superficie"]').forEach(function(inp) {
       inp.value = (inp.value || '').replace(',', '.');
     });

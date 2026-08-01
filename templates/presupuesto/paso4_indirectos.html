@@ -2,57 +2,43 @@
 {% block title %}Indirectos — Paso 4{% endblock %}
 
 {% block content %}
+<div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
-<div class="row justify-content-center">
-  <div class="col-lg-7">
-    <div class="card">
-      <div class="card-header card-header-blue">
-        <i class="bi bi-truck"></i> Paso 4 — Costos indirectos
+<form method="post" id="formInd" data-wizard-form>
+  <div class="bloque">
+    <div class="bloque-cuerpo">
+      <div class="grupo-tit primero">Costos indirectos</div>
+      <div class="trio">
+        <div class="campo" style="margin:0">
+          <label>Movilidad</label>
+          <div class="sufijo"><input class="n" type="number" name="movilidad" id="movilidad" min="0" step="1000" placeholder="0"
+                 value="{{ p.get('indirectos', {}).get('movilidad', '') or '' }}"><span>$</span></div>
+        </div>
+        <div class="campo" style="margin:0">
+          <label>Alquiler andamios</label>
+          <div class="sufijo"><input class="n" type="number" name="andamios" id="andamios" min="0" step="1000" placeholder="0"
+                 value="{{ p.get('indirectos', {}).get('andamios', '') or '' }}"><span>$</span></div>
+        </div>
+        <div class="campo" style="margin:0">
+          <label>Alquiler herramientas</label>
+          <div class="sufijo"><input class="n" type="number" name="herramientas" id="herramientas" min="0" step="1000" placeholder="0"
+                 value="{{ p.get('indirectos', {}).get('herramientas', '') or '' }}"><span>$</span></div>
+        </div>
       </div>
-      <div class="card-body">
-        <form method="post" id="formInd" data-wizard-form>
 
-          <h6 class="text-muted">Costos indirectos</h6>
-          <div class="row g-2 mb-2">
-            <div class="col-md-4">
-              <label class="form-label form-label-sm">Movilidad ({{ simbolo }})</label>
-              <input type="number" name="movilidad" id="movilidad" class="form-control form-control-sm"
-                     min="0" step="1000" placeholder="Ingrese monto"
-                     value="{{ p.get('indirectos', {}).get('movilidad', '') or '' }}">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label form-label-sm">Alquiler andamios ({{ simbolo }})</label>
-              <input type="number" name="andamios" id="andamios" class="form-control form-control-sm"
-                     min="0" step="1000" placeholder="Ingrese monto"
-                     value="{{ p.get('indirectos', {}).get('andamios', '') or '' }}">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label form-label-sm">Alquiler herramientas ({{ simbolo }})</label>
-              <input type="number" name="herramientas" id="herramientas" class="form-control form-control-sm"
-                     min="0" step="1000" placeholder="Ingrese monto"
-                     value="{{ p.get('indirectos', {}).get('herramientas', '') or '' }}">
-            </div>
-          </div>
-
-          <!-- Indirectos adicionales dinámicos -->
-          <div id="extras-container"></div>
-          <button type="button" class="btn btn-outline-secondary btn-sm mb-4" onclick="agregarIndirecto()">
-            <i class="bi bi-plus-circle"></i> Agregar costo indirecto
-          </button>
-
-          <div class="d-flex justify-content-between">
-            <button type="submit" name="_next" value="{{ url_for('presupuesto.subcontratos') }}" class="btn btn-outline-secondary">
-              <i class="bi bi-arrow-left"></i> Anterior
-            </button>
-            <button type="submit" class="btn btn-warning fw-bold px-5">
-              Siguiente <i class="bi bi-arrow-right"></i>
-            </button>
-          </div>
-        </form>
-      </div>
+      <!-- Indirectos adicionales dinámicos -->
+      <div id="extras-container"></div>
+      <button type="button" class="btn2-fant" style="margin-top:8px" onclick="agregarIndirecto()">＋ Agregar costo indirecto</button>
     </div>
   </div>
+</form>
+
+<div class="barra-tot">
+  <a href="{{ url_for('presupuesto.subcontratos') }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
+  <div class="bt-txt"><div class="bt-lbl">Paso 4 de 8</div><div style="font-size:14px;color:#C3CBD9">Indirectos</div></div>
+  <button type="submit" form="formInd" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 {% endblock %}
 
@@ -64,21 +50,15 @@ let extraIdx = 0;
 function agregarIndirecto(){
   const n = extraIdx++;
   const div = document.createElement('div');
-  div.className = 'row g-2 align-items-center mb-2';
+  div.className = 'duo';
+  div.style.marginTop = '10px';
   div.innerHTML = `
-    <div class="col-md-6">
-      <input type="text" name="extra_${n}_nombre" class="form-control form-control-sm"
-             placeholder="Descripcion del costo">
+    <div class="campo" style="margin:0">
+      <input type="text" name="extra_${n}_nombre" placeholder="Descripción del costo">
     </div>
-    <div class="col-md-4">
-      <input type="number" name="extra_${n}_monto" class="form-control form-control-sm"
-             min="0" step="1000" placeholder="${SIM}">
-    </div>
-    <div class="col-auto">
-      <button type="button" class="btn btn-sm btn-outline-danger"
-              onclick="this.closest('.row').remove()">
-        <i class="bi bi-trash"></i>
-      </button>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <div class="sufijo" style="flex:1"><input class="n" type="number" name="extra_${n}_monto" min="0" step="1000" placeholder="0"><span>$</span></div>
+      <button type="button" class="btn2 btn2-2" style="min-height:48px;color:var(--rojo);border-color:var(--rojo)" onclick="this.closest('.duo').remove()"><i class="bi bi-trash"></i></button>
     </div>`;
   document.getElementById('extras-container').appendChild(div);
 }

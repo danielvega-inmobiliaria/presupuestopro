@@ -1,79 +1,59 @@
 {% extends 'base.html' %}
 {% block title %}Nuevo presupuesto — Paso 1{% endblock %}
 
-{% block sticky_nav %}
-<div class="wizard-sticky-nav">
-  <span class="text-muted small">Paso 1</span>
-  <button type="submit" form="formObra" class="btn btn-sm btn-warning fw-bold">
-    Siguiente <i class="bi bi-arrow-right"></i>
-  </button>
-</div>
-{% endblock %}
-
 {% block content %}
+<div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
-<div class="card mx-auto" style="max-width:700px">
-  <div class="card-header card-header-blue">
-    <i class="bi bi-person-lines-fill"></i> Paso 1 — Datos del cliente y la obra
-  </div>
-  <div class="card-body p-4">
-    <form method="post" id="formObra" data-wizard-form>
-      <h6 class="text-muted mb-3">Cliente</h6>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Nombre completo *</label>
-          <input type="text" name="cliente_nombre" class="form-control" required autofocus
-                 value="{{ p.get('cliente_nombre', '') }}">
+<form method="post" id="formObra" data-wizard-form>
+  <div class="bloque">
+    <div class="bloque-cuerpo">
+      <div class="grupo-tit primero">Cliente</div>
+      <div class="campo">
+        <label>Nombre completo <span class="req">*</span></label>
+        <input type="text" name="cliente_nombre" required autofocus value="{{ p.get('cliente_nombre', '') }}">
+      </div>
+      <div class="duo">
+        <div class="campo" style="margin:0">
+          <label>Teléfono</label>
+          <input class="n" type="text" name="cliente_tel" inputmode="tel" value="{{ p.get('cliente_tel', '') }}">
         </div>
-        <div class="col-md-3">
-          <label class="form-label">Teléfono</label>
-          <input type="text" name="cliente_tel" class="form-control"
-                 value="{{ p.get('cliente_tel', '') }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Email</label>
-          <input type="email" name="cliente_email" class="form-control"
-                 value="{{ p.get('cliente_email', '') }}">
+        <div class="campo" style="margin:0">
+          <label>Email</label>
+          <input type="email" name="cliente_email" placeholder="opcional" value="{{ p.get('cliente_email', '') }}">
         </div>
       </div>
 
-      <hr class="my-4">
-      <h6 class="text-muted mb-3">Obra</h6>
-      <div class="row g-3">
-        <div class="col-12">
-          <label class="form-label">Descripción de la obra *</label>
-          <input type="text" name="obra_descripcion" class="form-control"
-                 placeholder="Ej: Construcción de vivienda unifamiliar" required
-                 value="{{ p.get('obra_descripcion', '') }}">
+      <div class="grupo-tit">Obra</div>
+      <div class="campo">
+        <label>Descripción de la obra <span class="req">*</span></label>
+        <input type="text" name="obra_descripcion" placeholder="Ej: Construcción de vivienda unifamiliar" required
+               value="{{ p.get('obra_descripcion', '') }}">
+      </div>
+      <div class="campo">
+        <label>Dirección</label>
+        <input type="text" name="obra_direccion" placeholder="Calle, número, ciudad" value="{{ p.get('obra_direccion', '') }}">
+      </div>
+      <div class="campo">
+        <label>Tipo de obra</label>
+        {% set tipo_actual = p.get('obra_tipo', 'Vivienda nueva') %}
+        <select name="obra_tipo">
+          <option {{ 'selected' if tipo_actual == 'Vivienda nueva' }}>Vivienda nueva</option>
+          <option {{ 'selected' if tipo_actual == 'Ampliación' }}>Ampliación</option>
+          <option {{ 'selected' if tipo_actual == 'Refacción' }}>Refacción</option>
+          <option {{ 'selected' if tipo_actual == 'Comercial' }}>Comercial</option>
+          <option {{ 'selected' if tipo_actual == 'Industrial' }}>Industrial</option>
+          <option {{ 'selected' if tipo_actual == 'Otro' }}>Otro</option>
+        </select>
+      </div>
+      <div class="duo">
+        <div class="campo" style="margin:0">
+          <label>Fecha del presupuesto</label>
+          <input class="n" type="date" name="fecha_presup" value="{{ p.get('fecha_presup', hoy) }}">
         </div>
-        <div class="col-md-8">
-          <label class="form-label">Dirección</label>
-          <input type="text" name="obra_direccion" class="form-control"
-                 placeholder="Calle, número, ciudad"
-                 value="{{ p.get('obra_direccion', '') }}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Tipo de obra</label>
-          <select name="obra_tipo" class="form-select">
-            {% set tipo_actual = p.get('obra_tipo', 'Vivienda nueva') %}
-            <option {{ 'selected' if tipo_actual == 'Vivienda nueva' }}>Vivienda nueva</option>
-            <option {{ 'selected' if tipo_actual == 'Ampliación' }}>Ampliación</option>
-            <option {{ 'selected' if tipo_actual == 'Refacción' }}>Refacción</option>
-            <option {{ 'selected' if tipo_actual == 'Comercial' }}>Comercial</option>
-            <option {{ 'selected' if tipo_actual == 'Industrial' }}>Industrial</option>
-            <option {{ 'selected' if tipo_actual == 'Otro' }}>Otro</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Fecha del presupuesto</label>
-          <input type="date" name="fecha_presup" class="form-control"
-                 value="{{ p.get('fecha_presup', hoy) }}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Validez (días)</label>
-          <input type="number" name="validez" class="form-control"
-                 value="{{ p.get('validez', 15) }}" min="1">
+        <div class="campo" style="margin:0">
+          <label>Validez (días)</label>
+          <input class="n" type="number" name="validez" min="1" value="{{ p.get('validez', 15) }}">
         </div>
       </div>
       <!-- Fix 05/07/2026: se sacó "Descripción de trabajos" de acá — a esta
@@ -81,13 +61,13 @@
            así que no se puede armar una descripción real. Ahora se genera
            automáticamente en paso 8 (resumen), a partir de los ítems ya
            cargados, y queda editable ahí antes de guardar. -->
-
-      <div class="d-flex justify-content-end mt-4">
-        <button type="submit" class="btn btn-primary px-5">
-          Siguiente <i class="bi bi-arrow-right"></i>
-        </button>
-      </div>
-    </form>
+    </div>
   </div>
+</form>
+
+<div class="barra-tot">
+  <div class="bt-txt"><div class="bt-lbl">Paso 1 de 8</div><div style="font-size:14px;color:#C3CBD9">Datos de obra</div></div>
+  <button type="submit" form="formObra" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 {% endblock %}

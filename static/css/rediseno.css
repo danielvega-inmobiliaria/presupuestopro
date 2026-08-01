@@ -1,0 +1,199 @@
+/* ═══════════════════════════════════════════════════════════════
+   PRESUPUESTOPRO · SISTEMA DE DISEÑO (rediseño Opus 5, 18/07/2026)
+   Todo queda bajo el wrapper .pp2 para no pisar Bootstrap ni el
+   CSS viejo (static/css/style.css) en las pantallas que todavía no
+   se migraron. Migrar una pantalla = envolver su contenido en un
+   div class="pp2" y usar estas clases en vez de las de Bootstrap.
+   Fuente: mockup de 8 pantallas que armó Opus 5 (18/07/2026),
+   adaptado al stack real (Flask+Jinja2+Bootstrap 5.3.3).
+   ═══════════════════════════════════════════════════════════════ */
+.pp2{
+  --tinta:#101C31; --gris:#5E6673; --gris-cl:#8B929C;
+  --papel:#FFFFFF; --fondo:#ECEEEA; --linea:#D9DDD7;
+  --amarillo:#FDC300; --amarillo-cl:#FFF6D6;
+  --azul:#1B4FD8; --azul-cl:#E9EEFD;
+  --verde:#0F7A4A; --verde-cl:#E4F2EA;
+  --rojo:#C62828;
+  --f-ui:"Segoe UI",Roboto,system-ui,-apple-system,sans-serif;
+  --f-num:"SF Mono",Consolas,"Roboto Mono",monospace;
+  --r:4px; --pad:14px; --tap:48px;
+
+  font-family:var(--f-ui);background:var(--fondo);color:var(--tinta);
+  font-size:15px;line-height:1.45;
+}
+.pp2.pp2-con-barra{padding-bottom:78px}
+.pp2 *{box-sizing:border-box}
+.pp2 .num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap}
+
+/* PASO + PROGRESO (reemplaza el stepper de 8 tabs) */
+.pp2 .paso{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);margin-bottom:12px}
+.pp2 .paso-top{display:flex;align-items:center;gap:8px;padding:9px var(--pad) 8px}
+.pp2 .paso-n{font-family:var(--f-num);font-size:11.5px;font-weight:600;color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
+.pp2 .paso-tit{font-weight:700;font-size:17px}
+.pp2 .paso-ver{margin-left:auto;font-size:12.5px;color:var(--azul);background:none;border:none;font-weight:600;font-family:inherit;padding:0}
+.pp2 .barra{display:flex;gap:2px;padding:0 var(--pad) 8px}
+.pp2 .barra i{flex:1;height:3px;background:var(--linea);border-radius:2px;font-style:normal}
+.pp2 .barra i.ok{background:var(--verde)}
+.pp2 .barra i.hoy{background:var(--amarillo)}
+
+.pp2 .cont{padding:var(--pad) var(--pad) 90px}
+.pp2 .bloque{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);overflow:hidden;margin-bottom:12px}
+.pp2 .bloque-hd{padding:11px 14px;border-bottom:1px solid var(--linea);font-weight:700;font-size:15px}
+.pp2 .bloque-cuerpo{padding:14px}
+.pp2 .ayuda{font-size:13px;color:var(--gris);padding:13px 14px}
+
+/* FILA DE ÍTEM — nombre en su propia línea, nada se trunca, sin scroll horizontal */
+.pp2 .fila{padding:10px 14px;border-bottom:1px solid var(--linea);border-left:3px solid transparent}
+.pp2 .fila:last-child{border-bottom:none}
+.pp2 .fila.activa{background:var(--amarillo-cl);border-left-color:var(--amarillo)}
+.pp2 .fila-nom{font-size:14.5px;font-weight:500;line-height:1.3;margin-bottom:7px;overflow-wrap:anywhere}
+.pp2 .fila-dat{display:flex;align-items:center;gap:9px}
+.pp2 .unidad{font-family:var(--f-num);font-size:11px;font-weight:600;background:var(--fondo);color:var(--gris);padding:3px 7px;border-radius:3px;border:1px solid var(--linea);flex-shrink:0}
+.pp2 .cant{width:80px;height:40px;flex-shrink:0;border:1.5px solid var(--linea);border-radius:var(--r);font-family:var(--f-num);font-size:15px;font-weight:600;text-align:right;padding:0 9px;background:#fff;color:var(--tinta)}
+.pp2 .fila .sub{margin-left:auto;font-size:14.5px;font-weight:600;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pp2 .fila .sub.cero{color:var(--gris-cl);font-weight:400}
+.pp2 .quitar{width:34px;height:34px;flex-shrink:0;border:none;background:none;color:var(--rojo);font-size:16px;border-radius:50%}
+
+/* RUBRO PLEGABLE */
+.pp2 .rubro{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);margin-bottom:8px;isolation:isolate}
+.pp2 .rubro-hd{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;background:none;border:none;text-align:left;font-family:inherit;min-height:var(--tap);cursor:pointer;color:inherit;border-radius:var(--r) var(--r) 0 0}
+.pp2 .rubro:not(.abierto) .rubro-hd{border-radius:var(--r)}
+.pp2 .rubro-body{border-radius:0 0 var(--r) var(--r);overflow:hidden}
+.pp2 .rubro-hd:hover{background:var(--fondo)}
+.pp2 .rubro.abierto>.rubro-hd{background:var(--tinta);color:#fff}
+.pp2 .rubro.abierto>.rubro-hd:hover{background:var(--tinta)}
+.pp2 .rubro-n{font-family:var(--f-num);font-size:12px;font-weight:700;background:var(--fondo);color:var(--gris);padding:3px 6px;border-radius:3px;flex-shrink:0}
+.pp2 .rubro.abierto .rubro-n{background:rgba(255,255,255,.16);color:var(--amarillo)}
+.pp2 .rubro-nom{font-weight:600;font-size:14.5px;line-height:1.25;flex:1;min-width:0;overflow-wrap:anywhere}
+.pp2 .rubro-tot{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:600;white-space:nowrap}
+.pp2 .rubro-tot.cero{color:var(--gris-cl);font-weight:400}
+.pp2 .rubro.abierto .rubro-tot{color:var(--amarillo)}
+/* Fix 01/08/2026 (pedido de Daniel): con el rubro abierto, su encabezado
+   queda pegado debajo del navbar mientras se scrollea la lista de ítems —
+   así se puede cerrar el rubro sin tener que volver a scrollear arriba.
+   top:56px = alto del navbar sticky del sitio (mismo valor ya usado en
+   .wizard-sticky-nav de static/css/style.css). El "pegado" queda acotado
+   naturalmente a la altura del propio .rubro (no invade otros rubros). */
+.pp2 .rubro.abierto>.rubro-hd{position:sticky;top:var(--nav-h, 56px);z-index:15;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.pp2 .chev{flex-shrink:0;opacity:.55;font-size:11px;transition:transform .15s}
+.pp2 .rubro.abierto .chev{transform:rotate(180deg)}
+.pp2 .rubro-cierre{display:flex;padding:11px 14px;background:var(--fondo);border-top:1px solid var(--linea);font-size:13px;font-weight:600}
+.pp2 .rubro-cierre .num{margin-left:auto}
+
+/* FORMULARIO */
+.pp2 .campo{margin-bottom:15px}
+.pp2 .campo:last-child{margin-bottom:0}
+.pp2 .campo label{display:block;font-size:12.5px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.045em;margin-bottom:5px}
+.pp2 .campo label .req{color:var(--rojo)}
+.pp2 .campo input,.pp2 .campo select,.pp2 .campo textarea{width:100%;min-height:var(--tap);border:1.5px solid var(--linea);border-radius:var(--r);padding:11px 12px;font-size:16px;font-family:inherit;background:#fff;color:var(--tinta)}
+.pp2 .campo input:focus,.pp2 .campo select:focus,.pp2 .campo textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px var(--azul-cl)}
+.pp2 .campo input.n{font-family:var(--f-num);font-weight:600}
+.pp2 .campo .pista{font-size:12.5px;color:var(--gris);margin-top:5px}
+.pp2 .sufijo{position:relative}
+.pp2 .sufijo input{padding-right:44px}
+.pp2 .sufijo span{position:absolute;right:1px;top:1px;bottom:1px;width:40px;display:grid;place-items:center;color:var(--gris);font-family:var(--f-num);font-weight:600;font-size:14px;border-left:1px solid var(--linea);background:var(--fondo);border-radius:0 3px 3px 0}
+.pp2 .duo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pp2 .trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.pp2 .grupo-tit{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);padding-bottom:6px;border-bottom:1px solid var(--linea);margin:20px 0 13px}
+.pp2 .grupo-tit.primero{margin-top:0}
+
+/* BOTONES */
+.pp2 .btn2{min-height:var(--tap);padding:0 18px;border-radius:var(--r);font-family:inherit;font-size:15px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1.5px solid transparent;white-space:nowrap;cursor:pointer;text-decoration:none}
+.pp2 .btn2-1{background:var(--amarillo);color:var(--tinta);border-color:var(--amarillo)}
+.pp2 .btn2-2{background:#fff;color:var(--tinta);border-color:var(--linea)}
+.pp2 .btn2-ok{background:var(--verde);color:#fff;border-color:var(--verde)}
+.pp2 .btn2-fant{background:none;border:1.5px dashed var(--linea);color:var(--gris);font-weight:500;width:100%;min-height:44px;border-radius:var(--r);font-family:inherit;font-size:14px;cursor:pointer}
+.pp2 .btn2-min{min-height:40px;padding:0 12px;font-size:13.5px;font-weight:600;border-radius:var(--r);border:1.5px solid var(--linea);background:#fff;color:var(--tinta);display:inline-flex;align-items:center;justify-content:center;font-family:inherit;text-decoration:none;cursor:pointer}
+
+/* BARRA DE TOTAL — fija abajo, siempre visible (arregla "el total se pierde al hacer scroll") */
+.pp2 .barra-tot{position:fixed;left:0;right:0;bottom:0;z-index:1030;background:var(--tinta);color:#fff;padding:10px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 -2px 10px rgba(0,0,0,.15)}
+.pp2 .bt-txt{min-width:0;flex:1}
+.pp2 .bt-lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#9AA6BC;font-weight:600}
+.pp2 .bt-val{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:21px;font-weight:700;color:var(--amarillo);line-height:1.15;white-space:nowrap}
+.pp2 .barra-tot .btn2{flex-shrink:0}
+/* Botón "Anterior" (solo ícono) a la izquierda de la barra de total —
+   pedido de Daniel 01/08/2026: volver + total + siguiente, los tres
+   visibles juntos en la misma barra, en todas las pantallas del wizard
+   que lo permitan. */
+.pp2 .barra-tot .btn2-back{background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.28);min-width:44px;padding:0;font-size:17px}
+.pp2 .barra-tot .btn2-back:hover{background:rgba(255,255,255,.18)}
+.pp2 .barra-tot .bt-txt{text-align:center}
+
+/* TOTALES (tabla de resumen) */
+.pp2 table.tot{width:100%;border-collapse:collapse}
+.pp2 table.tot td{padding:10px 14px;border-bottom:1px solid var(--linea);font-size:14px;vertical-align:baseline}
+.pp2 table.tot td:last-child{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.pp2 table.tot td.txt{font-family:var(--f-ui);font-weight:500}
+.pp2 table.tot .lbl{color:var(--gris)}
+.pp2 table.tot .leve td{color:var(--gris);font-size:13px;font-weight:400}
+.pp2 table.tot .final td{background:var(--tinta);color:#fff;font-weight:700;font-size:16px;border:none;padding:14px}
+.pp2 table.tot .final td:last-child{color:var(--amarillo);font-size:18px}
+
+/* TARJETA DE PRESUPUESTO (dashboard) */
+.pp2 .pres{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);padding:13px 14px;margin-bottom:10px}
+.pp2 .pres-top{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+.pp2 .pres-cod{font-family:var(--f-num);font-size:11.5px;font-weight:700;color:var(--gris);background:var(--fondo);padding:2px 6px;border-radius:3px;border:1px solid var(--linea)}
+.pp2 .pres-monto{margin-left:auto;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:17px;font-weight:700;white-space:nowrap}
+.pp2 .pres-cli{font-weight:700;font-size:17px;line-height:1.2}
+.pp2 .pres-obra{font-size:13.5px;color:var(--gris);margin:1px 0 10px}
+.pp2 .pres-acc{display:flex;gap:7px;flex-wrap:wrap}
+.pp2 .pres-acc .btn2-min{flex:1;min-width:72px}
+.pp2 .borrador{background:var(--amarillo-cl);border:1px solid #EFD98A;border-left:3px solid var(--amarillo);border-radius:var(--r);padding:12px 14px;margin-bottom:14px}
+.pp2 .borrador-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#8A6A00;margin-bottom:5px}
+.pp2 .borrador-fila{display:flex;align-items:center;gap:10px;margin-top:9px}
+.pp2 .borrador-fila .t{flex:1;min-width:0}
+.pp2 .borrador-fila .t b{font-size:14.5px;display:block;line-height:1.25}
+.pp2 .borrador-fila .t span{font-size:12px;color:var(--gris);font-family:var(--f-num)}
+
+/* SELECTOR (radios grandes tipo tarjeta) */
+.pp2 .sel{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pp2 .sel-op{border:1.5px solid var(--linea);border-radius:var(--r);padding:14px 11px;text-align:center;background:#fff;font-family:inherit;color:var(--tinta);cursor:pointer;display:block}
+.pp2 .sel-op.on{border-color:var(--tinta);border-width:2px;background:var(--tinta);color:#fff}
+.pp2 .sel-op b{display:block;font-size:14.5px;margin-bottom:3px;font-weight:600}
+.pp2 .sel-op span{font-size:12px;color:var(--gris);line-height:1.35;display:block}
+.pp2 .sel-op.on span{color:#B9C3D6}
+.pp2 .sel-op .ic{font-size:20px;display:block;margin-bottom:6px}
+/* Selector accionado por <input type=radio> oculto (mismo patrón que btn-check
+   de Bootstrap, sin depender de JS para el estilo "elegido"). */
+.pp2 input.sel-input{position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}
+.pp2 input.sel-input:checked + .sel-op{border-color:var(--tinta);border-width:2px;background:var(--tinta);color:#fff}
+.pp2 input.sel-input:checked + .sel-op span{color:#B9C3D6}
+.pp2 input.sel-input:focus-visible + .sel-op{outline:3px solid var(--azul);outline-offset:2px}
+
+/* SUBCONTRATOS */
+.pp2 .sc{border-bottom:1px solid var(--linea)}
+.pp2 .sc:last-of-type{border-bottom:none}
+.pp2 .sc-hd{display:flex;align-items:center;gap:11px;min-height:var(--tap);padding:5px 0}
+.pp2 .sc-hd input{width:22px;height:22px;accent-color:var(--verde);flex-shrink:0}
+.pp2 .sc-hd b{font-weight:600;font-size:15px}
+.pp2 .sc-cuerpo{padding:2px 0 13px 33px}
+
+/* AVISOS */
+.pp2 .aviso{padding:11px 13px;border-radius:var(--r);font-size:13.5px;display:flex;gap:9px;align-items:flex-start;margin-bottom:12px;line-height:1.4}
+.pp2 .aviso-i{background:var(--azul-cl);color:#12327F;border-left:3px solid var(--azul)}
+.pp2 .aviso-ok{background:var(--verde-cl);color:#0A5334;border-left:3px solid var(--verde)}
+.pp2 .aviso-alerta{background:var(--amarillo-cl);color:#5C4400;border-left:3px solid var(--amarillo)}
+.pp2 .grupo{padding:7px 14px;background:var(--fondo);border-top:1px solid var(--linea);border-bottom:1px solid var(--linea);font-family:var(--f-num);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--gris)}
+
+/* KPIs / ADMIN */
+.pp2 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.pp2 .kpi{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);padding:12px 13px;border-top:3px solid var(--gris-cl)}
+.pp2 .kpi b{display:block;font-family:var(--f-num);font-size:26px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.pp2 .kpi span{font-size:12px;color:var(--gris);line-height:1.3;display:block;margin-top:2px}
+.pp2 .kpi.alerta{border-top-color:var(--rojo)}
+.pp2 .kpi.alerta b{color:var(--rojo)}
+.pp2 .kpi.bien{border-top-color:var(--verde)}
+.pp2 .kpi.dato{border-top-color:var(--azul)}
+.pp2 .adm-fila{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--linea);min-height:var(--tap);text-decoration:none;color:inherit}
+.pp2 .adm-fila:last-child{border-bottom:none}
+.pp2 .adm-fila .t{flex:1;min-width:0}
+.pp2 .adm-fila .t b{display:block;font-size:14.5px;font-weight:600}
+.pp2 .adm-fila .t span{font-size:12.5px;color:var(--gris);word-break:break-all}
+.pp2 .pend{font-family:var(--f-num);font-size:12px;font-weight:700;background:var(--rojo);color:#fff;padding:2px 8px;border-radius:10px}
+.pp2 .pend.q{background:var(--fondo);color:var(--gris);border:1px solid var(--linea)}
+
+.pp2 button:focus-visible,.pp2 input:focus-visible,.pp2 a:focus-visible,.pp2 select:focus-visible,.pp2 textarea:focus-visible{outline:3px solid var(--azul);outline-offset:2px}
+
+@media (min-width:576px){
+  .pp2 .sel{grid-template-columns:repeat(2,minmax(0,260px))}
+}

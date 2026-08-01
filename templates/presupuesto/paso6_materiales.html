@@ -1,121 +1,56 @@
 {% extends 'base.html' %}
 {% block title %}Materiales — Paso 6{% endblock %}
 
-{% block sticky_nav %}
-<div class="wizard-sticky-nav">
-  <!-- Fix 05/07/2026: "Anterior" ahora guarda este paso antes de volver (ver
-       _redir_next en routes/presupuesto.py) en vez de descartar cambios. -->
-  <button type="submit" form="formMateriales" name="_next" value="{{ url_for('presupuesto.modo_tiempo') }}" class="btn btn-sm btn-outline-secondary">
-    <i class="bi bi-arrow-left"></i> Anterior
-  </button>
-  <button type="submit" form="formMateriales" class="btn btn-sm btn-warning fw-bold">
-    Siguiente <i class="bi bi-arrow-right"></i>
-  </button>
-</div>
-{% endblock %}
-
 {% block content %}
+<div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
-<div class="card">
-  <div class="card-header card-header-blue d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-boxes"></i> Paso 6 — Materiales</span>
-    <span class="badge bg-success">Calculado desde cómputo</span>
-  </div>
-  <div class="card-body p-0">
+{% if mats_previos %}
+<div class="aviso aviso-ok"><span>✓</span><div>Lista calculada desde el cómputo. Ajustá las cantidades si hace falta.</div></div>
+{% else %}
+<div class="aviso aviso-alerta"><i class="bi bi-exclamation-triangle"></i> No se encontraron materiales. Revisá el cómputo en el paso 2.</div>
+{% endif %}
 
-    {% if mats_previos %}
-    <div class="alert alert-info m-3 mb-0 py-2 small">
-      <i class="bi bi-info-circle"></i>
-      Lista de materiales calculada automáticamente. Podés ajustar cantidades si es necesario.
+<form method="post" id="formMateriales" data-wizard-form>
+  <div class="bloque" id="tbl-mats">
+    <div id="tbody-mats">
+      {% set cat_labels = {0:'Corralón / General', 1:'Desagues', 2:'Electricidad', 3:'Agua F/C', 4:'Gas', 5:'Techos / Madera', 6:'Cerámicos / Pisos', 7:'Pintura'} %}
+      {% set ns = namespace(last_cat=None) %}
+      {% for m in mats_previos %}
+      {% set cur_cat = m.get('categoria', 0) if m is mapping else 0 %}
+      {% if cur_cat != ns.last_cat %}
+        {% set ns.last_cat = cur_cat %}
+        <div class="grupo">{{ cat_labels.get(cur_cat, 'General') }}</div>
+      {% endif %}
+      <div class="fila mat-row" data-idx="{{ loop.index0 }}">
+        <div class="fila-nom">{{ m.nombre }}</div>
+        <div class="fila-dat">
+          <span class="unidad">{{ m.unidad }}</span>
+          <input type="number" name="mat_{{ loop.index0 }}_cant"
+                 class="cant mat-cant"
+                 min="0" step="0.001" value="{{ m.cantidad }}"
+                 data-precio="{{ m.precio_local }}"
+                 data-idx="{{ loop.index0 }}"
+                 oninput="calcRow(this)">
+          <span class="sub" id="sub-{{ loop.index0 }}">{{ simbolo }} {{ "{:,.0f}".format(m.subtotal).replace(',','.') }}</span>
+          <button type="button" class="quitar" onclick="eliminarFila(this)" title="Quitar"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <input type="hidden" name="mat_{{ loop.index0 }}_nombre" value="{{ m.nombre }}">
+        <input type="hidden" name="mat_{{ loop.index0 }}_unidad" value="{{ m.unidad }}">
+        <input type="hidden" name="mat_{{ loop.index0 }}_precio" value="{{ m.precio_local }}">
+      </div>
+      {% endfor %}
     </div>
-    {% else %}
-    <div class="alert alert-warning m-3 mb-0 py-2 small">
-      <i class="bi bi-exclamation-triangle"></i>
-      No se encontraron materiales. Revisá el cómputo en el paso 2.
-    </div>
-    {% endif %}
-
-    <form method="post" id="formMateriales" data-wizard-form>
-      <div class="mx-3 mt-3">
-        <table class="table table-sm table-hover w-100" id="tbl-mats">
-          <thead class="table-light">
-            <tr>
-              <th>Material</th>
-              <th class="text-center" style="width:65px">Cant.</th>
-              <th class="text-end"    style="width:90px">Subtotal</th>
-              <th style="width:32px"></th>
-            </tr>
-          </thead>
-          <tbody id="tbody-mats">
-            {% set cat_labels = {0:'Corralón / General', 1:'Desagues', 2:'Electricidad', 3:'Agua F/C', 4:'Gas', 5:'Techos / Madera', 6:'Cerámicos / Pisos', 7:'Pintura'} %}
-            {% set ns = namespace(last_cat=None) %}
-            {% for m in mats_previos %}
-            {% set cur_cat = m.get('categoria', 0) if m is mapping else 0 %}
-            {% if cur_cat != ns.last_cat %}
-            {% set ns.last_cat = cur_cat %}
-            <tr class="table-secondary">
-              <td colspan="4" class="py-1 px-2 small fw-bold text-muted text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
-                {{ cat_labels.get(cur_cat, 'General') }}
-              </td>
-            </tr>
-            {% endif %}
-            <tr class="mat-row" data-idx="{{ loop.index0 }}">
-              <td>
-                <div class="fw-semibold small">{{ m.nombre }}</div>
-                <div class="text-muted" style="font-size:.7rem">{{ m.unidad }}</div>
-                <input type="hidden" name="mat_{{ loop.index0 }}_nombre" value="{{ m.nombre }}">
-                <input type="hidden" name="mat_{{ loop.index0 }}_unidad" value="{{ m.unidad }}">
-              </td>
-              <td class="text-center align-middle">
-                <input type="number" name="mat_{{ loop.index0 }}_cant"
-                       class="form-control form-control-sm text-end mat-cant"
-                       min="0" step="0.001" value="{{ m.cantidad }}"
-                       data-precio="{{ m.precio_local }}"
-                       data-idx="{{ loop.index0 }}"
-                       style="width:60px"
-                       oninput="calcRow(this)">
-                <input type="hidden" name="mat_{{ loop.index0 }}_precio" value="{{ m.precio_local }}">
-              </td>
-              <td class="text-end align-middle fw-bold small" id="sub-{{ loop.index0 }}">
-                {{ simbolo }} {{ "{:,.0f}".format(m.subtotal).replace(',','.') }}
-              </td>
-              <td class="text-center align-middle">
-                <button type="button" class="btn btn-sm btn-link text-danger p-0"
-                        onclick="eliminarFila(this)" title="Quitar">
-                  <i class="bi bi-x-circle"></i>
-                </button>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="px-3 pb-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="agregarFila()">
-          <i class="bi bi-plus-circle"></i> Agregar material
-        </button>
-      </div>
-
-      <!-- Total -->
-      <div class="p-3 border-top bg-light d-flex justify-content-between align-items-center">
-        <strong class="text-muted">Total materiales:</strong>
-        <strong id="total-materiales" class="fs-5 text-primary">
-          {{ simbolo }} {{ "{:,.0f}".format(total_calc).replace(',','.') }}
-        </strong>
-      </div>
-
-      <div class="d-flex justify-content-between p-3">
-        <button type="submit" name="_next" value="{{ url_for('presupuesto.modo_tiempo') }}" class="btn btn-outline-secondary">
-          <i class="bi bi-arrow-left"></i> Anterior
-        </button>
-        <button type="submit" class="btn btn-primary px-5">
-          Siguiente <i class="bi bi-arrow-right"></i>
-        </button>
-      </div>
-    </form>
   </div>
+
+  <button type="button" class="btn2-fant" onclick="agregarFila()">＋ Agregar material</button>
+</form>
+
+<div class="barra-tot">
+  <a href="{{ url_for('presupuesto.modo_tiempo') }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
+  <div class="bt-txt"><div class="bt-lbl">Total materiales</div><div class="bt-val" id="total-materiales">{{ simbolo }} {{ "{:,.0f}".format(total_calc).replace(',','.') }}</div></div>
+  <button type="submit" form="formMateriales" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 {% endblock %}
 
@@ -128,7 +63,6 @@ function fmt(n){ return SIM + ' ' + Math.round(n).toLocaleString('es-AR'); }
 
 function calcRow(inp){
   const idx = inp.dataset.idx;
-  const row = inp.closest('tr');
   const cant  = parseFloat(inp.value) || 0;
   const precio = parseFloat(inp.dataset.precio) || 0;
   document.getElementById('sub-' + idx).textContent = fmt(cant * precio);
@@ -146,7 +80,7 @@ function recalcTotal(){
 }
 
 function eliminarFila(btn){
-  const row = btn.closest('tr');
+  const row = btn.closest('.mat-row');
   const cantInp = row.querySelector('.mat-cant');
   if(cantInp) cantInp.value = '0';
   row.style.display = 'none';
@@ -157,30 +91,19 @@ function eliminarFila(btn){
 function agregarFila(){
   const idx = rowCount++;
   const tbody = document.getElementById('tbody-mats');
-  const tr = document.createElement('tr');
-  tr.className = 'mat-row';
-  tr.dataset.idx = idx;
-  tr.innerHTML = `
-    <td>
-      <input type="text" name="mat_${idx}_nombre"
-             class="form-control form-control-sm mb-1" placeholder="Material">
-      <input type="text" name="mat_${idx}_unidad"
-             class="form-control form-control-sm" placeholder="Unidad" style="width:80px;font-size:.7rem">
-    </td>
-    <td class="text-center align-middle">
-      <input type="number" name="mat_${idx}_cant"
-             class="form-control form-control-sm text-end mat-cant"
-             min="0" step="0.001" value="0" data-precio="0" data-idx="${idx}"
-             style="width:60px" oninput="calcRow(this)">
+  const div = document.createElement('div');
+  div.className = 'fila mat-row';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <div class="fila-nom"><input type="text" name="mat_${idx}_nombre" placeholder="Material" style="width:100%;border:1px solid var(--linea);border-radius:4px;padding:6px 8px;font:inherit"></div>
+    <div class="fila-dat">
+      <input type="text" name="mat_${idx}_unidad" placeholder="Unidad" style="width:64px;height:40px;border:1px solid var(--linea);border-radius:4px;padding:0 8px;font:inherit;flex-shrink:0">
+      <input type="number" name="mat_${idx}_cant" class="cant mat-cant" min="0" step="0.001" value="0" data-precio="0" data-idx="${idx}" oninput="calcRow(this)">
       <input type="hidden" name="mat_${idx}_precio" value="0">
-    </td>
-    <td class="text-end align-middle fw-bold small" id="sub-${idx}">—</td>
-    <td class="text-center align-middle">
-      <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="eliminarFila(this)">
-        <i class="bi bi-x-circle"></i>
-      </button>
-    </td>`;
-  tbody.appendChild(tr);
+      <span class="sub cero" id="sub-${idx}">—</span>
+      <button type="button" class="quitar" onclick="eliminarFila(this)"><i class="bi bi-x-lg"></i></button>
+    </div>`;
+  tbody.appendChild(div);
 }
 </script>
 {% endblock %}

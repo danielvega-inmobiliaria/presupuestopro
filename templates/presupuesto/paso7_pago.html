@@ -2,93 +2,52 @@
 {% block title %}Forma de pago — Paso 7{% endblock %}
 
 {% set _paso_anterior = 'presupuesto.modo_tiempo' if p.get('modo') == 'solo_mo' else 'presupuesto.materiales' %}
-{% block sticky_nav %}
-<div class="wizard-sticky-nav">
-  <!-- Fix 04/07/2026 / unificado 05/07/2026: "Anterior" guarda este paso (via
-       _redir_next en routes/presupuesto.py) antes de volver, así la frecuencia
-       elegida nunca se pierde. -->
-  <button type="submit" form="formPago" name="_next" value="{{ url_for(_paso_anterior) }}" class="btn btn-sm btn-outline-secondary">
-    <i class="bi bi-arrow-left"></i> Anterior
-  </button>
-  <button type="submit" form="formPago" class="btn btn-sm btn-warning fw-bold">
-    Siguiente <i class="bi bi-arrow-right"></i>
-  </button>
-</div>
-{% endblock %}
 
 {% block content %}
+<div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
-<div class="row justify-content-center">
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header card-header-blue">
-        <i class="bi bi-cash-stack"></i> Paso 7 — Forma de pago
-      </div>
-      <div class="card-body">
-        <div class="totals-bar mb-4">
-          <div class="text-center">
-            <div class="small opacity-75">Total del presupuesto</div>
-            <div class="total-main">{{ simbolo }} {{ "{:,.0f}".format(total).replace(',', '.') }}</div>
-          </div>
+<div class="bloque" style="background:var(--tinta);color:#fff;border:none;padding:16px;text-align:center">
+  <div style="font-size:11px;color:#9AA6BC;text-transform:uppercase;letter-spacing:.06em">Total del presupuesto</div>
+  <div class="num" style="font-size:24px;font-weight:700;color:var(--amarillo)">{{ simbolo }} {{ "{:,.0f}".format(total).replace(',', '.') }}</div>
+</div>
+
+<form method="post" id="formPago" data-wizard-form>
+  <div class="bloque">
+    <div class="bloque-cuerpo">
+      <div class="trio">
+        <div class="campo" style="margin:0"><label>% Anticipo</label>
+          <div class="sufijo"><input class="n" type="number" name="pct_anticipo" id="pct_ant" min="0" max="100" step="5" value="{{ p.get('pct_anticipo', 30) }}" inputmode="decimal"><span>%</span></div></div>
+        <div class="campo" style="margin:0"><label>% Saldo final</label>
+          <div class="sufijo"><input class="n" type="number" name="pct_final" id="pct_fin" min="0" max="100" step="5" value="{{ p.get('pct_final', 20) }}" inputmode="decimal"><span>%</span></div></div>
+        <div class="campo" style="margin:0"><label>Frecuencia</label>
+          {% set frec = p.get('frecuencia', 'mensual') %}
+          <select name="frecuencia" id="frecuencia">
+            <option value="semanal"   {{ 'selected' if frec=='semanal' }}>Semanal</option>
+            <option value="quincenal" {{ 'selected' if frec=='quincenal' }}>Quincenal</option>
+            <option value="mensual"   {{ 'selected' if frec=='mensual' or not frec }}>Mensual</option>
+          </select>
         </div>
-
-        <form method="post" id="formPago" data-wizard-form>
-          <div class="row g-3 mb-4">
-            <div class="col-md-4">
-              <label class="form-label">% Anticipo</label>
-              <div class="input-group">
-                <input type="number" name="pct_anticipo" id="pct_ant" class="form-control"
-                       min="0" max="100" step="5"
-                       value="{{ p.get('pct_anticipo', 30) }}"
-                       inputmode="decimal">
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">% Saldo final</label>
-              <div class="input-group">
-                <input type="number" name="pct_final" id="pct_fin" class="form-control"
-                       min="0" max="100" step="5"
-                       value="{{ p.get('pct_final', 20) }}"
-                       inputmode="decimal">
-                <span class="input-group-text">%</span>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Frecuencia de cuotas</label>
-              <select name="frecuencia" id="frecuencia" class="form-select">
-                {% set frec = p.get('frecuencia', 'mensual') %}
-                <option value="semanal"   {{ 'selected' if frec=='semanal' }}>Semanal</option>
-                <option value="quincenal" {{ 'selected' if frec=='quincenal' }}>Quincenal</option>
-                <option value="mensual"   {{ 'selected' if frec=='mensual' or not frec }}>Mensual</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="alert alert-secondary">
-            <i class="bi bi-info-circle"></i>
-            Obra de <strong>{{ p.get('dias_obra', 0) }}</strong> días →
-            cuotas intermedias calculadas: <strong id="n-cuotas-txt">{{ n_cuotas }}</strong>
-          </div>
-
-          <!-- Cuadro de pagos dinámico (3 líneas) -->
-          <h6 class="text-muted mb-2">Cuadro de pagos estimado</h6>
-          <div id="cuadro-pago"></div>
-          <div id="verif-pago" class="text-end text-muted small mt-1"></div>
-
-          <div class="d-flex justify-content-between mt-4">
-            <button type="submit" name="_next" value="{{ url_for(_paso_anterior) }}" class="btn btn-outline-secondary">
-              <i class="bi bi-arrow-left"></i> Anterior
-            </button>
-            <button type="submit" class="btn btn-primary px-5">
-              Ver resumen <i class="bi bi-arrow-right"></i>
-            </button>
-          </div>
-        </form>
+      </div>
+      <div class="aviso aviso-i" style="margin-top:14px;margin-bottom:0">
+        <i class="bi bi-info-circle"></i>
+        <div>Obra de <b>{{ p.get('dias_obra', 0) }}</b> días → cuotas intermedias calculadas: <b id="n-cuotas-txt">{{ n_cuotas }}</b></div>
       </div>
     </div>
   </div>
+
+  <div class="bloque">
+    <div class="bloque-hd">Cuadro de pagos estimado</div>
+    <table class="tot" id="cuadro-pago"></table>
+    <div style="padding:6px 14px 12px;text-align:right;color:var(--gris);font-size:12.5px" id="verif-pago"></div>
+  </div>
+</form>
+
+<div class="barra-tot">
+  <a href="{{ url_for(_paso_anterior) }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
+  <div class="bt-txt"><div class="bt-lbl">Paso 7 de 8</div><div style="font-size:14px;color:#C3CBD9">Forma de pago</div></div>
+  <button type="submit" form="formPago" class="btn2 btn2-1">Ver resumen <i class="bi bi-arrow-right"></i></button>
+</div>
 </div>
 {% endblock %}
 
@@ -129,30 +88,17 @@ function recalc(){
 
   let cuotasTxt = nCuotas > 0
     ? `${nCuotas} cuota${nCuotas>1?'s':''} ${fLabel} de ${fmt(montoC)} c/u`
-    : `<em class="text-muted">Sin cuotas intermedias</em>`;
+    : `<span style="color:var(--gris-cl)">Sin cuotas intermedias</span>`;
 
   let html = `
-  <table class="table table-sm mb-0" style="border-radius:8px;overflow:hidden">
-    <tbody>
-      <tr style="background:#166534;color:#fff">
-        <td><i class="bi bi-play-circle-fill me-1"></i><strong>Anticipo</strong> · al inicio</td>
-        <td class="text-end fw-bold fs-6">${fmt(anticipo)}</td>
-      </tr>
-      <tr style="background:#f3f4f6">
-        <td><i class="bi bi-calendar3 me-1 text-primary"></i>${cuotasTxt}</td>
-        <td class="text-end text-muted">${nCuotas>0 ? fmt(montoC)+' c/u' : '—'}</td>
-      </tr>
-      <tr style="background:#ea580c;color:#fff">
-        <td><i class="bi bi-flag-fill me-1"></i><strong>Saldo final</strong> · al terminar obra</td>
-        <td class="text-end fw-bold fs-6">${fmt(saldo)}</td>
-      </tr>
-    </tbody>
-  </table>`;
+    <tr><td>▶ Anticipo <span class="lbl">· al inicio</span></td><td>${fmt(anticipo)}</td></tr>
+    <tr><td>▦ ${cuotasTxt}</td><td>${nCuotas>0 ? fmt(montoC)+' c/u' : '—'}</td></tr>
+    <tr><td>⚑ Saldo final <span class="lbl">· al terminar obra</span></td><td>${fmt(saldo)}</td></tr>`;
 
   document.getElementById('cuadro-pago').innerHTML = html;
 
   const total_check = anticipo + montoC * nCuotas + saldo;
-  document.getElementById('verif-pago').textContent = `Total a cobrar: ${fmt(total_check)}  ✓`;
+  document.getElementById('verif-pago').textContent = `Total a cobrar: ${fmt(total_check)} ✓`;
 }
 
 ['pct_ant','pct_fin','frecuencia'].forEach(id => document.getElementById(id).addEventListener('input', recalc));
