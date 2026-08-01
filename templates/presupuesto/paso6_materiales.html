@@ -81,6 +81,12 @@ function recalcTotal(){
 
 function eliminarFila(btn){
   const row = btn.closest('.mat-row');
+  const nombre = row.querySelector('.fila-nom')?.textContent?.trim()
+              || row.querySelector('input[name$="_nombre"]')?.value
+              || 'este material';
+  // Fix 01/08/2026 (pedido de Daniel): antes se eliminaba apenas se tocaba
+  // la X, sin poder deshacerlo. Ahora pide confirmación primero.
+  if(!confirm('¿Quitar "' + nombre + '" del presupuesto?')) return;
   const cantInp = row.querySelector('.mat-cant');
   if(cantInp) cantInp.value = '0';
   row.style.display = 'none';

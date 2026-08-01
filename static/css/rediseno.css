@@ -94,6 +94,12 @@
 .pp2 .sufijo span{position:absolute;right:1px;top:1px;bottom:1px;width:40px;display:grid;place-items:center;color:var(--gris);font-family:var(--f-num);font-weight:600;font-size:14px;border-left:1px solid var(--linea);background:var(--fondo);border-radius:0 3px 3px 0}
 .pp2 .duo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .pp2 .trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+/* Fix 01/08/2026 (pedido de Daniel): en grupos de 3 campos lado a lado
+   (paso 4 Indirectos, paso 7 Forma de pago), si una etiqueta ocupa 2 líneas
+   ("Alquiler andamios") y otra 1 ("Movilidad"), los inputs quedaban
+   desalineados. Reservamos el alto de 2 líneas siempre y alineamos el
+   texto de la etiqueta abajo, así todos los inputs arrancan a la misma altura. */
+.pp2 .trio .campo label{min-height:2.6em;display:flex;align-items:flex-end}
 .pp2 .grupo-tit{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);padding-bottom:6px;border-bottom:1px solid var(--linea);margin:20px 0 13px}
 .pp2 .grupo-tit.primero{margin-top:0}
 
