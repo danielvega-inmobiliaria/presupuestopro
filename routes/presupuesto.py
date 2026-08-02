@@ -779,6 +779,10 @@ def demo():
              'total_local': 240000, 'total_usd': 0, 'cantidad': 1, 'unidad': 'Global'},
         ],
         'indirectos': {'movilidad': 25000, 'andamios': 40000, 'herramientas': 15000},
+        # Pedido de Daniel 02/08/2026: para el recorrido guiado, la forma de
+        # pago sugerida en paso 7 es semanal (antes quedaba en "mensual" por
+        # default, sin relación con ningún pedido explícito).
+        'frecuencia': 'semanal',
     }
     session['presup'] = p
     return redirect(url_for('presupuesto.nuevo'))

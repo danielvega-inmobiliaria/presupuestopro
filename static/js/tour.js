@@ -4,120 +4,189 @@
    usuarios registrados, 45 vencieron la prueba gratis sin pagar
    nunca (0 conversiones).
 
-   Fix 02/08/2026 (2da vuelta, importante): la primera versión era un
-   tour "real" — le pedía al usuario escribir su propio cliente/obra
-   para poder avanzar. Daniel lo probó y no daba pie con bola ("me
-   quedo esperando el tour, no se sabe qué hay que completar"). Ahora
-   es un recorrido DEMO: al arrancar (botón "＋ Nuevo presupuesto" o
-   "Recorrido virtual" del Dashboard, mientras el tour está activo) se
-   precarga en el servidor un presupuesto 100% ficticio (ver
-   routes/presupuesto.py::demo()) — cliente, ítems de 3 rubros,
-   2 subcontratos, indirectos — y el usuario SOLO va tocando
-   "Siguiente" mientras el popover le explica cada pantalla ya
-   completada. Nada de tipeo, nada de decisiones.
+   Historial (para quien retome esto):
+   - v1: tour "real" — el usuario tenía que escribir sus propios datos
+     para poder avanzar. No funcionaba ("me quedo esperando, no sé qué
+     hay que completar").
+   - v2: demo auto-completado (rubros/subcontratos/indirectos
+     precargados vía routes/presupuesto.py::demo()), pero el usuario
+     todavía tenía que ir clickeando los controles reales de cada
+     pantalla para avanzar.
+   - v3 (esta versión, 02/08/2026 2da vuelta): recorrido MUCHO más
+     granular — arranca mostrando cómo configurar la empresa (perfil),
+     sigue con 2 ejemplos de Costo/m², y recién ahí entra al asistente
+     de presupuesto (paso 1 a 8) y termina en la pantalla final con los
+     2 PDF. En cada pantalla se van iluminando los bloques uno por uno
+     con su propia explicación. El usuario SOLO toca "Siguiente" en el
+     popover — nunca tiene que interactuar con el control real de la
+     página (ni tocar un botón "Guardar", ni un link "Nuevo
+     presupuesto"): este script dispara el submit del formulario real o
+     la navegación por su cuenta cuando corresponde. Ver `leaveAction`
+     en cada paso de STEPS más abajo.
 
-   Librería: Driver.js (~5kb, sin dependencias) — cargada vía CDN
-   en templates/base.html, junto a este archivo.
+   Librería: Driver.js (CDN, cargada en templates/base.html).
 
-   Cómo funciona (recorrido real de 8 páginas, no un modal único):
-   - Cada paso del tour vive en una página distinta. Como una carga de
-     página normal destruye cualquier instancia de Driver.js, se usa
-     el patrón recomendado por la propia documentación de Driver.js
-     para tours multi-página: guardar en qué paso quedó (localStorage)
-     antes de navegar, y retomarlo en la carga de página siguiente.
-   - Cada plantilla que participa declara su "etapa" con
-     data-tour-stage="..." en el <body> (ver templates/base.html,
-     bloque Jinja {% block tour_stage %}). Este script solo actúa si
-     la etapa de la página actual coincide con el paso que corresponde
-     mostrar.
-   - El botón "×" (cerrar) de cada paso NO cancela el recorrido entero
-     — solo cierra ese popover puntual y avanza al próximo paso, igual
-     que tocar "Siguiente" (si alguien cierra pensando "listo,
-     entendido", el recorrido sigue disponible en la próxima pantalla
-     en vez de apagarse para siempre).
-   - El único lugar donde se marca `tour_completado=1` (no se vuelve a
-     mostrar más) es: (a) al cerrar/terminar el último paso (los PDF,
-     al final), o (b) tocando el link chico "Saltar todo el recorrido"
-     que tiene cada popover (POST a /tour/completar, ver
-     routes/dashboard.py).
+   Patrón multi-página: cada `{% block tour_stage %}...{% endblock %}`
+   (ver templates/base.html) declara en qué pantalla está el usuario,
+   vía `data-tour-stage` en <body>. Como cada carga de página destruye
+   la instancia de Driver.js, el índice del paso actual se guarda en
+   localStorage antes de navegar y se retoma en la página siguiente
+   (patrón oficial de Driver.js para tours multi-página).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
 
   var STORAGE_KEY = 'pp_tour_step';
   var MARCAR_URL = '/tour/completar';
-  var DEMO_URL = '/presupuesto/demo';
+  var URL_PERFIL = '/perfil/';
+  var URL_COSTO_M2 = '/costo-m2/';
+  var URL_DEMO = '/presupuesto/demo';
 
-  // Recorrido: 1) Nuevo presupuesto, 2) Costo/m² (desvío destacado — "aha
-  // moment" rápido), 3) datos de obra (ya completados), 4) cómputo/rubros
-  // (ítems ya elegidos), 5) subcontratos (ya marcados), 6) indirectos (ya
-  // completados), 7) resumen y Guardar, 8) los 2 PDF. Los índices de este
-  // array son el "número de paso" que se persiste en localStorage entre
-  // páginas.
+  // Cada paso vive en una pantalla concreta (`stage`) y apunta a un
+  // elemento real de esa pantalla. `leaveAction` (solo en el ÚLTIMO paso
+  // de cada pantalla) define cómo se avanza a la siguiente: "navigate"
+  // pega un salto directo a otra URL, "submit" dispara el submit real del
+  // formulario de esa pantalla (con todos sus datos ya precargados). Los
+  // pasos sin `leaveAction` simplemente avanzan dentro de la misma pantalla.
   var STEPS = [
+    // ── 1) Mi Empresa ──────────────────────────────────────────────
     {
-      stage: 'dashboard',
-      element: '#tour-nuevo-presupuesto',
+      stage: 'dashboard', element: '#tour-mi-empresa',
       popover: {
         title: '¡Bienvenido a PresupuestoPRO! 👋',
-        description: 'Te mostramos en 1 minuto cómo se arma un presupuesto de punta a punta, con un ejemplo ya completado — no hace falta que escribas nada, con ir tocando "Siguiente" alcanza.'
+        description: 'Antes de armar tu primer presupuesto, configuremos los datos de tu empresa — así van a aparecer en los PDFs que le mandás a tus clientes. Con tocar "Siguiente" alcanza, no hace falta que hagas clic en nada de la pantalla real.'
+      },
+      leaveAction: { type: 'navigate', url: URL_PERFIL }
+    },
+    {
+      stage: 'perfil', element: '#tour-perfil-nombre',
+      popover: { title: 'Nombre de tu empresa', description: 'Aparece en el encabezado de los 2 PDF que le vas a enviar a tus clientes.' }
+    },
+    {
+      stage: 'perfil', element: '#tour-perfil-slogan',
+      popover: { title: 'Slogan (opcional)', description: 'Un lema corto le da un toque más profesional al presupuesto. Ej: "Calidad y confianza en cada obra".' }
+    },
+    {
+      stage: 'perfil', element: '#tour-perfil-contacto',
+      popover: { title: 'Teléfono y email', description: 'Así tu cliente sabe cómo contactarte ante cualquier duda sobre el presupuesto.' }
+    },
+    {
+      stage: 'perfil', element: '#tour-perfil-logo',
+      popover: { title: 'Logo de tu empresa', description: 'Si subís tu logo, sale en los PDF. Por ahora, sin logo cargado, usamos las iniciales de tu empresa (esto no lo vamos a tocar en el recorrido — es tu perfil real).' },
+      leaveAction: { type: 'navigate', url: URL_COSTO_M2 }
+    },
+    // ── 2) Costo/m² (aha moment rápido) ────────────────────────────
+    {
+      stage: 'costo_m2', element: '#tour-costo-m2-item1',
+      popover: { title: '¿Necesitás algo más rápido?', description: 'Elegís un ítem — por ejemplo este — y calculás en segundos su costo por m² o m³, sin tener que armar todo el presupuesto.' }
+    },
+    {
+      stage: 'costo_m2', element: '#tour-costo-m2-item2',
+      popover: {
+        title: 'Cualquier ítem, de cualquier rubro',
+        description: 'Podés probar con este otro, por ejemplo. El resultado te da la mano de obra y el detalle de materiales con su costo, actualizado mes a mes — pero totalmente editable: podés ajustarlo según los precios de tu zona, igual que lo que le pagás a tu oficial y a tu ayudante.'
+      },
+      leaveAction: { type: 'navigate', url: URL_DEMO }
+    },
+    // ── 3) Presupuesto — Paso 1: Datos de obra ─────────────────────
+    {
+      stage: 'paso1', element: '#tour-cliente',
+      popover: { title: 'Ahora sí, el presupuesto', description: 'Ya completamos un cliente de ejemplo (ficticio) — así se ve. Vos vas a cargar acá los datos reales de tu cliente.' }
+    },
+    {
+      stage: 'paso1', element: '#tour-obra',
+      popover: { title: 'Datos de la obra', description: 'Descripción, dirección y tipo de obra — también de ejemplo. Nada de esto hace falta tocarlo ahora, seguimos con "Siguiente".' },
+      leaveAction: { type: 'submit', formId: 'formObra' }
+    },
+    // ── Paso 2: Cómputo ─────────────────────────────────────────────
+    {
+      stage: 'paso2', element: '#accordionRubros',
+      popover: { title: 'Cómputo de la obra', description: 'Elegimos 2-3 ítems de ejemplo, de distintos rubros. Acá cargás las cantidades reales de tu obra y el costo se calcula solo, en vivo.' },
+      leaveAction: { type: 'submit', formId: 'formComputo' }
+    },
+    // ── Paso 3: Subcontratos ──────────────────────────────────────
+    {
+      stage: 'paso3', element: '#tour-subcontratos',
+      popover: { title: 'Subcontratos', description: 'Si tenés subcontratos (electricidad, plomería...) los marcás acá, con su mano de obra y materiales. Ya dejamos 2 de ejemplo cargados.' },
+      leaveAction: { type: 'submit', formId: 'formSubc' }
+    },
+    // ── Paso 4: Indirectos ──────────────────────────────────────────
+    {
+      stage: 'paso4', element: '#tour-indirectos',
+      popover: { title: 'Costos indirectos', description: 'Movilidad, alquiler de andamios y de herramientas — gastos de la obra que no son ni mano de obra ni materiales. Ya completados como ejemplo.' },
+      leaveAction: { type: 'submit', formId: 'formInd' }
+    },
+    // ── Paso 5: Modo y tiempo ────────────────────────────────────────
+    {
+      stage: 'paso5', element: '#tour-paso5-config',
+      popover: {
+        title: 'Tu equipo y tus márgenes',
+        description: 'Acá podés ajustar cuántos oficiales y ayudantes usás, cuánto les pagás por día, y el % de gastos generales y de impuestos/seguros. Si tu presupuesto no incluye materiales (los pone el cliente), arriba de todo podés elegir "Solo mano de obra".'
       }
     },
     {
-      stage: 'dashboard',
-      element: '#tour-costo-m2',
-      popover: {
-        title: '¿Necesitás algo más rápido?',
-        description: '¿Necesitás una respuesta rápida sin armar todo el presupuesto? Probá esto: calculá el costo de un solo ítem por m² o m³ en segundos. (Esto es aparte del recorrido — seguimos con "Siguiente".)'
-      }
+      stage: 'paso5', element: '#tour-paso5-cuadro',
+      popover: { title: 'Costo Directo, Total Final y Ganancia Real', description: 'Con esos datos se arma este cuadro: el Costo Directo, el Total Final (lo que le cobrás al cliente) y — lo más importante — tu Ganancia Real.' },
+      leaveAction: { type: 'submit', formId: 'formModo' }
+    },
+    // ── Paso 6: Materiales ────────────────────────────────────────
+    {
+      stage: 'paso6', element: '#tour-materiales-precio',
+      popover: { title: 'Precio unitario editable', description: 'Los materiales se calculan solos a partir de tus ítems. Podés editar el precio unitario de cada uno según lo que cuesta en tu zona — al cambiarlo, se actualiza el subtotal de esa fila.' }
     },
     {
-      stage: 'paso1',
-      element: '#tour-datos-obra',
-      popover: {
-        title: 'Datos del cliente y la obra',
-        description: 'Ya completamos un cliente y una obra de ejemplo (todo ficticio) para que veas cómo queda. En un presupuesto real, estos datos van a ser los de tu cliente.'
-      }
+      stage: 'paso6', element: '#tour-materiales-total',
+      popover: { title: 'Total de materiales', description: 'Y acá te queda el total de materiales de todo el presupuesto.' },
+      leaveAction: { type: 'submit', formId: 'formMateriales' }
+    },
+    // ── Paso 7: Forma de pago ────────────────────────────────────────
+    {
+      stage: 'paso7', element: '#tour-paso7-config',
+      popover: { title: 'Forma de pago', description: 'El % de anticipo y de saldo final son editables, y elegís la frecuencia de las cuotas intermedias. Para este ejemplo elegimos cuotas semanales.' }
     },
     {
-      stage: 'paso2',
-      element: '#accordionRubros',
-      popover: {
-        title: 'Cómputo de la obra',
-        description: 'Ya elegimos algunos ítems de ejemplo, de distintos rubros (mampostería, contrapisos, techos). El costo directo se calcula solo, en vivo, abajo de todo. En un presupuesto real acá cargás las cantidades reales de tu obra.'
-      }
+      stage: 'paso7', element: '#tour-paso7-cuadro',
+      popover: { title: 'Cuadro de pago estimado', description: 'Con eso se arma el cuadro de pago: anticipo al inicio, cuotas intermedias y saldo final al terminar la obra.' },
+      leaveAction: { type: 'submit', formId: 'formPago' }
+    },
+    // ── Paso 8: Resumen y Guardar ─────────────────────────────────
+    {
+      stage: 'paso8', element: '#tour-p8-cliente-obra',
+      popover: { title: 'Resumen final', description: 'Arriba de todo, un resumen de cliente y obra.' }
     },
     {
-      stage: 'paso3',
-      element: '#tour-subcontratos',
-      popover: {
-        title: 'Subcontratos',
-        description: 'Ya marcamos Electricidad y Plomería como ejemplo, con mano de obra y materiales cargados. Si un presupuesto real no lleva subcontratos, simplemente no marcás ninguno.'
-      }
+      stage: 'paso8', element: '#tour-p8-totales',
+      popover: { title: 'Totales', description: 'Acá los totales del presupuesto: costo directo, subcontratos, indirectos, GG e impuestos, y el TOTAL final.' }
     },
     {
-      stage: 'paso4',
-      element: '#tour-indirectos',
-      popover: {
-        title: 'Costos indirectos',
-        description: 'Movilidad, alquiler de andamios y de herramientas — ya completados como ejemplo. Estos son gastos de la obra que no son ni mano de obra ni materiales.'
-      }
+      stage: 'paso8', element: '#tour-p8-pago',
+      popover: { title: 'Forma de pago', description: 'La forma de pago que elegiste en el paso anterior, ya calculada.' }
     },
     {
-      stage: 'paso8',
-      element: '#tour-guardar',
-      popover: {
-        title: 'Resumen y Guardar',
-        description: 'Acá se ve el resumen final: totales, forma de pago y la descripción de trabajos (autogenerada, editable). Tocá "Guardar" para ver cómo queda el presupuesto ya guardado y sus dos PDF.'
-      }
+      stage: 'paso8', element: '#tour-p8-materiales',
+      popover: { title: 'Materiales a comprar', description: 'La lista completa de materiales a comprar para esta obra, con cantidades y precios.' }
     },
     {
-      stage: 'ver',
-      element: '#tour-pdfs',
-      popover: {
-        title: '¡Listo! Los 2 PDF',
-        description: 'Con esto ya armaste tu primer presupuesto. "PDF Propietario" es para mandarle al cliente (sin desglose de costos internos); "PDF Constructor" tiene el detalle completo, para vos. Los dos salen con el nombre y el logo de tu empresa (los configurás en el menú de usuario → "Mi empresa").'
-      }
+      stage: 'paso8', element: '#tour-p8-descripcion',
+      popover: { title: 'Descripción de trabajos', description: 'Este texto se arma solo, a partir de los ítems que presupuestaste — y es editable antes de guardar. Sale en los 2 PDF.' }
+    },
+    {
+      stage: 'paso8', element: '#tour-guardar',
+      popover: { title: 'Guardar', description: 'Tocás "Guardar" y listo: se genera el presupuesto final, con sus 2 PDF.' },
+      leaveAction: { type: 'submit', formId: 'formResumen' }
+    },
+    // ── Presupuesto guardado: materiales + botones + cierre ─────────
+    {
+      stage: 'ver', element: '#tour-ver-materiales',
+      popover: { title: 'Presupuesto guardado ✓', description: 'Este es tu presupuesto ya armado. Bajamos hasta el final para ver el detalle completo de materiales.' }
+    },
+    {
+      stage: 'ver', element: '#tour-ver-botones',
+      popover: { title: 'Tus 4 accesos', description: '"Volver" te lleva al Dashboard, "Editar" te deja modificar el presupuesto, y los 2 PDF: "Propietario" (para mandarle a tu cliente) y "Constructor" (con el detalle completo, para vos).' }
+    },
+    {
+      stage: 'ver', element: '#tour-fin-recorrido',
+      popover: { title: '¡Listo! 🎉', description: 'Mirá los 2 PDF ahora mismo, con el nombre y el logo de tu empresa, sin tener que descargarlos. Cuando quieras, tocá "Final del recorrido".' }
     }
   ];
 
@@ -127,26 +196,13 @@
     try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
   }
   function guardarStorage(v) {
-    try { localStorage.setItem(STORAGE_KEY, String(v)); } catch (e) { /* Safari privado, etc. — no es crítico */ }
+    try { localStorage.setItem(STORAGE_KEY, String(v)); } catch (e) { /* Safari privado, etc. — no crítico */ }
   }
   function limpiarStorage() {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* no crítico */ }
   }
 
-  // Mientras el tour está activo en el Dashboard, el botón real "＋ Nuevo
-  // presupuesto" apunta al presupuesto DEMO precargado (routes/presupuesto.py
-  // ::demo()) en vez de al asistente vacío — así el usuario no tiene que
-  // escribir nada para ver el resto del recorrido. Fuera del tour, el botón
-  // sigue siendo el de siempre (no se toca el HTML, solo se pisa el href acá).
-  function apuntarBotonAlDemo() {
-    var btn = document.getElementById('tour-nuevo-presupuesto');
-    if (btn) btn.setAttribute('href', DEMO_URL);
-  }
-
   function marcarCompletadoBackend() {
-    // best-effort: si falla la red no bloquea nada, el tour ya se ocultó
-    // en esta sesión igual (dataset.tourDone) y no se vuelve a intentar
-    // arrancar en esta carga de página.
     try {
       fetch(MARCAR_URL, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
     } catch (e) { /* no crítico */ }
@@ -157,32 +213,80 @@
     _tourEnding = true;
     limpiarStorage();
     document.body.dataset.tourDone = '1';
-    try { driverObj.destroy(); } catch (e) {}
+    try { if (driverObj) driverObj.destroy(); } catch (e) {}
     marcarCompletadoBackend();
   }
 
+  // El link "Mi empresa" vive dentro del dropdown del usuario (navbar), que
+  // arranca cerrado. Lo abrimos por JS para poder iluminarlo sin pedirle al
+  // usuario que lo abra él mismo.
+  function abrirMenuUsuario() {
+    var toggle = document.querySelector('.navbar-nav .dropdown-toggle');
+    if (!toggle) return;
+    var menu = toggle.parentElement ? toggle.parentElement.querySelector('.dropdown-menu') : null;
+    if (menu && !menu.classList.contains('show')) {
+      if (window.bootstrap && window.bootstrap.Dropdown) {
+        try { window.bootstrap.Dropdown.getOrCreateInstance(toggle).show(); return; } catch (e) {}
+      }
+      menu.classList.add('show'); // fallback sin bootstrap.js
+    }
+  }
+
+  // Ajustes previos a iluminar un elemento puntual (el panel final del tour
+  // arranca oculto — display:none — hasta que se llega a este paso; el link
+  // "Mi empresa" arranca dentro de un dropdown cerrado).
+  function prepararElemento(step) {
+    if (!step) return;
+    if (step.element === '#tour-fin-recorrido') {
+      var panel = document.querySelector('#tour-fin-recorrido');
+      if (panel) panel.style.display = '';
+    }
+    if (step.element === '#tour-mi-empresa') {
+      abrirMenuUsuario();
+    }
+  }
+
   // Usada tanto por "Siguiente" como por la X (cerrar) — cerrar un popover
-  // puntual no apaga el recorrido entero, solo avanza al próximo paso (misma
-  // página u otra) y recién marca completado si no queda ningún paso más.
+  // puntual no apaga el recorrido entero, solo avanza al próximo paso.
   function avanzarOTerminar(driverObj) {
     var activeIndex = driverObj.getActiveIndex();
+    var actual = STEPS[activeIndex];
     var siguiente = STEPS[activeIndex + 1];
+
     if (!siguiente) {
-      // No queda ningún paso más (se cerró/terminó el último, los PDF).
       terminarTour(driverObj);
       return;
     }
-    if (siguiente.stage === document.body.dataset.tourStage) {
-      // El siguiente paso vive en la misma página — solo avanzar.
+
+    // Mismo stage y sin acción especial de salida: solo avanzar en la
+    // misma página (no hace falta guardar nada ni destruir la instancia).
+    if (siguiente.stage === document.body.dataset.tourStage && !actual.leaveAction) {
+      prepararElemento(siguiente);
       driverObj.moveNext();
-    } else {
-      // El siguiente paso vive en otra página del asistente: guardamos en
-      // qué paso retomar y dejamos que la navegación normal del usuario
-      // (botón "Siguiente" del wizard, o el link que se está destacando)
-      // lo lleve ahí. No forzamos ninguna navegación nosotros.
-      guardarStorage(activeIndex + 1);
-      try { driverObj.destroy(); } catch (e) {}
+      return;
     }
+
+    // Cambio de pantalla (o el paso actual tiene una acción explícita de
+    // salida) — guardamos en qué paso retomar y ejecutamos la acción.
+    guardarStorage(activeIndex + 1);
+    try { driverObj.destroy(); } catch (e) {}
+
+    if (actual.leaveAction) {
+      if (actual.leaveAction.type === 'submit') {
+        var form = document.getElementById(actual.leaveAction.formId);
+        if (form) {
+          if (form.requestSubmit) form.requestSubmit(); else form.submit();
+          return;
+        }
+      } else if (actual.leaveAction.type === 'navigate') {
+        window.location.href = actual.leaveAction.url;
+        return;
+      }
+    }
+    // Sin leaveAction pero con cambio de stage (no debería pasar con el
+    // STEPS actual, pero por las dudas no rompemos nada): el usuario sigue
+    // con la navegación normal de la app y el tour se retoma solo si vuelve
+    // a coincidir data-tour-stage en la próxima carga de página.
   }
 
   function crearDriverTour() {
@@ -197,31 +301,18 @@
       steps: STEPS.map(function (s) {
         return { element: s.element, popover: s.popover };
       }),
-      onCloseClick: function () {
-        avanzarOTerminar(driverObj);
-      },
-      onDoneClick: function () {
-        terminarTour(driverObj);
-      },
-      onNextClick: function () {
-        avanzarOTerminar(driverObj);
-      },
-      // Link chico "Saltar todo el recorrido" en el pie del popover — la
-      // única forma de saltear el tour completo antes de llegar al final
-      // (pedido original de Daniel: "una sola vez, o hasta que lo
-      // salteen"). Separado a propósito del botón "×", que solo avanza al
-      // próximo paso (ver avanzarOTerminar).
+      onCloseClick: function () { avanzarOTerminar(driverObj); },
+      onDoneClick: function () { terminarTour(driverObj); },
+      onNextClick: function () { avanzarOTerminar(driverObj); },
+      // Link chico "Saltar todo el recorrido" — única forma real de
+      // saltear el tour completo antes del final (separado a propósito de
+      // la X, que solo avanza un paso).
       onPopoverRender: function (popover) {
         var link = document.createElement('button');
         link.type = 'button';
         link.className = 'pp-tour-skip';
         link.textContent = 'Saltar todo el recorrido';
-        link.addEventListener('click', function () {
-          terminarTour(driverObj);
-        });
-        // Se agrega al wrapper del popover (no a footerButtons) para que
-        // quede en su propia línea, debajo de todo, sin pelear con el
-        // layout flex de los botones Anterior/Siguiente.
+        link.addEventListener('click', function () { terminarTour(driverObj); });
         popover.wrapper.appendChild(link);
       }
     });
@@ -229,7 +320,7 @@
   }
 
   function init() {
-    if (!window.driver || !window.driver.js || !window.driver.js.driver) return; // CDN no cargó — no rompemos nada
+    if (!window.driver || !window.driver.js || !window.driver.js.driver) return; // CDN no cargó
     var stage = document.body.dataset.tourStage;
     if (!stage) return; // esta página no participa del tour
     if (document.body.dataset.tourDone === '1') return; // ya lo completó o lo salteó
@@ -240,22 +331,15 @@
     if (guardado !== null && STEPS[parseInt(guardado, 10)]) {
       indiceInicial = parseInt(guardado, 10);
     } else if (guardado === null && stage === 'dashboard') {
-      // Primera vez que se le muestra a este usuario: siempre arranca en
-      // Dashboard (paso 0), nunca en medio del asistente.
-      indiceInicial = 0;
+      indiceInicial = 0; // primera vez: siempre arranca en Dashboard, paso 0
     }
 
     if (indiceInicial === null) return;
     if (STEPS[indiceInicial].stage !== stage) return; // el paso pendiente es de otra página
 
-    if (stage === 'dashboard') apuntarBotonAlDemo();
-
-    // Pequeño delay para no competir con el resto del contenido de la
-    // página (carteles de bienvenida/trial, render del acordeón, etc.).
     setTimeout(function () {
-      // Verificación tardía: el elemento puede no existir si algo cambió
-      // en el DOM (defensivo, no debería pasar en uso normal).
-      if (!document.querySelector(STEPS[indiceInicial].element)) return;
+      prepararElemento(STEPS[indiceInicial]);
+      if (!document.querySelector(STEPS[indiceInicial].element)) return; // defensivo
       var driverObj = crearDriverTour();
       driverObj.drive(indiceInicial);
     }, 500);
@@ -267,18 +351,26 @@
     init();
   }
 
-  // Botón "Recorrido virtual" del Dashboard: arranca el tour a demanda, sin
-  // importar si ya estaba marcado como completado — sirve tanto para que un
-  // usuario lo vuelva a ver como para que el propio Admin lo revise. Solo
-  // tiene sentido en el Dashboard (ahí vive el paso 0); en cualquier otra
-  // página no hace nada.
+  // Botón "Recorrido virtual" del Dashboard: arranca el tour a demanda
+  // (re-verlo, o revisión de Admin), sin importar si ya estaba completado.
   window.ppIniciarTour = function () {
     if (document.body.dataset.tourStage !== 'dashboard') return;
     if (!window.driver || !window.driver.js || !window.driver.js.driver) return;
     _tourEnding = false;
-    apuntarBotonAlDemo();
     guardarStorage(0);
+    prepararElemento(STEPS[0]);
     var driverObj = crearDriverTour();
     driverObj.drive(0);
+  };
+
+  // Usado por el botón "Final del recorrido" del panel en ver.html: marca
+  // el tour como completado en el backend y manda al Dashboard con el
+  // cartel de felicitación (?tour_fin=1). Expuesto como función global
+  // porque ver.html no tiene por qué saber nada de STEPS/localStorage.
+  window.ppFinalizarRecorrido = function () {
+    limpiarStorage();
+    document.body.dataset.tourDone = '1';
+    marcarCompletadoBackend();
+    window.location.href = '/?tour_fin=1';
   };
 })();

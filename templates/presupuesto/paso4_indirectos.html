@@ -10,18 +10,18 @@
   <div class="bloque">
     <div class="bloque-cuerpo">
       <div class="grupo-tit primero">Costos indirectos</div>
-      <div class="trio" id="tour-indirectos">
-        <div class="campo" style="margin:0">
+      <div id="tour-indirectos">
+        <div class="campo">
           <label>Movilidad</label>
           <div class="sufijo"><input class="n" type="number" name="movilidad" id="movilidad" min="0" step="1000" placeholder="0"
                  value="{{ p.get('indirectos', {}).get('movilidad', '') or '' }}"><span>$</span></div>
         </div>
-        <div class="campo" style="margin:0">
+        <div class="campo">
           <label>Alquiler andamios</label>
           <div class="sufijo"><input class="n" type="number" name="andamios" id="andamios" min="0" step="1000" placeholder="0"
                  value="{{ p.get('indirectos', {}).get('andamios', '') or '' }}"><span>$</span></div>
         </div>
-        <div class="campo" style="margin:0">
+        <div class="campo">
           <label>Alquiler herramientas</label>
           <div class="sufijo"><input class="n" type="number" name="herramientas" id="herramientas" min="0" step="1000" placeholder="0"
                  value="{{ p.get('indirectos', {}).get('herramientas', '') or '' }}"><span>$</span></div>

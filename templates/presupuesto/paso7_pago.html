@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Forma de pago — Paso 7{% endblock %}
+{% block tour_stage %}paso7{% endblock %}
 
 {% set _paso_anterior = 'presupuesto.modo_tiempo' if p.get('modo') == 'solo_mo' else 'presupuesto.materiales' %}
 
@@ -13,7 +14,7 @@
 </div>
 
 <form method="post" id="formPago" data-wizard-form>
-  <div class="bloque">
+  <div class="bloque" id="tour-paso7-config">
     <div class="bloque-cuerpo">
       <div class="trio">
         <div class="campo" style="margin:0"><label>% Anticipo</label>
@@ -36,7 +37,7 @@
     </div>
   </div>
 
-  <div class="bloque">
+  <div class="bloque" id="tour-paso7-cuadro">
     <div class="bloque-hd">Cuadro de pagos estimado</div>
     <table class="tot" id="cuadro-pago"></table>
     <div style="padding:6px 14px 12px;text-align:right;color:var(--gris);font-size:12.5px" id="verif-pago"></div>

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Materiales — Paso 6{% endblock %}
+{% block tour_stage %}paso6{% endblock %}
 
 {% block content %}
 <div class="pp2 pp2-con-barra">
@@ -22,8 +23,17 @@
         {% set ns.last_cat = cur_cat %}
         <div class="grupo">{{ cat_labels.get(cur_cat, 'General') }}</div>
       {% endif %}
-      <div class="fila mat-row" data-idx="{{ loop.index0 }}">
+      <div class="fila mat-row" data-idx="{{ loop.index0 }}" {% if loop.first %}id="tour-materiales-precio"{% endif %}>
         <div class="fila-nom">{{ m.nombre }}</div>
+        <div class="fila-precio">
+          <span>Precio unit. (editable según tu zona)</span>
+          <div class="precio-suf">
+            <span>{{ simbolo }}</span>
+            <input type="number" class="precio-unit" min="0" step="1"
+                   value="{{ m.precio_local }}" data-idx="{{ loop.index0 }}"
+                   oninput="calcPrecio(this)">
+          </div>
+        </div>
         <div class="fila-dat">
           <span class="unidad">{{ m.unidad }}</span>
           <input type="number" name="mat_{{ loop.index0 }}_cant"
@@ -37,7 +47,7 @@
         </div>
         <input type="hidden" name="mat_{{ loop.index0 }}_nombre" value="{{ m.nombre }}">
         <input type="hidden" name="mat_{{ loop.index0 }}_unidad" value="{{ m.unidad }}">
-        <input type="hidden" name="mat_{{ loop.index0 }}_precio" value="{{ m.precio_local }}">
+        <input type="hidden" name="mat_{{ loop.index0 }}_precio" id="precio-hidden-{{ loop.index0 }}" value="{{ m.precio_local }}">
       </div>
       {% endfor %}
     </div>
@@ -48,7 +58,7 @@
 
 <div class="barra-tot">
   <a href="{{ url_for('presupuesto.modo_tiempo') }}" onclick="return wizardGoto(this.getAttribute('href'))" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
-  <div class="bt-txt"><div class="bt-lbl">Total materiales</div><div class="bt-val" id="total-materiales">{{ simbolo }} {{ "{:,.0f}".format(total_calc).replace(',','.') }}</div></div>
+  <div class="bt-txt" id="tour-materiales-total"><div class="bt-lbl">Total materiales</div><div class="bt-val" id="total-materiales">{{ simbolo }} {{ "{:,.0f}".format(total_calc).replace(',','.') }}</div></div>
   <button type="submit" form="formMateriales" class="btn2 btn2-1">Siguiente <i class="bi bi-arrow-right"></i></button>
 </div>
 </div>
@@ -66,6 +76,24 @@ function calcRow(inp){
   const cant  = parseFloat(inp.value) || 0;
   const precio = parseFloat(inp.dataset.precio) || 0;
   document.getElementById('sub-' + idx).textContent = fmt(cant * precio);
+  recalcTotal();
+}
+
+// Fix 02/08/2026 (pedido de Daniel): precio unitario editable por material
+// (antes era un campo oculto fijo, tomado siempre de la lista de precios
+// interna). Ahora se puede ajustar según lo que cuesta en la zona del
+// usuario — al tocarlo se actualiza el precio "de verdad" que viaja al
+// guardar (input hidden mat_i_precio) y se recalcula esa fila y el total.
+function calcPrecio(inp){
+  const idx = inp.dataset.idx;
+  const precio = parseFloat(inp.value) || 0;
+  const cantInp = document.querySelector('.mat-cant[data-idx="' + idx + '"]');
+  if(cantInp) cantInp.dataset.precio = precio;
+  const hidden = document.getElementById('precio-hidden-' + idx);
+  if(hidden) hidden.value = precio;
+  const cant = cantInp ? (parseFloat(cantInp.value) || 0) : 0;
+  const subEl = document.getElementById('sub-' + idx);
+  if(subEl) subEl.textContent = fmt(cant * precio);
   recalcTotal();
 }
 
@@ -102,10 +130,17 @@ function agregarFila(){
   div.dataset.idx = idx;
   div.innerHTML = `
     <div class="fila-nom"><input type="text" name="mat_${idx}_nombre" placeholder="Material" style="width:100%;border:1px solid var(--linea);border-radius:4px;padding:6px 8px;font:inherit"></div>
+    <div class="fila-precio">
+      <span>Precio unit.</span>
+      <div class="precio-suf">
+        <span>${SIM}</span>
+        <input type="number" class="precio-unit" min="0" step="1" value="0" data-idx="${idx}" oninput="calcPrecio(this)">
+      </div>
+    </div>
     <div class="fila-dat">
       <input type="text" name="mat_${idx}_unidad" placeholder="Unidad" style="width:64px;height:40px;border:1px solid var(--linea);border-radius:4px;padding:0 8px;font:inherit;flex-shrink:0">
       <input type="number" name="mat_${idx}_cant" class="cant mat-cant" min="0" step="0.001" value="0" data-precio="0" data-idx="${idx}" oninput="calcRow(this)">
-      <input type="hidden" name="mat_${idx}_precio" value="0">
+      <input type="hidden" name="mat_${idx}_precio" id="precio-hidden-${idx}" value="0">
       <span class="sub cero" id="sub-${idx}">—</span>
       <button type="button" class="quitar" onclick="eliminarFila(this)"><i class="bi bi-x-lg"></i></button>
     </div>`;

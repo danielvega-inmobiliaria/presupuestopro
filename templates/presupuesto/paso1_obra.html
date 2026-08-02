@@ -7,54 +7,58 @@
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
 <form method="post" id="formObra" data-wizard-form>
-  <div class="bloque" id="tour-datos-obra">
+  <div class="bloque">
     <div class="bloque-cuerpo">
-      <div class="grupo-tit primero">Cliente</div>
-      <div class="campo">
-        <label>Nombre completo <span class="req">*</span></label>
-        <input type="text" name="cliente_nombre" required autofocus value="{{ p.get('cliente_nombre', '') }}">
-      </div>
-      <div class="duo">
-        <div class="campo" style="margin:0">
-          <label>Teléfono</label>
-          <input class="n" type="text" name="cliente_tel" inputmode="tel" value="{{ p.get('cliente_tel', '') }}">
+      <div id="tour-cliente">
+        <div class="grupo-tit primero">Cliente</div>
+        <div class="campo">
+          <label>Nombre completo <span class="req">*</span></label>
+          <input type="text" name="cliente_nombre" required autofocus value="{{ p.get('cliente_nombre', '') }}">
         </div>
-        <div class="campo" style="margin:0">
-          <label>Email</label>
-          <input type="email" name="cliente_email" placeholder="opcional" value="{{ p.get('cliente_email', '') }}">
+        <div class="duo">
+          <div class="campo" style="margin:0">
+            <label>Teléfono</label>
+            <input class="n" type="text" name="cliente_tel" inputmode="tel" value="{{ p.get('cliente_tel', '') }}">
+          </div>
+          <div class="campo" style="margin:0">
+            <label>Email</label>
+            <input type="email" name="cliente_email" placeholder="opcional" value="{{ p.get('cliente_email', '') }}">
+          </div>
         </div>
       </div>
 
-      <div class="grupo-tit">Obra</div>
-      <div class="campo">
-        <label>Descripción de la obra <span class="req">*</span></label>
-        <input type="text" name="obra_descripcion" placeholder="Ej: Construcción de vivienda unifamiliar" required
-               value="{{ p.get('obra_descripcion', '') }}">
-      </div>
-      <div class="campo">
-        <label>Dirección</label>
-        <input type="text" name="obra_direccion" placeholder="Calle, número, ciudad" value="{{ p.get('obra_direccion', '') }}">
-      </div>
-      <div class="campo">
-        <label>Tipo de obra</label>
-        {% set tipo_actual = p.get('obra_tipo', 'Vivienda nueva') %}
-        <select name="obra_tipo">
-          <option {{ 'selected' if tipo_actual == 'Vivienda nueva' }}>Vivienda nueva</option>
-          <option {{ 'selected' if tipo_actual == 'Ampliación' }}>Ampliación</option>
-          <option {{ 'selected' if tipo_actual == 'Refacción' }}>Refacción</option>
-          <option {{ 'selected' if tipo_actual == 'Comercial' }}>Comercial</option>
-          <option {{ 'selected' if tipo_actual == 'Industrial' }}>Industrial</option>
-          <option {{ 'selected' if tipo_actual == 'Otro' }}>Otro</option>
-        </select>
-      </div>
-      <div class="duo">
-        <div class="campo" style="margin:0">
-          <label>Fecha del presupuesto</label>
-          <input class="n" type="date" name="fecha_presup" value="{{ p.get('fecha_presup', hoy) }}">
+      <div id="tour-obra">
+        <div class="grupo-tit">Obra</div>
+        <div class="campo">
+          <label>Descripción de la obra <span class="req">*</span></label>
+          <input type="text" name="obra_descripcion" placeholder="Ej: Construcción de vivienda unifamiliar" required
+                 value="{{ p.get('obra_descripcion', '') }}">
         </div>
-        <div class="campo" style="margin:0">
-          <label>Validez (días)</label>
-          <input class="n" type="number" name="validez" min="1" value="{{ p.get('validez', 15) }}">
+        <div class="campo">
+          <label>Dirección</label>
+          <input type="text" name="obra_direccion" placeholder="Calle, número, ciudad" value="{{ p.get('obra_direccion', '') }}">
+        </div>
+        <div class="campo">
+          <label>Tipo de obra</label>
+          {% set tipo_actual = p.get('obra_tipo', 'Vivienda nueva') %}
+          <select name="obra_tipo">
+            <option {{ 'selected' if tipo_actual == 'Vivienda nueva' }}>Vivienda nueva</option>
+            <option {{ 'selected' if tipo_actual == 'Ampliación' }}>Ampliación</option>
+            <option {{ 'selected' if tipo_actual == 'Refacción' }}>Refacción</option>
+            <option {{ 'selected' if tipo_actual == 'Comercial' }}>Comercial</option>
+            <option {{ 'selected' if tipo_actual == 'Industrial' }}>Industrial</option>
+            <option {{ 'selected' if tipo_actual == 'Otro' }}>Otro</option>
+          </select>
+        </div>
+        <div class="duo">
+          <div class="campo" style="margin:0">
+            <label>Fecha del presupuesto</label>
+            <input class="n" type="date" name="fecha_presup" value="{{ p.get('fecha_presup', hoy) }}">
+          </div>
+          <div class="campo" style="margin:0">
+            <label>Validez (días)</label>
+            <input class="n" type="number" name="validez" min="1" value="{{ p.get('validez', 15) }}">
+          </div>
         </div>
       </div>
       <!-- Fix 05/07/2026: se sacó "Descripción de trabajos" de acá — a esta

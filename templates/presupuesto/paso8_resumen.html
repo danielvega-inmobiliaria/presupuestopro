@@ -9,7 +9,7 @@
 <form method="post" id="formResumen">
 <input type="hidden" name="descripcion_trabajos" id="desc-hidden">
 
-<div class="bloque">
+<div class="bloque" id="tour-p8-cliente-obra">
   <div class="bloque-hd">Cliente y obra</div>
   <table class="tot">
     <tr><td class="lbl">Cliente</td><td class="txt">{{ p.get('cliente_nombre') }}</td></tr>
@@ -21,7 +21,7 @@
   </table>
 </div>
 
-<div class="bloque">
+<div class="bloque" id="tour-p8-totales">
   <div class="bloque-hd">Totales</div>
   {% set tot  = p.get('totales', {}) %}
   {% set modo = p.get('modo', 'mo_mat') %}
@@ -45,7 +45,7 @@
   </table>
 </div>
 
-<div class="bloque">
+<div class="bloque" id="tour-p8-pago">
   <div class="bloque-hd">Forma de pago</div>
   {% set cuadro = p.get('cuadro_pago', {}) %}
   {% set nc     = p.get('n_cuotas', 0) %}
@@ -60,7 +60,7 @@
 
 {% set mats = p.get('materiales', []) %}
 {% if mats and p.get('modo','mo_mat') == 'mo_mat' %}
-<div class="bloque">
+<div class="bloque" id="tour-p8-materiales">
   <div class="bloque-hd">Materiales a comprar</div>
   {% for m in mats %}
   <div class="fila">
@@ -76,7 +76,7 @@
 </div>
 {% endif %}
 
-<div class="bloque">
+<div class="bloque" id="tour-p8-descripcion">
   <div class="bloque-hd">Descripción de trabajos</div>
   <div class="bloque-cuerpo">
     <div class="campo" style="margin:0">

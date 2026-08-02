@@ -4,6 +4,20 @@
 
 {% block content %}
 
+{# ─── Fin del recorrido guiado (pedido de Daniel 02/08/2026) ──────────────
+   El botón "Final del recorrido" del panel final de ver.html manda acá con
+   ?tour_fin=1. Puramente client-side (sin flash de Flask) porque llega por
+   querystring en un GET normal al Dashboard. #}
+<div id="cartel-tour-fin" class="alert alert-success border-0 shadow-sm mb-4" style="display:none">
+  <div class="d-flex align-items-start gap-3">
+    <i class="bi bi-trophy-fill fs-3"></i>
+    <div>
+      <h5 class="fw-bold mb-1">¡Recorrido completado! 🎉</h5>
+      <p class="mb-0">Ya viste cómo se arma un presupuesto de punta a punta. Ahora es tu turno: tocá "＋ Nuevo presupuesto" y armá el primero de verdad, con los datos de tu obra.</p>
+    </div>
+  </div>
+</div>
+
 {# ─── PRUEBA GRATIS: cartel de bienvenida (solo primer login) ────────────── #}
 {% if mostrar_bienvenida_trial %}
 <div class="alert alert-warning border-0 shadow-sm mb-4">
@@ -110,6 +124,14 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+  if (new URLSearchParams(window.location.search).get('tour_fin') === '1') {
+    document.getElementById('cartel-tour-fin').style.display = '';
+    // Limpiar el ?tour_fin=1 de la URL para que un F5 no vuelva a mostrarlo
+    var urlLimpia = window.location.pathname;
+    window.history.replaceState({}, '', urlLimpia);
+  }
+</script>
 {% if request.args.get('nuevo_registro') %}
 <!-- Fix 08/07/2026: dispara CompleteRegistration del Meta Pixel una sola vez,
      justo después del alta exitosa en /registro (ver routes/landing.py, que

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Mi Perfil de Empresa{% endblock %}
+{% block tour_stage %}perfil{% endblock %}
 
 {% block content %}
 <div class="pp2">
@@ -10,7 +11,7 @@
     <form method="POST" action="{{ url_for('perfil.guardar') }}" enctype="multipart/form-data">
 
       <!-- Logo -->
-      <div class="bloque">
+      <div class="bloque" id="tour-perfil-logo">
         <div class="bloque-hd"><i class="bi bi-image"></i> Logo</div>
         <div class="bloque-cuerpo">
           {% if perfil.get('logo_data') %}
@@ -42,13 +43,13 @@
         <div class="bloque-hd"><i class="bi bi-info-circle"></i> Datos de la empresa</div>
         <div class="bloque-cuerpo">
 
-          <div class="campo">
+          <div class="campo" id="tour-perfil-nombre">
             <label>Nombre de la empresa</label>
             <input type="text" name="nombre"
                    value="{{ perfil.get('nombre', '') }}" placeholder="Constructora Ejemplo S.A.">
           </div>
 
-          <div class="campo">
+          <div class="campo" id="tour-perfil-slogan">
             <label>Slogan <span style="text-transform:none;font-weight:400">(opcional)</span></label>
             <input type="text" name="slogan"
                    value="{{ perfil.get('slogan', '') }}" placeholder="Calidad y confianza en cada obra">
@@ -60,7 +61,7 @@
                    value="{{ perfil.get('contacto', '') }}" placeholder="Ing. Juan Perez">
           </div>
 
-          <div class="duo">
+          <div class="duo" id="tour-perfil-contacto">
             <div class="campo">
               <label>Teléfono</label>
               <input type="text" name="telefono"
@@ -77,7 +78,7 @@
       </div>
 
       <div style="display:flex;gap:10px">
-        <button type="submit" class="btn2 btn2-1">
+        <button type="submit" id="tour-perfil-guardar" class="btn2 btn2-1">
           <i class="bi bi-floppy"></i> Guardar perfil
         </button>
         <a href="{{ url_for('dashboard.index') }}" class="btn2 btn2-2">Cancelar</a>

@@ -11,7 +11,55 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 13:00 ART_
+_Última actualización: 02/08/2026 — 14:42 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 5) — Tour v3: recorrido granular completo (empresa → Costo/m² → presupuesto → PDFs) ⚠️ SIN COMMITEAR
+Daniel probó el tour v2 (demo auto-completado, cont. 4) y pidió ir mucho más a fondo, con un mensaje muy detallado (ver historial del chat). En criollo: quería un recorrido que (1) arranque mostrando cómo configurar los datos de la empresa, (2) siga con 2 ejemplos de Costo/m² explicando que da mano de obra + detalle de materiales editable por zona, (3) recién ahí entre al asistente de presupuesto pasando de pantalla en pantalla **sin que el usuario tenga que clickear ningún botón real** (todo con el "Siguiente" del popover iluminado), iluminando cada bloque de cada paso por separado con su propia explicación, y (4) termine en la pantalla final mostrando los 2 PDF sin descargarlos, con un botón de cierre que lo felicite y lo mande al Dashboard. También reportó (con captura) que los montos de Indirectos (paso 4) se veían amontonados en 3 columnas en mobile.
+
+**Cambio de arquitectura clave:** hasta la v2, el tour dependía de que el elemento iluminado fuera un link/botón real que el usuario clickeaba para navegar. Ahora **el propio botón "Siguiente" del popover** dispara la acción: si el paso es el último de su pantalla, `avanzarOTerminar()` en `static/js/tour.js` ejecuta un `leaveAction` — `submit` (llama `formX.requestSubmit()`, deja que el formulario real de esa pantalla navegue solo con los datos ya precargados) o `navigate` (salto directo por JS a otra URL, para las transiciones que no son un wizard-step: Dashboard→Perfil, Perfil→Costo/m², Costo/m²→`/presupuesto/demo`). El usuario nunca interactúa con la pantalla real, solo con el popover.
+
+**Recorrido nuevo — 27 paradas en 13 pantallas:**
+1. Dashboard → ilumina el link "Mi empresa" del menú de usuario (se abre el dropdown por JS para poder iluminarlo) → navega a `/perfil/`.
+2. Perfil (4 paradas: nombre, slogan, teléfono/email, logo) → navega a `/costo-m2/` (sin submitear el perfil real — no se pisan datos del usuario).
+3. Costo/m² (2 paradas, 2 ítems de rubros distintos) → navega a `/presupuesto/demo`.
+4. Paso 1 (Cliente / Obra, separados en 2 paradas) → submit real de `formObra`.
+5. Paso 2 (cómputo) → submit `formComputo`.
+6. Paso 3 (subcontratos) → submit `formSubc`.
+7. Paso 4 (indirectos) → submit `formInd`.
+8. Paso 5 (2 paradas: config equipo/GG/seguros, y el cuadro Costo Directo/Total Final/Ganancia Real) → submit `formModo`.
+9. Paso 6 (2 paradas: precio unitario editable, total materiales) → submit `formMateriales`.
+10. Paso 7 (2 paradas: config anticipo/saldo/frecuencia, cuadro de pago) → submit `formPago`.
+11. Paso 8 (6 paradas: cliente-obra, totales, forma de pago, materiales a comprar, descripción autogenerada, Guardar) → submit `formResumen`.
+12. Pantalla final (3 paradas: materiales al pie, los 4 botones, panel de cierre) → el panel de cierre tiene los 2 PDF (sin descargar) y el botón "Final del recorrido" → Dashboard con cartel de felicitación.
+
+**Archivos tocados:**
+- `templates/presupuesto/paso4_indirectos.html` — fix reportado: el `.trio` (3 columnas) de Movilidad/Andamios/Herramientas pasó a stack vertical (una por línea) — los montos ya no se cortan en mobile.
+- `templates/perfil/perfil.html` — `tour_stage=perfil` + anclas en nombre, slogan, contacto y logo.
+- `templates/costo_m2/index.html` — `tour_stage=costo_m2` + anclas en el primer ítem de los 2 primeros rubros distintos (vía `{% set rubro_loop = loop %}` para poder leer el índice del for externo dentro del for interno).
+- `templates/base.html` — id `tour-mi-empresa` en el link "Mi empresa" del dropdown de usuario.
+- `templates/presupuesto/paso1_obra.html` — separó el bloque único `#tour-datos-obra` en `#tour-cliente` y `#tour-obra`.
+- `templates/presupuesto/paso5_modo_tiempo.html`, `paso7_pago.html` — cada uno con 2 anclas (config editable + cuadro de resultados).
+- `templates/presupuesto/paso6_materiales.html` — **cambio de producto real, no solo del tour**: el precio unitario de cada material pasó de ser un campo oculto fijo a un input editable (`calcPrecio()`) que recalcula esa fila y el total al tocarlo — pedido explícito de Daniel ("faltaría agregar el precio unitario... que al modificarlo se actualice el monto"). Se agregó en una línea propia entre el nombre y la fila de cantidad (no se metió en la fila ya angosta, para no repetir el problema de los números amontonados del paso 4).
+- `templates/presupuesto/paso8_resumen.html` — 6 anclas, una por bloque.
+- `templates/presupuesto/ver.html` — 2 botones "👁" (ver sin descargar, abren un modal Bootstrap con `<iframe>` — funciona tanto para el preview HTML del PDF Propietario como para el PDF real del Constructor), panel oculto `#tour-fin-recorrido` con los 2 accesos a los PDF + botón "Final del recorrido", ancla en los 4 botones y en la sección de materiales.
+- `templates/dashboard.html` — cartel `#cartel-tour-fin` (oculto por defecto), mostrado por JS cuando la URL trae `?tour_fin=1` (y se limpia el querystring después, para que un F5 no lo repita).
+- `routes/presupuesto.py::demo()` — se agregó `'frecuencia': 'semanal'` a los datos sembrados (pedido explícito: "para el tour sugerir semanal").
+- `static/css/rediseno.css` — reglas nuevas `.fila-precio` / `.precio-suf` / `.precio-unit` para el precio editable de materiales.
+- `static/js/tour.js` — reescrito de punta a punta (arquitectura `leaveAction` descripta arriba, 27 pasos, `abrirMenuUsuario()`, `prepararElemento()`, `window.ppFinalizarRecorrido()`).
+
+**Verificado (sin navegador real — no hay Chromium en este entorno, aclarado como en fases anteriores):**
+- `node --check` OK en `tour.js`.
+- Balance de `<div>`/`</div>` OK en los 11 archivos HTML tocados.
+- Harness Flask local con el escenario más realista hasta ahora: en vez de armar los POST a mano, el script **lee el HTML real que devuelve cada GET y extrae los valores default tal cual quedarían en pantalla** (inputs, selects, textareas — sin tocar nada), simulando exactamente lo que pasa cuando el usuario solo toca "Siguiente". Recorrido probado: `/` → `/perfil/` → `/costo-m2/` → `/presupuesto/demo` → paso 1 a 8 (con sus datos default reales, incluida la frecuencia "semanal" confirmada en paso 7) → Guardar → `/presupuesto/<id>` → los 2 PDF pedidos de verdad (Propietario 200 HTML, Constructor 200 `application/pdf` ~40KB) → `/?tour_fin=1` (cartel presente). Los 60 campos de materiales del paso 6 confirmaron que la lista no llega vacía y que la ancla del precio editable está presente. Todo dio 200/302 sin errores, de punta a punta.
+
+**Pendiente de aclarar a Daniel (no bloqueante):**
+- Sigue valiendo lo de la sesión anterior: los presupuestos de la demo quedan guardados de verdad en la base (identificables por "Juan Pérez (ejemplo)").
+- El precio unitario editable de materiales (paso 6) es una mejora real de producto, no solo del tour — cualquier usuario (esté o no en el tour) ahora puede ajustar el precio de cada material antes de guardar.
+- No hay forma de probar visualmente en este entorno que el spotlight de Driver.js quede bien alineado con 27 pasos y bloques de distinto tamaño (algunos son tablas largas, como Materiales a comprar) — recomendado que Daniel lo recorra una vez en el celular apenas esté deployado y avise si algún popover queda mal ubicado, para ajustar puntualmente.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 4) — Tour rediseñado como demo auto-completado ⚠️ SIN COMMITEAR
 Daniel probó el tour "multi-página real" (cont. 2/3) y lo rechazó de raíz, no como bug sino como enfoque equivocado: *"Tiene que ser un tour completo no le puedo mandar un manual de instrucciones para el tour... apreto nuevo presupuesto y me quedo esperando el tour no se sabe qué hay que completar para pasar a la otra pantalla."* Pedido explícito: que el usuario solo toque "Siguiente", viendo cada pantalla YA completada con datos ficticios (cliente, 2-3 ítems de distintos rubros, 1-2 subcontratos, indirectos), hasta llegar al resumen final y los 2 PDF con el logo/nombre real de su empresa.

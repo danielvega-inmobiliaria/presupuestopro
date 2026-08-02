@@ -54,6 +54,15 @@
 .pp2 .fila .sub.cero{color:var(--gris-cl);font-weight:400}
 .pp2 .quitar{width:34px;height:34px;flex-shrink:0;border:none;background:none;color:var(--rojo);font-size:16px;border-radius:50%}
 
+/* Precio unitario editable por material (pedido de Daniel 02/08/2026) —
+   línea propia entre el nombre y la fila de cantidad, para no repetir el
+   problema de números amontonados que tenía el trío de indirectos. */
+.pp2 .fila-precio{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--gris);margin-bottom:7px}
+.pp2 .precio-suf{display:flex;align-items:center;gap:4px;border:1.5px solid var(--linea);border-radius:var(--r);padding:0 9px;height:36px;background:#fff;flex-shrink:0}
+.pp2 .precio-suf span{font-size:12.5px;color:var(--gris)}
+.pp2 .precio-unit{width:90px;height:32px;border:none;text-align:right;font-family:var(--f-num);font-size:14px;font-weight:600;color:var(--tinta);background:transparent;padding:0}
+.pp2 .precio-unit:focus{outline:none}
+
 /* RUBRO PLEGABLE */
 .pp2 .rubro{background:var(--papel);border:1px solid var(--linea);border-radius:var(--r);margin-bottom:8px;isolation:isolate}
 .pp2 .rubro-hd{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;background:none;border:none;text-align:left;font-family:inherit;min-height:var(--tap);cursor:pointer;color:inherit;border-radius:var(--r) var(--r) 0 0}

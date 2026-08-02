@@ -37,7 +37,7 @@
   <h4 class="mb-0">Presupuesto <span class="badge bg-secondary">{{ p.nro }}</span></h4>
   <span class="text-muted small">{{ p.fecha_presup }} · {{ p.cliente_nombre }}</span>
 </div>
-<div class="d-flex flex-wrap gap-2 mb-4">
+<div class="d-flex flex-wrap gap-2 mb-4" id="tour-ver-botones">
   <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary btn-sm">
     <i class="bi bi-arrow-left"></i> Volver
   </a>
@@ -48,11 +48,81 @@
     <a href="{{ url_for('pdf.propietario_preview', pid=p.id) }}" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-file-person"></i> PDF Propietario
     </a>
+    <button type="button" class="btn btn-outline-primary btn-sm" title="Ver sin descargar"
+            onclick="verPdfPreview('{{ url_for('pdf.propietario_preview', pid=p.id) }}', 'PDF Propietario')">
+      <i class="bi bi-eye"></i>
+    </button>
     <a href="{{ url_for('pdf.constructor', pid=p.id) }}" class="btn btn-outline-dark btn-sm">
       <i class="bi bi-tools"></i> PDF Constructor
     </a>
+    <button type="button" class="btn btn-outline-dark btn-sm" title="Ver sin descargar"
+            onclick="verPdfPreview('{{ url_for('pdf.constructor', pid=p.id) }}', 'PDF Constructor')">
+      <i class="bi bi-eye"></i>
+    </button>
   </span>
 </div>
+
+{# Fix 02/08/2026 (pedido de Daniel, recorrido guiado): panel de cierre del
+   tour — oculto por defecto, static/js/tour.js lo muestra al llegar al
+   último paso. Reúne los 2 accesos a los PDF (ya generados, sin tener que
+   descargarlos) más el botón que termina el recorrido y felicita al
+   usuario en el Dashboard. No se usa fuera del tour. #}
+<div id="tour-fin-recorrido" class="card mb-4" style="display:none;border:2px solid var(--amarillo, #F5A623)">
+  <div class="card-body text-center">
+    <div class="fw-bold mb-1" style="font-size:17px">🎉 ¡Tu primer presupuesto está listo!</div>
+    <p class="text-muted small mb-3">Mirá cómo quedaron los 2 PDF, con el nombre y el logo de tu empresa.</p>
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+      <button type="button" class="btn btn-outline-primary"
+              onclick="verPdfPreview('{{ url_for('pdf.propietario_preview', pid=p.id) }}', 'PDF Propietario')">
+        <i class="bi bi-file-person"></i> Ver PDF Propietario
+      </button>
+      <button type="button" class="btn btn-outline-dark"
+              onclick="verPdfPreview('{{ url_for('pdf.constructor', pid=p.id) }}', 'PDF Constructor')">
+        <i class="bi bi-tools"></i> Ver PDF Constructor
+      </button>
+      <button type="button" class="btn btn-warning fw-bold"
+              onclick="if(window.ppFinalizarRecorrido){window.ppFinalizarRecorrido();}else{window.location.href='{{ url_for('dashboard.index') }}?tour_fin=1';}">
+        Final del recorrido <i class="bi bi-flag-fill"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+{# Modal reutilizable para ver cualquiera de los 2 PDF sin descargar (iframe
+   — el navegador los renderiza in-line, tanto el preview HTML del
+   Propietario como el PDF real del Constructor). #}
+<div class="modal fade" id="modalPdfPreview" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width:92vw">
+    <div class="modal-content" style="height:85vh">
+      <div class="modal-header py-2">
+        <h6 class="modal-title" id="modalPdfPreviewTitulo">PDF</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="modalPdfPreviewFrame" src="" style="width:100%;height:100%;border:0"></iframe>
+      </div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+          <i class="bi bi-arrow-left"></i> Volver al presupuesto
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function verPdfPreview(url, titulo) {
+  document.getElementById('modalPdfPreviewTitulo').textContent = titulo;
+  document.getElementById('modalPdfPreviewFrame').src = url;
+  var modalEl = document.getElementById('modalPdfPreview');
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+  // Al cerrar, liberar el iframe (evita que el PDF siga "sonando" de fondo)
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    document.getElementById('modalPdfPreviewFrame').src = '';
+  }, { once: true });
+}
+</script>
 
 <div class="row g-4">
   <!-- Totales -->
@@ -168,7 +238,7 @@
     {% endif %}
 
     {% if p.materiales %}
-    <div class="card">
+    <div class="card" id="tour-ver-materiales">
       <div class="card-header bg-light fw-bold small">Materiales incluidos</div>
       <div class="table-responsive">
         <table class="table table-sm mb-0">

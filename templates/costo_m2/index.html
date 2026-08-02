@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Costo por M² — PresupuestoPRO{% endblock %}
+{% block tour_stage %}costo_m2{% endblock %}
 
 {% block content %}
 <div class="pp2 pp2-con-barra">
@@ -28,6 +29,7 @@
 </div>
 
 {% for (rnum, rnombre), items in rubros.items() %}
+{% set rubro_loop = loop %}
 <div class="rubro abierto" style="isolation:auto">
   <div class="rubro-hd" style="cursor:default;position:static">
     <span class="rubro-n">{{ rnum }}</span>
@@ -36,7 +38,9 @@
   <div class="rubro-body">
     {% for it in items %}
     <label class="fila item-row" style="display:flex;align-items:center;gap:11px;cursor:pointer;margin-bottom:0"
-           data-id="{{ it.id }}" data-nombre="{{ it.nombre }}" data-unidad="{{ it.unidad }}">
+           data-id="{{ it.id }}" data-nombre="{{ it.nombre }}" data-unidad="{{ it.unidad }}"
+           {% if rubro_loop.index == 1 and loop.index == 1 %}id="tour-costo-m2-item1"{% endif %}
+           {% if rubro_loop.index == 2 and loop.index == 1 %}id="tour-costo-m2-item2"{% endif %}>
       <input type="radio" name="item_sel" value="{{ it.id }}" style="width:22px;height:22px;flex-shrink:0;accent-color:var(--azul)">
       <span class="fila-nom" style="flex:1;margin-bottom:0">{{ it.nombre }}</span>
       <span class="unidad">{{ it.unidad }}</span>
