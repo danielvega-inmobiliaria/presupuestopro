@@ -11,7 +11,32 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 14:42 ART_
+_Última actualización: 02/08/2026 — 16:23 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 6) — Fix: el tour se cortaba al navegar de página + reorden Perfil/Costo-m² ⚠️ SIN COMMITEAR
+Daniel probó el tour v3 (cont. 5) y reportó: el paso 1/27 lo lleva a Perfil de empresa, pero ahí "no hace nada" (ningún popover, puede editar los campos libremente) y el botón "Guardar" tampoco responde.
+
+**Causa encontrada:** `init()` en `tour.js` cortaba de entrada si `document.body.dataset.tourDone === '1'` — y la cuenta de Daniel sigue con `tour_completado=1` en la base, de las pruebas de las sesiones anteriores (nunca se resetea). El botón manual "🧭 Recorrido virtual" esquiva ese chequeo llamando a `crearDriverTour()` directo, por eso el paso 1/27 sí se veía en el Dashboard — pero al navegar a `/perfil/` (carga de página nueva), el `init()` normal de esa página SÍ hacía el chequeo, encontraba `tourDone=1` y cortaba antes de mirar siquiera el `localStorage` con el paso guardado. Resultado: ningún overlay, ningún popover, el "Guardar" no respondía porque en realidad no había ningún tour corriendo (no era un bug de bloqueo de clics, era que el tour ni arrancaba).
+
+**Fix:** `tourDone` ahora solo bloquea el arranque **automático** de la primera vez (cuando no hay ningún paso guardado en `localStorage`). Si hay un paso guardado — sea porque se arrancó a mano con "Recorrido virtual" o porque se viene retomando entre páginas — se retoma igual, sin importar ese flag viejo.
+
+**Además, reordenado según pedido de Daniel** (el tour v3 metía 4 paradas sueltas en Perfil y saltaba directo a Costo/m² sin pasar por el Dashboard):
+1. Dashboard → "Mi empresa" → Perfil.
+2. Perfil, **2 paradas** (antes 4): primero el **Logo** (explica que por ahora usa las iniciales), después **Datos de la empresa** como un solo bloque (nombre, slogan, contacto, teléfono, email — con la explicación de que el slogan lo diferencia).
+3. Desde Perfil, "Siguiente" **vuelve al Dashboard** (antes iba directo a Costo/m² por URL).
+4. En el Dashboard se ilumina de nuevo el botón real **"Costo/m²"** (pedido de Daniel: "hacer el resto empezando con Costo/m2") → de ahí sí sigue a la pantalla de Costo/m² y el resto del recorrido, sin cambios respecto a cont. 5.
+
+Recorrido nuevo: 26 paradas (antes 27) en las mismas 13 pantallas.
+
+**Archivos tocados:**
+- `static/js/tour.js` — fix del `init()` (comentado en el propio código con la fecha), STEPS reordenado (Perfil pasó de 4 a 2 paradas — `#tour-perfil-logo` y el nuevo `#tour-perfil-datos` combinado —, se reintrodujo la parada `dashboard/#tour-costo-m2` entre Perfil y Costo/m²).
+- `templates/perfil/perfil.html` — se sacaron las 3 anclas sueltas (`tour-perfil-nombre/slogan/contacto`, ya no se usan) y se agregó una sola `id="tour-perfil-datos"` en todo el bloque "Datos de la empresa".
+
+**Verificado (sin navegador real):** `node --check` OK. Harness Flask local, esta vez simulando el escenario exacto que rompía — **la cuenta de prueba se dejó a propósito con `tour_completado=1`** (como la de Daniel) — recorriendo `/` → `/perfil/` (anclas logo+datos presentes) → `/` de nuevo (ancla costo-m2 presente) → `/costo-m2/` → `/presupuesto/demo` → paso 1 a 8 (con los defaults reales de cada pantalla) → Guardar → `ver.html` → `/?tour_fin=1`. Todo 200/302 sin errores — el fix corrige exactamente el punto donde antes se hubiera cortado.
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma a los archivos ya pendientes de cont. 4/5 (mismo commit, `tour.js` y `perfil.html` ya estaban en la lista).
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 5) — Tour v3: recorrido granular completo (empresa → Costo/m² → presupuesto → PDFs) ⚠️ SIN COMMITEAR
 Daniel probó el tour v2 (demo auto-completado, cont. 4) y pidió ir mucho más a fondo, con un mensaje muy detallado (ver historial del chat). En criollo: quería un recorrido que (1) arranque mostrando cómo configurar los datos de la empresa, (2) siga con 2 ejemplos de Costo/m² explicando que da mano de obra + detalle de materiales editable por zona, (3) recién ahí entre al asistente de presupuesto pasando de pantalla en pantalla **sin que el usuario tenga que clickear ningún botón real** (todo con el "Siguiente" del popover iluminado), iluminando cada bloque de cada paso por separado con su propia explicación, y (4) termine en la pantalla final mostrando los 2 PDF sin descargarlos, con un botón de cierre que lo felicite y lo mande al Dashboard. También reportó (con captura) que los montos de Indirectos (paso 4) se veían amontonados en 3 columnas en mobile.

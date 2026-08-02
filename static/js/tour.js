@@ -38,6 +38,7 @@
 
   var STORAGE_KEY = 'pp_tour_step';
   var MARCAR_URL = '/tour/completar';
+  var URL_DASHBOARD = '/';
   var URL_PERFIL = '/perfil/';
   var URL_COSTO_M2 = '/costo-m2/';
   var URL_DEMO = '/presupuesto/demo';
@@ -59,23 +60,20 @@
       leaveAction: { type: 'navigate', url: URL_PERFIL }
     },
     {
-      stage: 'perfil', element: '#tour-perfil-nombre',
-      popover: { title: 'Nombre de tu empresa', description: 'Aparece en el encabezado de los 2 PDF que le vas a enviar a tus clientes.' }
-    },
-    {
-      stage: 'perfil', element: '#tour-perfil-slogan',
-      popover: { title: 'Slogan (opcional)', description: 'Un lema corto le da un toque más profesional al presupuesto. Ej: "Calidad y confianza en cada obra".' }
-    },
-    {
-      stage: 'perfil', element: '#tour-perfil-contacto',
-      popover: { title: 'Teléfono y email', description: 'Así tu cliente sabe cómo contactarte ante cualquier duda sobre el presupuesto.' }
-    },
-    {
       stage: 'perfil', element: '#tour-perfil-logo',
-      popover: { title: 'Logo de tu empresa', description: 'Si subís tu logo, sale en los PDF. Por ahora, sin logo cargado, usamos las iniciales de tu empresa (esto no lo vamos a tocar en el recorrido — es tu perfil real).' },
-      leaveAction: { type: 'navigate', url: URL_COSTO_M2 }
+      popover: { title: 'Tu logo', description: 'Así se ve tu logo en los PDF. Por ahora, sin logo cargado, usamos las iniciales de tu empresa — podés subir el tuyo cuando quieras, acá mismo.' }
+    },
+    {
+      stage: 'perfil', element: '#tour-perfil-datos',
+      popover: { title: 'Datos de tu empresa', description: 'Acá completás el resto: podés poner un Slogan que te diferencie ("Calidad y confianza en cada obra", por ejemplo), tu nombre de contacto, teléfono y email — todo esto sale en tus PDFs. Esto es tu perfil real, no lo vamos a modificar en el recorrido.' },
+      leaveAction: { type: 'navigate', url: URL_DASHBOARD }
     },
     // ── 2) Costo/m² (aha moment rápido) ────────────────────────────
+    {
+      stage: 'dashboard', element: '#tour-costo-m2',
+      popover: { title: '¿Necesitás algo más rápido?', description: '¿Necesitás una respuesta rápida sin armar todo el presupuesto? Con "Costo/m²" calculás el costo de un solo ítem en segundos. Te muestro cómo.' },
+      leaveAction: { type: 'navigate', url: URL_COSTO_M2 }
+    },
     {
       stage: 'costo_m2', element: '#tour-costo-m2-item1',
       popover: { title: '¿Necesitás algo más rápido?', description: 'Elegís un ítem — por ejemplo este — y calculás en segundos su costo por m² o m³, sin tener que armar todo el presupuesto.' }
@@ -323,15 +321,22 @@
     if (!window.driver || !window.driver.js || !window.driver.js.driver) return; // CDN no cargó
     var stage = document.body.dataset.tourStage;
     if (!stage) return; // esta página no participa del tour
-    if (document.body.dataset.tourDone === '1') return; // ya lo completó o lo salteó
 
     var guardado = leerStorage();
     var indiceInicial = null;
 
+    // Fix 02/08/2026 (bug reportado por Daniel): "tourDone" (server-side,
+    // user.tour_completado) solo debe frenar el arranque AUTOMÁTICO del
+    // primer login. Si ya hay un paso guardado en localStorage (recorrido
+    // en curso — arrancado a mano con "Recorrido virtual", o resumido
+    // después de navegar de página), hay que RETOMARLO sin importar ese
+    // flag — si no, el tour se cortaba en seco apenas se navegaba a la
+    // segunda pantalla, porque la cuenta ya tenía tour_completado=1 de
+    // pruebas anteriores y esta función cortaba antes de mirar el storage.
     if (guardado !== null && STEPS[parseInt(guardado, 10)]) {
       indiceInicial = parseInt(guardado, 10);
-    } else if (guardado === null && stage === 'dashboard') {
-      indiceInicial = 0; // primera vez: siempre arranca en Dashboard, paso 0
+    } else if (guardado === null && stage === 'dashboard' && document.body.dataset.tourDone !== '1') {
+      indiceInicial = 0; // primera vez de verdad: arranca en Dashboard, paso 0
     }
 
     if (indiceInicial === null) return;
