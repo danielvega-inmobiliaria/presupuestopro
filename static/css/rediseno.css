@@ -99,7 +99,7 @@
    ("Alquiler andamios") y otra 1 ("Movilidad"), los inputs quedaban
    desalineados. Reservamos el alto de 2 líneas siempre y alineamos el
    texto de la etiqueta abajo, así todos los inputs arrancan a la misma altura. */
-.pp2 .trio .campo label{min-height:2.6em;display:flex;align-items:flex-end}
+.pp2 .trio .campo label,.pp2 .duo .campo label{min-height:2.6em;display:flex;align-items:flex-end}
 .pp2 .grupo-tit{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--gris);padding-bottom:6px;border-bottom:1px solid var(--linea);margin:20px 0 13px}
 .pp2 .grupo-tit.primero{margin-top:0}
 
