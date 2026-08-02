@@ -11,7 +11,32 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 17:40 ART_
+_Última actualización: 02/08/2026 — 18:32 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 8) — Bug crítico de ids + Atrás cross-página + más fixes de UX ⚠️ SIN COMMITEAR
+Daniel volvió a probar (cont. 7) y mandó capturas reales de su celular. Encontró un bug importante y una tanda de ajustes de UX:
+
+**🐛 Bug crítico: Costo/m² mostraba el ítem equivocado.** El paso de "Zapata Hº Pobre" en realidad mostraba "H.Elab. tanque (90-13)". Causa: `tour.js` armaba la URL con un **id numérico hardcodeado** (`item_id=36`, `item_id=40`) — esos ids salieron de probar contra una COPIA local de la base (`presupuestopro.db` del repo), pero el id autoincremental de cada ítem **no es el mismo en la base real** de producción (son bases distintas, con distinto historial de altas). El mismo problema existía sin reportar todavía en el paso 2 (Cómputo), que apuntaba a `#row-39`/`#row-54` (ids de ítem también hardcodeados).
+- **Fix:** nueva ruta `GET /costo-m2/resultado-demo?nombre=<nombre exacto>` (`routes/costo_m2.py`) que resuelve el ítem por **nombre** (estable, es el mismo catálogo fijo en cualquier base) y redirige al resultado real. `tour.js` ahora arma esas URLs con `nombre=Zapata Ho Pobre` / `nombre=Mamp. ladrillo comun 30cm` en vez de un id.
+- En paso 2, el selector pasó de `#row-39`/`#row-54` a `#rubro06 .fila.activa` / `#rubro07 .fila.activa` — "el ítem con cantidad cargada dentro del rubro X" (el rubro_num sí es estable, es una tabla fija: 06=Mampostería, 07=Contrapisos), sin depender del id del ítem.
+- Verificado con un test que resuelve por nombre y confirma que el HTML resultante contiene "Zapata"/"Mamp...30cm" según corresponda.
+
+**Otros fixes de esta vuelta:**
+- **"Atrás" no hacía nada** si el paso anterior estaba en otra página (Driver.js no sabe navegar por sí solo). Se agregó `retroceder()` — mismo patrón que el avance: cada paso ahora tiene un `pageUrl` (la URL para llegar a esa pantalla); si el anterior es de otra página, guarda el índice y navega ahí de verdad.
+- **La "X" del popover confundía** ("¿qué hace? ¿por qué está recuadrada en azul?"). Se sacó del todo (`allowClose:false`) — total, "Saltar todo el recorrido" ya cubre esa necesidad; menos controles ambiguos.
+- **Los popovers seguían tapando contenido** (Datos de empresa, Datos de obra, Cliente y obra, Contrapiso) a pesar del fix de `side:'top'` de la vuelta anterior — en bloques altos, en pantallas chicas, no había lugar ni arriba ni abajo. Cambio de estrategia: `scrollIntoViewOptions: {block:'start'}` — el elemento iluminado queda siempre arriba de todo, dejando el resto de la pantalla libre para el popover, sin superposición.
+- **"Equipo de trabajo" → "Cuadrilla de trabajo"** (label real en `paso5_modo_tiempo.html` + copy del tour) — pedido de Daniel, sonaba a herramientas.
+- **"SC" → "Sub Contrato"** en la Descripción de trabajos autogenerada (`_generar_descripcion_trabajos`/`_actualizar_descripcion_con_faltantes` en `routes/presupuesto.py`) y en ambos PDF (`utils/pdf_generator.py` + `templates/presupuesto/pdf_preview.html`) — antes decía "SC Electricidad", ahora "Sub Contrato Electricidad".
+
+**Archivos tocados:** `static/js/tour.js` (reescritura grande: `pageUrl` en cada paso, `retroceder()`, `allowClose:false`, `scrollIntoViewOptions`, URLs por nombre para Costo/m², selectores estables en paso 2), `routes/costo_m2.py` (nueva ruta `resultado_demo`), `routes/presupuesto.py` (SC→Sub Contrato ×2), `utils/pdf_generator.py` (SC→Sub Contrato), `templates/presupuesto/pdf_preview.html` (SC→Sub Contrato), `templates/presupuesto/paso5_modo_tiempo.html` (label Cuadrilla de trabajo).
+
+**Verificado (sin navegador real):** `node --check` OK, `python3 -c "import ast..."` OK en los 3 `.py` tocados. Smoke test: `resultado-demo?nombre=Zapata Ho Pobre` resuelve y el HTML resultante contiene "Zapata" (no "H.Elab. tanque"); ídem con Mampostería 30cm; `#rubro06 .fila.activa` / `#rubro07 .fila.activa` matchean correctamente contra "Mamp. ladrillo comun 15cm" / "Contrapiso cascotes 15cm"; "Cuadrilla de trabajo" presente en paso 5.
+
+**Pendiente de aclarar a Daniel:** el fix de `scrollIntoViewOptions` es el enfoque estándar recomendado por Driver.js para este problema, pero sigue sin poder verificarse visualmente en este entorno (no hay navegador real) — pedirle que confirme en el próximo recorrido si ya no tapa nada, especialmente en los bloques más largos (Cliente y obra, Datos de la empresa).
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma a la lista de archivos ya pendientes de cont. 4 a 7 (mismo commit).
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 7) — Costo/m² con ejemplos reales, ítems iluminados en Cómputo, y PDFs viewables sin descargar ⚠️ SIN COMMITEAR
 Daniel probó el tour v3+fix (cont. 6) con capturas de pantalla reales y pidió una tanda grande de ajustes:

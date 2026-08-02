@@ -458,8 +458,10 @@ def _generar_descripcion_trabajos(rubros, subcontratos=None):
     el constructor quiere adornarlo — así no se le puede pasar de largo
     ningún ítem al redactar a mano.
     Fix 05/07/2026 (cont.): también suma los subcontratos cargados en paso 3,
-    con prefijo "SC" (ej. "SC Electricidad"), antes del cierre "Limpieza de
-    obra." — para que tampoco se le pase de largo ningún subcontrato."""
+    con prefijo "Sub Contrato" (ej. "Sub Contrato Electricidad"), antes del
+    cierre "Limpieza de obra." — para que tampoco se le pase de largo ningún
+    subcontrato. Fix 02/08/2026: el prefijo era "SC" — Daniel pidió la
+    palabra completa, más clara para el cliente que lee el PDF."""
     nombres = []
     vistos = set()
     for rubro in rubros or []:
@@ -472,7 +474,7 @@ def _generar_descripcion_trabajos(rubros, subcontratos=None):
     for sc in subcontratos or []:
         nombre_sc = (sc.get('nombre') or '').strip()
         if nombre_sc:
-            etiqueta = f"SC {nombre_sc}"
+            etiqueta = f"Sub Contrato {nombre_sc}"
             if etiqueta not in vistos:
                 vistos.add(etiqueta)
                 nombres.append(etiqueta)
@@ -505,7 +507,7 @@ def _actualizar_descripcion_con_faltantes(desc_actual, rubros, subcontratos=None
     for sc in subcontratos or []:
         nombre_sc = (sc.get('nombre') or '').strip()
         if nombre_sc:
-            etiqueta = f"SC {nombre_sc}"
+            etiqueta = f"Sub Contrato {nombre_sc}"
             if etiqueta not in vistos:
                 vistos.add(etiqueta)
                 nombres.append(etiqueta)

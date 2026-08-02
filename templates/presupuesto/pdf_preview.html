@@ -74,7 +74,7 @@
         <tr><td>{{ it.nombre }}</td><td class="text-center">{{ it.cantidad }}</td><td class="text-center">{{ it.unidad }}</td></tr>
         {% endfor %}
         {% for sc in p.get('subcontratos', []) if sc.get('nombre') %}
-        <tr><td>SC {{ sc.nombre }}</td><td class="text-center">{{ sc.get('cantidad',1) }}</td><td class="text-center">{{ sc.get('unidad','Global') }}</td></tr>
+        <tr><td>Sub Contrato {{ sc.nombre }}</td><td class="text-center">{{ sc.get('cantidad',1) }}</td><td class="text-center">{{ sc.get('unidad','Global') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

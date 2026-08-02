@@ -315,7 +315,7 @@ def generar_pdf_propietario(p, empresa=None):
             fill = not fill
         for sc in subc_items_pdf:
             pdf.tabla_fila([
-                ('SC {}'.format(sc.get('nombre', '')), 110, 'L'),
+                ('Sub Contrato {}'.format(sc.get('nombre', '')), 110, 'L'),
                 (fmt_cant(sc.get('cantidad', 1)), 35, 'C'),
                 (sc.get('unidad', 'Global'), 35, 'C'),
             ], fill=fill)

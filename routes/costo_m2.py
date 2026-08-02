@@ -67,6 +67,31 @@ def index():
     return render_template('costo_m2/index.html', rubros=rubros)
 
 
+@bp.route('/resultado-demo')
+@login_required
+@verificacion_required
+@trial_required
+def resultado_demo():
+    """Fix 02/08/2026 (bug reportado por Daniel): el recorrido guiado
+    (static/js/tour.js) antes navegaba directo a /costo-m2/resultado con un
+    item_id NUMÉRICO hardcodeado (36, 40) — funcionaba en la base de prueba
+    de esta sesión, pero en la base real de Daniel esos ids son de OTROS
+    ítems (id autoincremental, no es estable entre entornos/bases). Mostraba
+    "H.Elab. tanque" en vez de "Zapata Ho Pobre". Esta ruta resuelve el ítem
+    por NOMBRE (estable, es el mismo catálogo fijo en cualquier base) y
+    redirige al resultado real — el tour ahora apunta acá en vez de armar
+    la URL con un id a mano."""
+    nombre = (request.args.get('nombre') or '').strip()
+    db = get_db()
+    item = db.execute(
+        "SELECT id FROM items_obra WHERE nombre=? LIMIT 1", (nombre,)
+    ).fetchone()
+    db.close()
+    if not item:
+        return redirect(url_for('costo_m2.index'))
+    return redirect(url_for('costo_m2.resultado', item_id=item['id']))
+
+
 @bp.route('/resultado')
 @login_required
 @verificacion_required

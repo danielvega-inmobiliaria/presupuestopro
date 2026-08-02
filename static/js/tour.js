@@ -42,23 +42,38 @@
   var URL_PERFIL = '/perfil/';
   var URL_COSTO_M2 = '/costo-m2/';
   var URL_DEMO = '/presupuesto/demo';
-  // Ítems de ejemplo para el recorrido de Costo/m² (ids reales de items_obra,
-  // confirmados 02/08/2026): 36="Zapata Ho Pobre", 40="Mamp. ladrillo comun
-  // 30cm" — bien distintos entre sí (uno de hormigón, otro de mampostería)
-  // para mostrar que el cálculo funciona igual con cualquier ítem.
-  var URL_RESULTADO_ZAPATA = '/costo-m2/resultado?item_id=36';
-  var URL_RESULTADO_MAMPOSTERIA = '/costo-m2/resultado?item_id=40';
+  // Ítems de ejemplo para el recorrido de Costo/m² — bien distintos entre sí
+  // (uno de hormigón, otro de mampostería) para mostrar que el cálculo
+  // funciona igual con cualquier ítem. Fix 02/08/2026 (bug reportado por
+  // Daniel): antes se armaba la URL con un item_id NUMÉRICO hardcodeado
+  // (36, 40) — funcionaba en la base de prueba de esta sesión, pero en la
+  // base real esos números son de OTROS ítems (el id autoincremental no es
+  // estable entre bases). Ahora se resuelve por NOMBRE, vía
+  // costo_m2.resultado_demo (routes/costo_m2.py) — el nombre del ítem sí es
+  // estable, es el mismo catálogo fijo en cualquier base.
+  var URL_RESULTADO_ZAPATA = '/costo-m2/resultado-demo?nombre=' + encodeURIComponent('Zapata Ho Pobre');
+  var URL_RESULTADO_MAMPOSTERIA = '/costo-m2/resultado-demo?nombre=' + encodeURIComponent('Mamp. ladrillo comun 30cm');
+  var URL_PASO1 = '/presupuesto/nuevo';
+  var URL_PASO2 = '/presupuesto/rubros';
+  var URL_PASO3 = '/presupuesto/subcontratos';
+  var URL_PASO4 = '/presupuesto/indirectos';
+  var URL_PASO5 = '/presupuesto/modo-tiempo';
+  var URL_PASO6 = '/presupuesto/materiales';
+  var URL_PASO7 = '/presupuesto/forma-pago';
+  var URL_PASO8 = '/presupuesto/resumen';
 
   // Cada paso vive en una pantalla concreta (`stage`) y apunta a un
-  // elemento real de esa pantalla. `leaveAction` (solo en el ÚLTIMO paso
-  // de cada pantalla) define cómo se avanza a la siguiente: "navigate"
+  // elemento real de esa pantalla. `pageUrl` es la URL para LLEGAR a esa
+  // pantalla — se usa para el botón "Atrás" cuando el paso anterior queda
+  // en otra página (ver `retroceder()`). `leaveAction` (solo en el ÚLTIMO
+  // paso de cada pantalla) define cómo se avanza a la siguiente: "navigate"
   // pega un salto directo a otra URL, "submit" dispara el submit real del
   // formulario de esa pantalla (con todos sus datos ya precargados). Los
   // pasos sin `leaveAction` simplemente avanzan dentro de la misma pantalla.
   var STEPS = [
     // ── 1) Mi Empresa ──────────────────────────────────────────────
     {
-      stage: 'dashboard', element: '#tour-mi-empresa',
+      stage: 'dashboard', element: '#tour-mi-empresa', pageUrl: URL_DASHBOARD,
       popover: {
         title: '¡Bienvenido a PresupuestoPRO! 👋',
         description: 'Antes de armar tu primer presupuesto, configuremos los datos de tu empresa — así van a aparecer en los PDFs que le mandás a tus clientes. Con tocar "Siguiente" alcanza, no hace falta que hagas clic en nada de la pantalla real.'
@@ -66,157 +81,166 @@
       leaveAction: { type: 'navigate', url: URL_PERFIL }
     },
     {
-      stage: 'perfil', element: '#tour-perfil-logo',
+      stage: 'perfil', element: '#tour-perfil-logo', pageUrl: URL_PERFIL,
       popover: { title: 'Tu logo', description: 'Así se ve tu logo en los PDF. Por ahora, sin logo cargado, usamos las iniciales de tu empresa — podés subir el tuyo cuando quieras, acá mismo.' }
     },
     {
-      stage: 'perfil', element: '#tour-perfil-datos',
-      popover: { title: 'Datos de tu empresa', description: 'Acá completás el resto: podés poner un Slogan que te diferencie ("Calidad y confianza en cada obra", por ejemplo), tu nombre de contacto, teléfono y email — todo esto sale en tus PDFs. Esto es tu perfil real, no lo vamos a modificar en el recorrido.', side: 'top', align: 'start' },
+      stage: 'perfil', element: '#tour-perfil-datos', pageUrl: URL_PERFIL,
+      popover: { title: 'Datos de tu empresa', description: 'Acá completás el resto: podés poner un Slogan que te diferencie ("Calidad y confianza en cada obra", por ejemplo), tu nombre de contacto, teléfono y email — todo esto sale en tus PDFs. Esto es tu perfil real, no lo vamos a modificar en el recorrido.' },
       leaveAction: { type: 'navigate', url: URL_DASHBOARD }
     },
     // ── 2) Costo/m² (aha moment rápido) ────────────────────────────
     {
-      stage: 'dashboard', element: '#tour-costo-m2',
+      stage: 'dashboard', element: '#tour-costo-m2', pageUrl: URL_DASHBOARD,
       popover: { title: '¿Necesitás algo más rápido?', description: '¿Necesitás una respuesta rápida sin armar todo el presupuesto? Con "Costo/m²" calculás el costo de un solo ítem en segundos. Te muestro cómo.' },
       leaveAction: { type: 'navigate', url: URL_COSTO_M2 }
     },
     {
-      stage: 'costo_m2', element: '#tour-costo-m2-item1',
+      stage: 'costo_m2', element: '#tour-costo-m2-item1', pageUrl: URL_COSTO_M2,
       popover: { title: '¿Necesitás algo más rápido?', description: 'Elegís un ítem — por ejemplo este, que se calcula por metro lineal — y calculás en segundos su costo por ml, m² o m³, sin tener que armar todo el presupuesto.' },
       leaveAction: { type: 'navigate', url: URL_RESULTADO_ZAPATA }
     },
-    // Resultado de ejemplo #1: Zapata Ho Pobre (id=36) — scrollea y va
-    // iluminando Jornales, Adicionales y Desglose de materiales.
+    // Resultado de ejemplo #1: Zapata Ho Pobre — scrollea y va iluminando
+    // Jornales, Adicionales y Desglose de materiales.
     {
-      stage: 'resultado', element: '#tour-costo-jornales',
+      stage: 'resultado', element: '#tour-costo-jornales', pageUrl: URL_RESULTADO_ZAPATA,
       popover: { title: 'Así se ve el resultado', description: 'Por ejemplo, esta es "Zapata Hº Pobre". Acá, los Jornales — podés editarlos de acuerdo a lo que le pagás realmente a tu oficial y a tu ayudante.' }
     },
     {
-      stage: 'resultado', element: '#tour-costo-adicionales',
+      stage: 'resultado', element: '#tour-costo-adicionales', pageUrl: URL_RESULTADO_ZAPATA,
       popover: { title: 'Adicionales', description: 'También podés editar el % de Beneficio y de Seguro — se recalcula todo en vivo.' }
     },
     {
-      stage: 'resultado', element: '#tour-costo-desglose',
+      stage: 'resultado', element: '#tour-costo-desglose', pageUrl: URL_RESULTADO_ZAPATA,
       popover: { title: 'Desglose de materiales', description: 'Y acá el desglose de materiales: podés editar el precio de lista de cada uno según los valores de tu zona.' },
       leaveAction: { type: 'navigate', url: URL_RESULTADO_MAMPOSTERIA }
     },
-    // Resultado de ejemplo #2: Mamp. ladrillo comun 30cm (id=40) — mismo
-    // recorrido, para reforzar que funciona igual con cualquier ítem.
+    // Resultado de ejemplo #2: Mamp. ladrillo comun 30cm — mismo recorrido,
+    // para reforzar que funciona igual con cualquier ítem.
     {
-      stage: 'resultado', element: '#tour-costo-jornales',
+      stage: 'resultado', element: '#tour-costo-jornales', pageUrl: URL_RESULTADO_MAMPOSTERIA,
       popover: { title: 'Lo mismo con cualquier ítem', description: 'Probemos con otro bien distinto: Mampostería de ladrillo común de 30cm. Los jornales, de nuevo, editables.' }
     },
     {
-      stage: 'resultado', element: '#tour-costo-adicionales',
+      stage: 'resultado', element: '#tour-costo-adicionales', pageUrl: URL_RESULTADO_MAMPOSTERIA,
       popover: { title: 'Adicionales', description: 'Beneficio y Seguro, siempre editables acá.' }
     },
     {
-      stage: 'resultado', element: '#tour-costo-desglose',
+      stage: 'resultado', element: '#tour-costo-desglose', pageUrl: URL_RESULTADO_MAMPOSTERIA,
       popover: { title: 'Desglose de materiales', description: 'Y el desglose de materiales de este ítem, con precios también editables según tu zona.' },
       leaveAction: { type: 'navigate', url: URL_DEMO }
     },
     // ── 3) Presupuesto — Paso 1: Datos de obra ─────────────────────
     {
-      stage: 'paso1', element: '#tour-cliente',
+      stage: 'paso1', element: '#tour-cliente', pageUrl: URL_PASO1,
       popover: { title: 'Ahora sí, el presupuesto', description: 'Ya completamos un cliente de ejemplo (ficticio) — así se ve. Vos vas a cargar acá los datos reales de tu cliente.' }
     },
     {
-      stage: 'paso1', element: '#tour-obra',
-      popover: { title: 'Datos de la obra', description: 'Descripción, dirección y tipo de obra — también de ejemplo. Nada de esto hace falta tocarlo ahora, seguimos con "Siguiente".', side: 'top', align: 'start' },
+      stage: 'paso1', element: '#tour-obra', pageUrl: URL_PASO1,
+      popover: { title: 'Datos de la obra', description: 'Descripción, dirección y tipo de obra — también de ejemplo. Nada de esto hace falta tocarlo ahora, seguimos con "Siguiente".' },
       leaveAction: { type: 'submit', formId: 'formObra' }
     },
     // ── Paso 2: Cómputo ─────────────────────────────────────────────
+    // Fix 02/08/2026 (mismo bug que Costo/m²): antes apuntaba a #row-39 /
+    // #row-54 — el id autoincremental del ítem, que no es estable entre
+    // bases. Ahora usa un selector estable: "el ítem con cantidad cargada
+    // dentro del rubro X" (.fila.activa ya se pinta server-side cuando
+    // prev_cant > 0 — ver paso2_rubros.html), sin depender de qué id
+    // numérico le tocó a ese ítem en cada base.
     {
-      stage: 'paso2', element: '#row-39',
-      popover: { title: 'Cómputo de la obra', description: 'Elegimos ejemplos de distintos rubros. Este es "Mamp. ladrillo común 15cm", dentro de Mampostería — ya con una cantidad cargada. Acá cargás las cantidades reales de tu obra y el costo se calcula solo, en vivo.' }
+      stage: 'paso2', element: '#rubro06 .fila.activa', pageUrl: URL_PASO2,
+      popover: { title: 'Cómputo de la obra', description: 'Elegimos ejemplos de distintos rubros. Este es el ítem de ejemplo dentro de Mampostería, ya con una cantidad cargada. Acá cargás las cantidades reales de tu obra y el costo se calcula solo, en vivo.' }
     },
     {
-      stage: 'paso2', element: '#row-54',
-      popover: { title: 'Otro rubro, mismo criterio', description: 'Y este es "Contrapiso cascotes 15cm", dentro de Contrapisos — otro ítem de ejemplo ya cargado.' },
+      stage: 'paso2', element: '#rubro07 .fila.activa', pageUrl: URL_PASO2,
+      popover: { title: 'Otro rubro, mismo criterio', description: 'Y este es el ítem de ejemplo dentro de Contrapisos — otro ítem ya cargado.' },
       leaveAction: { type: 'submit', formId: 'formComputo' }
     },
     // ── Paso 3: Subcontratos ──────────────────────────────────────
     {
-      stage: 'paso3', element: '#tour-subcontratos',
+      stage: 'paso3', element: '#tour-subcontratos', pageUrl: URL_PASO3,
       popover: { title: 'Subcontratos', description: 'Si tenés subcontratos (electricidad, plomería...) los marcás acá, con su mano de obra y materiales. Ya dejamos 2 de ejemplo cargados.' },
       leaveAction: { type: 'submit', formId: 'formSubc' }
     },
     // ── Paso 4: Indirectos ──────────────────────────────────────────
     {
-      stage: 'paso4', element: '#tour-indirectos',
+      stage: 'paso4', element: '#tour-indirectos', pageUrl: URL_PASO4,
       popover: { title: 'Costos indirectos', description: 'Movilidad, alquiler de andamios y de herramientas — gastos de la obra que no son ni mano de obra ni materiales. Ya completados como ejemplo.' },
       leaveAction: { type: 'submit', formId: 'formInd' }
     },
     // ── Paso 5: Modo y tiempo ────────────────────────────────────────
     {
-      stage: 'paso5', element: '#tour-paso5-config',
+      stage: 'paso5', element: '#tour-paso5-config', pageUrl: URL_PASO5,
       popover: {
-        title: 'Tu equipo y tus márgenes',
+        title: 'Tu cuadrilla y tus márgenes',
         description: 'Acá podés ajustar cuántos oficiales y ayudantes usás, cuánto les pagás por día, y el % de gastos generales y de impuestos/seguros. Si tu presupuesto no incluye materiales (los pone el cliente), arriba de todo podés elegir "Solo mano de obra".'
       }
     },
     {
-      stage: 'paso5', element: '#tour-paso5-cuadro',
+      stage: 'paso5', element: '#tour-paso5-cuadro', pageUrl: URL_PASO5,
       popover: { title: 'Costo Directo, Total Final y Ganancia Real', description: 'Con esos datos se arma este cuadro: el Costo Directo, el Total Final (lo que le cobrás al cliente) y — lo más importante — tu Ganancia Real. Ojo: si vos mismo trabajás como uno de los oficiales, a esa Ganancia Real hay que sumarle también lo que cobrás por tu propio trabajo.' },
       leaveAction: { type: 'submit', formId: 'formModo' }
     },
     // ── Paso 6: Materiales ────────────────────────────────────────
     {
-      stage: 'paso6', element: '#tour-materiales-precio',
+      stage: 'paso6', element: '#tour-materiales-precio', pageUrl: URL_PASO6,
       popover: { title: 'Precio unitario editable', description: 'Los materiales se calculan solos a partir de tus ítems. Podés editar el precio unitario de cada uno según lo que cuesta en tu zona — al cambiarlo, se actualiza el subtotal de esa fila.' }
     },
     {
-      stage: 'paso6', element: '#tour-materiales-total',
+      stage: 'paso6', element: '#tour-materiales-total', pageUrl: URL_PASO6,
       popover: { title: 'Total de materiales', description: 'Y acá te queda el total de materiales de todo el presupuesto.' },
       leaveAction: { type: 'submit', formId: 'formMateriales' }
     },
     // ── Paso 7: Forma de pago ────────────────────────────────────────
     {
-      stage: 'paso7', element: '#tour-paso7-config',
+      stage: 'paso7', element: '#tour-paso7-config', pageUrl: URL_PASO7,
       popover: { title: 'Forma de pago', description: 'El % de anticipo y de saldo final son editables, y elegís la frecuencia de las cuotas intermedias. Para este ejemplo elegimos cuotas semanales.' }
     },
     {
-      stage: 'paso7', element: '#tour-paso7-cuadro',
+      stage: 'paso7', element: '#tour-paso7-cuadro', pageUrl: URL_PASO7,
       popover: { title: 'Cuadro de pago estimado', description: 'Con eso se arma el cuadro de pago: anticipo al inicio, cuotas intermedias y saldo final al terminar la obra.' },
       leaveAction: { type: 'submit', formId: 'formPago' }
     },
     // ── Paso 8: Resumen y Guardar ─────────────────────────────────
     {
-      stage: 'paso8', element: '#tour-p8-cliente-obra',
-      popover: { title: 'Resumen final', description: 'Arriba de todo, un resumen de cliente y obra — con los mismos datos de ejemplo que cargamos antes.', side: 'top', align: 'start' }
+      stage: 'paso8', element: '#tour-p8-cliente-obra', pageUrl: URL_PASO8,
+      popover: { title: 'Resumen final', description: 'Arriba de todo, un resumen de cliente y obra — con los mismos datos de ejemplo que cargamos antes.' }
     },
     {
-      stage: 'paso8', element: '#tour-p8-totales',
+      stage: 'paso8', element: '#tour-p8-totales', pageUrl: URL_PASO8,
       popover: { title: 'Totales', description: 'Acá los totales del presupuesto: costo directo, subcontratos, indirectos, GG e impuestos, y el TOTAL final.' }
     },
     {
-      stage: 'paso8', element: '#tour-p8-pago',
+      stage: 'paso8', element: '#tour-p8-pago', pageUrl: URL_PASO8,
       popover: { title: 'Forma de pago', description: 'La forma de pago que elegiste en el paso anterior, ya calculada.' }
     },
     {
-      stage: 'paso8', element: '#tour-p8-materiales',
+      stage: 'paso8', element: '#tour-p8-materiales', pageUrl: URL_PASO8,
       popover: { title: 'Materiales a comprar', description: 'La lista completa de materiales a comprar para esta obra, con cantidades y precios.' }
     },
     {
-      stage: 'paso8', element: '#tour-p8-descripcion',
-      popover: { title: 'Descripción de trabajos', description: 'Este texto se arma solo, a partir de los ítems que presupuestaste — y es editable antes de guardar. Sale en los 2 PDF.', side: 'top', align: 'start' }
+      stage: 'paso8', element: '#tour-p8-descripcion', pageUrl: URL_PASO8,
+      popover: { title: 'Descripción de trabajos', description: 'Este texto se arma solo, a partir de los ítems que presupuestaste — y es editable antes de guardar. Sale en los 2 PDF.' }
     },
     {
-      stage: 'paso8', element: '#tour-guardar',
+      stage: 'paso8', element: '#tour-guardar', pageUrl: URL_PASO8,
       popover: { title: 'Guardar', description: 'Tocás "Guardar" y listo: se genera el presupuesto final, con sus 2 PDF.' },
       leaveAction: { type: 'submit', formId: 'formResumen' }
     },
     // ── Presupuesto guardado: materiales + botones + cierre ─────────
+    // (pageUrl null: la URL real es /presupuesto/<id>, no se conoce de
+    // antemano — "Atrás" desde el primer paso de acá no está soportado,
+    // caso límite: ya se guardó, no tiene mucho sentido volver.)
     {
-      stage: 'ver', element: '#tour-ver-materiales',
+      stage: 'ver', element: '#tour-ver-materiales', pageUrl: null,
       popover: { title: 'Presupuesto guardado ✓', description: 'Este es tu presupuesto ya armado. Bajamos hasta el final para ver el detalle completo de materiales.' }
     },
     {
-      stage: 'ver', element: '#tour-ver-botones',
+      stage: 'ver', element: '#tour-ver-botones', pageUrl: null,
       popover: { title: 'Tus 4 accesos', description: '"Volver" te lleva al Dashboard, "Editar" te deja modificar el presupuesto, y los 2 PDF: "Propietario" (para mandarle a tu cliente) y "Constructor" (con el detalle completo, para vos).' }
     },
     {
-      stage: 'ver', element: '#tour-fin-recorrido',
+      stage: 'ver', element: '#tour-fin-recorrido', pageUrl: null,
       popover: { title: '¡Listo! 🎉', description: 'Mirá los 2 PDF ahora mismo, con el nombre y el logo de tu empresa, sin tener que descargarlos. Cuando quieras, tocá "Final del recorrido".' }
     }
   ];
@@ -290,8 +314,8 @@
     if (step.element === '#tour-mi-empresa') {
       abrirMenuUsuario();
     }
-    if (step.element === '#row-39') abrirRubro('06'); // Mampostería
-    if (step.element === '#row-54') abrirRubro('07'); // Contrapisos
+    if (step.element === '#rubro06 .fila.activa') abrirRubro('06'); // Mampostería
+    if (step.element === '#rubro07 .fila.activa') abrirRubro('07'); // Contrapisos
   }
 
   // Usada tanto por "Siguiente" como por la X (cerrar) — cerrar un popover
@@ -337,6 +361,30 @@
     // a coincidir data-tour-stage en la próxima carga de página.
   }
 
+  // Fix 02/08/2026 (bug reportado por Daniel): "Atrás" no hacía nada cuando
+  // el paso anterior quedaba en OTRA página — Driver.js por sí solo no sabe
+  // navegar, solo puede resaltar elementos que ya están en el DOM actual.
+  // Mismo patrón que avanzarOTerminar(), pero yendo para atrás: si el paso
+  // anterior vive en la misma página, solo retrocede el índice; si vive en
+  // otra, guarda el índice a retomar y navega ahí de verdad.
+  function retroceder(driverObj) {
+    var activeIndex = driverObj.getActiveIndex();
+    if (activeIndex <= 0) return; // ya está en el primer paso, no hay "atrás"
+    var anterior = STEPS[activeIndex - 1];
+    var actual = STEPS[activeIndex];
+
+    if (anterior.pageUrl === actual.pageUrl) {
+      prepararElemento(anterior);
+      driverObj.movePrevious();
+      return;
+    }
+    if (!anterior.pageUrl) return; // caso límite sin URL conocida (ver stage) — no navega
+
+    guardarStorage(activeIndex - 1);
+    try { driverObj.destroy(); } catch (e) {}
+    window.location.href = anterior.pageUrl;
+  }
+
   function crearDriverTour() {
     var driverObj = window.driver.js.driver({
       showProgress: true,
@@ -346,15 +394,31 @@
       nextBtnText: 'Siguiente',
       prevBtnText: 'Atrás',
       doneBtnText: 'Entendido',
+      // Fix 02/08/2026 (bug reportado por Daniel: "qué función cumple la X
+      // y por qué está recuadrada en azul"): la X del popover confundía —
+      // parecía "cerrar" pero en realidad avanzaba un paso (mismo criterio
+      // que "Siguiente", para no terminar el tour entero sin querer). Ahora
+      // se saca directamente: "Saltar todo el recorrido" ya cubre esa
+      // necesidad, sin el elemento ambiguo de más.
+      allowClose: false,
+      // Fix 02/08/2026 (bug reportado por Daniel: los popovers tapaban los
+      // datos que estaban explicando en bloques altos — Datos de la
+      // empresa, Datos de la obra, Cliente y obra, etc.). En vez de forzar
+      // side/align por paso (no alcanzaba en bloques altos, sin espacio
+      // arriba NI abajo en pantallas chicas), se hace scroll para que el
+      // elemento iluminado quede SIEMPRE arriba de todo ("start") — así el
+      // popover tiene todo el resto de la pantalla libre, abajo, sin tapar
+      // nada del elemento.
+      scrollIntoViewOptions: { block: 'start', behavior: 'smooth' },
       steps: STEPS.map(function (s) {
         return { element: s.element, popover: s.popover };
       }),
       onCloseClick: function () { avanzarOTerminar(driverObj); },
       onDoneClick: function () { terminarTour(driverObj); },
       onNextClick: function () { avanzarOTerminar(driverObj); },
+      onPrevClick: function () { retroceder(driverObj); },
       // Link chico "Saltar todo el recorrido" — única forma real de
-      // saltear el tour completo antes del final (separado a propósito de
-      // la X, que solo avanza un paso).
+      // saltear el tour completo antes del final.
       onPopoverRender: function (popover) {
         var link = document.createElement('button');
         link.type = 'button';
