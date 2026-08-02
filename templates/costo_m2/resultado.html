@@ -8,6 +8,12 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/rediseno.css') }}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+{# Fix 02/08/2026: esta pantalla es standalone (no extiende base.html —
+   se abre como popup/ventana propia), así que el scaffolding del tour
+   (driver.css, driver.js, tour.js, data-tour-stage) se suma acá a mano,
+   igual que en base.html, para que el recorrido guiado pueda seguir
+   ilustrando "cómo se ve el resultado de Costo/m²" en esta pantalla. #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1/dist/driver.css">
 <style>
   /* Paleta y tipografía alineadas al sistema de diseño (rediseno.css) —
      mismos colores que el resto de la app (azul/verde/tinta/amarillo).
@@ -95,7 +101,7 @@
   @media print { .no-print{display:none!important} body{background:#fff} }
 </style>
 </head>
-<body class="p-3 pp2">
+<body class="p-3 pp2" data-tour-stage="resultado" data-tour-done="{{ '1' if user and user.tour_completado else '0' }}">
 
 {# ── HEADER + JORNALES: fijos arriba (sticky) hasta la línea de Ayudante,
      así quedan visibles al scrollear el desglose de materiales ── #}
@@ -123,7 +129,7 @@
        la MO no se movía si cambiabas el jornal en Admin; ahora sí, porque
        precio_mo_ars se recalcula desde Admin (ver database.py) y además se
        puede simular acá mismo. ── #}
-  <div class="jornales-row no-print">
+  <div class="jornales-row no-print" id="tour-costo-jornales">
     <div class="jornales-label">
       <i class="bi bi-info-circle"></i> Jornales adoptados por usuario
       <span class="badge-sim d-none" id="badge-sim">simulado, no guarda</span>
@@ -167,7 +173,7 @@
 {% endif %}
 
 {# ── ADICIONALES EDITABLES ── #}
-<div class="adic-card">
+<div class="adic-card" id="tour-costo-adicionales">
   <div class="adic-title">Con los siguientes adicionales</div>
   <div class="adic-row">
     <span style="min-width:85px">Beneficio:</span>
@@ -198,7 +204,7 @@
 
 {# ── DESGLOSE MATERIALES ── #}
 {% if tiene_desglose %}
-<div class="mat-card">
+<div class="mat-card" id="tour-costo-desglose">
   <div class="mat-title">Desglose Materiales por {{ display_unit }}</div>
   <table class="tbl-mat">
     <thead>
@@ -235,7 +241,7 @@
   </table>
 </div>
 {% elif tiene_materiales %}
-<div class="mat-card">
+<div class="mat-card" id="tour-costo-desglose">
   <div class="mat-title">Desglose Materiales</div>
   <p class="text-muted mb-0" style="font-size:.82rem">
     Desglose por material no disponible para este ítem.<br>
@@ -243,7 +249,7 @@
   </p>
 </div>
 {% else %}
-<div class="mat-card">
+<div class="mat-card" id="tour-costo-desglose">
   <div class="mat-title">Desglose Materiales</div>
   <p class="text-muted mb-0" style="font-size:.82rem">
     Sin datos de materiales para este ítem.<br>
@@ -414,5 +420,7 @@ function exportar() {
   }
 }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1/dist/driver.js.iife.js"></script>
+<script src="{{ url_for('static', filename='js/tour.js') }}"></script>
 </body>
 </html>

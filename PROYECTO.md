@@ -11,7 +11,38 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 16:23 ART_
+_Última actualización: 02/08/2026 — 17:40 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 7) — Costo/m² con ejemplos reales, ítems iluminados en Cómputo, y PDFs viewables sin descargar ⚠️ SIN COMMITEAR
+Daniel probó el tour v3+fix (cont. 6) con capturas de pantalla reales y pidió una tanda grande de ajustes:
+
+1. **Costo/m² — ejemplos reales, no solo la lista.** Antes el tour solo iluminaba 2 ítems EN LA LISTA sin abrir ningún resultado. Ahora: ilumina "Cerco de obra" (aclarando que es por ml — se agregó esa unidad al copy), y al tocar "Siguiente" navega directo a `/costo-m2/resultado?item_id=36` (Zapata Hº Pobre) — ahí ilumina, en orden, **Jornales** (editables según lo que pagás), **Adicionales** (Beneficio/Seguro editables) y **Desglose de materiales** (precio editable por zona). Repite el mismo recorrido con `item_id=40` (Mamp. ladrillo común 30cm) antes de seguir a `/presupuesto/demo`.
+   - `costo_m2/resultado.html` es una pantalla standalone (no extiende `base.html` — se pensó para abrirse en popup) — se le sumó a mano el scaffolding del tour (driver.css/js, tour.js, `data-tour-stage="resultado"`) y 3 anclas (`tour-costo-jornales`, `tour-costo-adicionales`, `tour-costo-desglose`).
+   - `routes/costo_m2.py::resultado()` ahora pasa `user=g.user` (antes no lo pasaba — el navbar se veía con el nombre en blanco).
+
+2. **Cómputo de la obra (paso 2): iluminar los ítems reales, no todo el acordeón.** Ahora abre (vía Bootstrap Collapse por JS) el rubro Mampostería e ilumina el ítem cargado "Mamp. ladrillo común 15cm" (`#row-39`), después abre Contrapisos e ilumina "Contrapiso cascotes 15cm" (`#row-54`) — son justo los ítems que ya sembraba `/presupuesto/demo` (primer ítem por orden de cada rubro), así que no hizo falta tocar la siembra, solo agregar la lógica de apertura en `tour.js` (`abrirRubro()`).
+
+3. **Popovers que tapaban el contenido que estaban explicando.** En "Datos de la empresa" (Perfil), "Datos de la obra" (paso 1), "Resumen: Cliente y obra" y "Descripción de trabajos" (paso 8), se forzó `side:'top', align:'start'` en el popover de Driver.js para que quede arriba del bloque y no lo cubra — antes quedaba a criterio del auto-posicionamiento de la librería.
+
+4. **Investigado el reclamo "Cliente/Obra vacío en el resumen":** se armó un test que arma el flujo completo con los valores default reales y extrae el texto del bloque — Cliente, Obra, Dirección, Fecha y Equipo llegan bien poblados al paso 8. **No era un bug de datos** — era el mismo problema del punto 3 (el popover tapaba visualmente esas filas). Se corrige con el mismo fix de `side:'top'`.
+
+5. **Ganancia Real (paso 5):** se agregó la aclaración pedida — "si vos mismo trabajás como uno de los oficiales, a esa Ganancia Real hay que sumarle también lo que cobrás por tu propio trabajo".
+
+6. **PDF Constructor no se podía ver, solo descargar (el más importante).** El botón "👁 Ver" de Constructor apuntaba al PDF real (`application/pdf` binario) dentro de un `<iframe>` — en el celular de Daniel eso disparaba la descarga en vez de mostrarlo. Además, lo que SÍ se veía del Propietario tampoco era lo pedido ("una imagen con todos los datos del PDF") — la pantalla `pdf_preview.html` de Propietario, hasta ahora, era solo una tarjeta con ícono + total + 3 botones, sin ningún dato real del presupuesto.
+   - **`templates/presupuesto/pdf_preview.html` (Propietario) reescrita** para mostrar el contenido real del PDF en HTML: encabezado con logo/nombre/slogan de la empresa, datos de cliente y obra, TOTAL, ítems de obra (+ subcontratos con prefijo SC), materiales, forma de pago — mismo contenido que `utils/pdf_generator.py::generar_pdf_propietario` — con "Descargar PDF" / "Enviar por WhatsApp" / "Volver al presupuesto" al final.
+   - **Nueva ruta `pdf.constructor_preview`** (`routes/pdf_routes.py`) + **nueva plantilla `templates/presupuesto/pdf_preview_constructor.html`**, mismo criterio pero espejando `generar_pdf_constructor`: costo directo por rubro, subcontratos, indirectos, lista de materiales con precios, resumen económico completo (MO/subcontratos/indirectos/impuestos/BENEFICIO/TOTAL). Es HTML puro (`text/html`), no fuerza descarga en ningún navegador.
+   - `templates/presupuesto/ver.html` — el botón "👁" y el botón del panel de cierre del recorrido para Constructor ahora apuntan a `pdf.constructor_preview` en vez de `pdf.constructor` (que sigue existiendo, es el link real de "Descargar PDF").
+   - La navegación "Volver para ver el otro PDF" ya la resolvía la arquitectura del modal de cont. 5 (el footer "← Volver al presupuesto" cierra el modal y vuelve al panel con los 2 botones + "Final del recorrido") — no hizo falta tocar esa parte.
+
+**Archivos tocados en esta vuelta:** `static/js/tour.js` (reescritura grande: nuevas URLs de resultado, `prepararElemento`/`abrirRubro`, `side`/`align` en 4 popovers, copy actualizado), `templates/costo_m2/index.html` (copy "ml"), `templates/costo_m2/resultado.html` (scaffolding + 3 anclas), `routes/costo_m2.py` (`user=g.user`), `templates/presupuesto/pdf_preview.html` (reescrita), `templates/presupuesto/pdf_preview_constructor.html` (nueva), `routes/pdf_routes.py` (nueva ruta `constructor_preview`), `templates/presupuesto/ver.html` (2 links repuntados).
+
+**Verificado (sin navegador real):** `node --check` OK, balance de `<div>` OK en los 5 archivos HTML tocados. Smoke test end-to-end con la cuenta en `tour_completado=1` (mismo escenario que Daniel) recorriendo: Dashboard → Perfil → Dashboard → Costo/m² → resultado Zapata (anclas + "Zapata" en el HTML) → resultado Mampostería (anclas + "Mamp" en el HTML) → demo → paso 1 a 8 (con los mismos ítems `row-39`/`row-54` confirmados en el HTML de paso 2) → Guardar → preview Propietario (200, con "Juan Pérez (ejemplo)", TOTAL y botón Descargar) → **preview Constructor (200, `Content-Type: text/html` — confirmado que NO es el binario, con "COSTO DIRECTO", "BENEFICIO" y botón Descargar)**.
+
+**Pendiente de aclarar a Daniel:** no hay forma de confirmar en este entorno que el posicionamiento `side:'top'` realmente evita el tapado en todas las pantallas y tamaños de letra — recomendado revisar esos 4 pasos puntuales (Datos de empresa, Datos de obra, Cliente y obra, Descripción de trabajos) en el próximo recorrido.
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma a la lista de archivos ya pendientes de cont. 4/5/6 (mismo commit).
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 6) — Fix: el tour se cortaba al navegar de página + reorden Perfil/Costo-m² ⚠️ SIN COMMITEAR
 Daniel probó el tour v3 (cont. 5) y reportó: el paso 1/27 lo lleva a Perfil de empresa, pero ahí "no hace nada" (ningún popover, puede editar los campos libremente) y el botón "Guardar" tampoco responde.

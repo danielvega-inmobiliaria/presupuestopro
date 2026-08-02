@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}PDF Constructor — Presupuesto {{ p.nro }}{% endblock %}
+
+{# Vista HTML del PDF Constructor (mismo contenido que
+   utils/pdf_generator.py::generar_pdf_constructor) — pedido de Daniel
+   02/08/2026, para poder verlo completo sin descargar el archivo. #}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+  <div>
+    <h5 class="mb-0">DESGLOSE INTERNO — USO DEL CONSTRUCTOR</h5>
+    <span class="text-muted small">N° {{ p.nro }} · {{ p.fecha_presup }}</span>
+  </div>
+  <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+{% if empresa.get('nombre') or empresa.get('logo_data') %}
+<div class="d-flex align-items-center gap-3 mb-3 p-2 bg-light rounded">
+  {% if empresa.get('logo_data') %}
+  <img src="data:image/*;base64,{{ empresa.logo_data }}" alt="Logo" style="max-height:56px;max-width:120px;object-fit:contain">
+  {% endif %}
+  <div>
+    {% if empresa.get('nombre') %}<div class="fw-bold">{{ empresa.nombre }}</div>{% endif %}
+    {% if empresa.get('slogan') %}<div class="text-muted small fst-italic">{{ empresa.slogan }}</div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header bg-light fw-bold small">Datos de la obra</div>
+  <ul class="list-group list-group-flush small">
+    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Cliente</span><strong>{{ p.cliente_nombre }}</strong></li>
+    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Obra</span><span>{{ p.obra_descripcion }}</span></li>
+    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Dirección</span><span>{{ p.obra_direccion }}</span></li>
+    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Modo</span><span>{{ 'MO + Materiales' if p.get('modo')=='mo_mat' else 'Solo mano de obra' }}</span></li>
+    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Operarios</span><span>{{ p.get('n_oficiales',0) }} oficiales + {{ p.get('n_ayudantes',0) }} ayudantes</span></li>
+    <li class="list-group-item d-flex justify-content-between"><span class="text-muted">Tiempo</span><span>{{ p.get('dias_obra',0) }} días estimados</span></li>
+    {% if p.descripcion_trabajos %}
+    <li class="list-group-item">
+      <div class="text-muted small mb-1">Descripción de trabajos</div>
+      <div class="small">{{ p.descripcion_trabajos }}</div>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+
+{% if p.get('rubros') %}
+<div class="card mb-3">
+  <div class="card-header bg-light fw-bold small">Ítems de obra</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>N°</th><th>Rubro</th><th class="text-end">Monto</th></tr></thead>
+      <tbody>
+        {% for r in p.rubros if r.total_local > 0 %}
+        <tr><td class="text-muted">{{ r.num }}</td><td>{{ r.nombre }}</td><td class="text-end">{{ simbolo }} {{ '{:,.0f}'.format(r.total_local).replace(',','.') }}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="table-primary fw-bold"><td colspan="2" class="text-end">COSTO DIRECTO</td><td class="text-end">{{ simbolo }} {{ '{:,.0f}'.format(costo_directo).replace(',','.') }}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if p.get('subcontratos') %}
+<div class="card mb-3">
+  <div class="card-header bg-light fw-bold small">Subcontratos</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Rubro</th><th class="text-end">MO</th><th class="text-end">Mat.</th><th class="text-end">Total</th></tr></thead>
+      <tbody>
+        {% for s in p.subcontratos %}
+        <tr><td>{{ s.nombre }}</td><td class="text-end">{{ '{:,.0f}'.format(s.mo_local).replace(',','.') }}</td>
+            <td class="text-end">{{ '{:,.0f}'.format(s.mat_local).replace(',','.') }}</td>
+            <td class="text-end fw-bold">{{ simbolo }} {{ '{:,.0f}'.format(s.total_local).replace(',','.') }}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="table-primary fw-bold"><td colspan="3" class="text-end">TOTAL SUBCONTRATOS</td><td class="text-end">{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_subcontratos',0)).replace(',','.') }}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% set ind = p.get('indirectos', {}) %}
+{% if ind.get('movilidad') or ind.get('andamios') or ind.get('herramientas') %}
+<div class="card mb-3">
+  <div class="card-header bg-light fw-bold small">Costos indirectos</div>
+  <ul class="list-group list-group-flush small">
+    {% if ind.get('movilidad') %}<li class="list-group-item d-flex justify-content-between"><span>Movilidad</span><span>{{ simbolo }} {{ '{:,.0f}'.format(ind.movilidad).replace(',','.') }}</span></li>{% endif %}
+    {% if ind.get('andamios') %}<li class="list-group-item d-flex justify-content-between"><span>Alquiler andamios</span><span>{{ simbolo }} {{ '{:,.0f}'.format(ind.andamios).replace(',','.') }}</span></li>{% endif %}
+    {% if ind.get('herramientas') %}<li class="list-group-item d-flex justify-content-between"><span>Alquiler herramientas</span><span>{{ simbolo }} {{ '{:,.0f}'.format(ind.herramientas).replace(',','.') }}</span></li>{% endif %}
+    <li class="list-group-item d-flex justify-content-between fw-bold table-primary"><span>TOTAL INDIRECTOS</span><span>{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_indirectos',0)).replace(',','.') }}</span></li>
+  </ul>
+</div>
+{% endif %}
+
+{% if p.get('materiales') %}
+<div class="card mb-3">
+  <div class="card-header bg-light fw-bold small">Lista de materiales con precios</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>Material</th><th class="text-center">Unidad</th><th class="text-center">Cant.</th><th class="text-end">P. Unit.</th><th class="text-end">Subtotal</th></tr></thead>
+      <tbody>
+        {% for m in p.materiales %}
+        <tr><td>{{ m.nombre }}</td><td class="text-center">{{ m.unidad }}</td><td class="text-center">{{ m.cantidad }}</td>
+            <td class="text-end">{{ simbolo }} {{ '{:,.0f}'.format(m.precio_local).replace(',','.') }}</td>
+            <td class="text-end">{{ simbolo }} {{ '{:,.0f}'.format(m.subtotal).replace(',','.') }}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="table-primary fw-bold"><td colspan="4" class="text-end">TOTAL MATERIALES</td><td class="text-end">{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_materiales',0)).replace(',','.') }}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header bg-light fw-bold small">Resumen económico del constructor</div>
+  <ul class="list-group list-group-flush small">
+    <li class="list-group-item d-flex justify-content-between"><span>Total MO a pagar</span><span>{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_mo',0)).replace(',','.') }}</span></li>
+    <li class="list-group-item d-flex justify-content-between"><span>Subcontratos a pagar</span><span>{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_subcontratos',0)).replace(',','.') }}</span></li>
+    <li class="list-group-item d-flex justify-content-between"><span>Indirectos a pagar</span><span>{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_indirectos',0)).replace(',','.') }}</span></li>
+    {% if p.get('modo') == 'mo_mat' %}
+    <li class="list-group-item d-flex justify-content-between"><span>Total materiales incluidos</span><span>{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_materiales',0)).replace(',','.') }}</span></li>
+    {% endif %}
+    <li class="list-group-item d-flex justify-content-between"><span>Impuestos y seguros</span><span>{{ simbolo }} {{ '{:,.0f}'.format(impuestos).replace(',','.') }}</span></li>
+    <li class="list-group-item d-flex justify-content-between fw-bold" style="background:var(--verde,#0F7A4A);color:#fff"><span>BENEFICIO (GG + Ganancia)</span><span>{{ simbolo }} {{ '{:,.0f}'.format(beneficio).replace(',','.') }}</span></li>
+    <li class="list-group-item d-flex justify-content-between fw-bold table-dark"><span>TOTAL PRESUPUESTO</span><span>{{ simbolo }} {{ '{:,.0f}'.format(p.get('total_presupuesto',0)).replace(',','.') }}</span></li>
+  </ul>
+</div>
+
+<div class="d-grid gap-2 mb-4" style="max-width:420px;margin:0 auto">
+  <a href="{{ url_for('pdf.constructor', pid=p.id) }}" class="btn btn-dark">
+    <i class="bi bi-download me-2"></i>Descargar PDF
+  </a>
+  <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Volver al presupuesto
+  </a>
+</div>
+{% endblock %}

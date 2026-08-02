@@ -62,8 +62,46 @@ def propietario_preview(pid):
     wa_url = f"https://wa.me/{tel_digits}?text={quote(msg)}" if tel_digits else None
     return render_template('presupuesto/pdf_preview.html',
                            p=p, empresa=empresa,
+                           simbolo=p.get('simbolo', '$'),
                            wa_url=wa_url,
                            tiene_tel=bool(tel_digits))
+
+
+@bp.route('/<int:pid>/constructor-preview')
+@login_required
+@verificacion_required
+@trial_required
+def constructor_preview(pid):
+    """Fix 02/08/2026 (pedido de Daniel): el PDF Constructor es un binario
+    real — en el modal de ver.html (iframe) eso forzaba la descarga en vez
+    de mostrarse en mobile, y encima no era "una imagen con todos los datos
+    del PDF" como había pedido. Esta vista es el mismo contenido que
+    utils/pdf_generator.py::generar_pdf_constructor, en HTML — se puede ver
+    completo sin descargar nada, con un botón para bajar el PDF real."""
+    p, empresa = cargar_presupuesto(pid, g.user['id'])
+    if not p:
+        flash('Presupuesto no encontrado.', 'error')
+        return redirect(url_for('dashboard.index'))
+
+    pct_gg = p.get('pct_gg', 20)
+    pct_imp = p.get('pct_impuestos', 7)
+    total_mo = p.get('total_mo', 0)
+    total_subc = p.get('total_subcontratos', 0)
+    total_ind = p.get('total_indirectos', 0)
+    costo_directo = total_mo + p.get('total_materiales', 0)
+    if p.get('modo') == 'solo_mo':
+        base = total_mo + total_subc + total_ind
+    else:
+        base = costo_directo + total_subc + total_ind
+    beneficio = round(base * pct_gg / 100)
+    impuestos = round(base * pct_imp / 100)
+
+    return render_template('presupuesto/pdf_preview_constructor.html',
+                           p=p, empresa=empresa,
+                           simbolo=p.get('simbolo', '$'),
+                           costo_directo=costo_directo,
+                           beneficio=beneficio,
+                           impuestos=impuestos)
 
 
 @bp.route('/<int:pid>/propietario')

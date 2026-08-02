@@ -29,7 +29,7 @@ Rutas:
   GET  /costo-m2/resultado    → ventana de resultado (item_id en query)
 """
 
-from flask import Blueprint, render_template, request, session, redirect, url_for
+from flask import Blueprint, render_template, request, session, redirect, url_for, g
 from database import get_db
 from routes.presupuesto import _calcular_materiales_desde_rubros, get_config_pct
 from utils.auth import login_required
@@ -160,6 +160,7 @@ def resultado():
     total_final = round(mo_neto + total_mat_display, 2)
 
     return render_template('costo_m2/resultado.html',
+        user=g.user,
         item=item,
         display_unit=display_unit,
         mat_items=mat_items,

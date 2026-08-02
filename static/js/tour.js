@@ -42,6 +42,12 @@
   var URL_PERFIL = '/perfil/';
   var URL_COSTO_M2 = '/costo-m2/';
   var URL_DEMO = '/presupuesto/demo';
+  // Ítems de ejemplo para el recorrido de Costo/m² (ids reales de items_obra,
+  // confirmados 02/08/2026): 36="Zapata Ho Pobre", 40="Mamp. ladrillo comun
+  // 30cm" — bien distintos entre sí (uno de hormigón, otro de mampostería)
+  // para mostrar que el cálculo funciona igual con cualquier ítem.
+  var URL_RESULTADO_ZAPATA = '/costo-m2/resultado?item_id=36';
+  var URL_RESULTADO_MAMPOSTERIA = '/costo-m2/resultado?item_id=40';
 
   // Cada paso vive en una pantalla concreta (`stage`) y apunta a un
   // elemento real de esa pantalla. `leaveAction` (solo en el ÚLTIMO paso
@@ -65,7 +71,7 @@
     },
     {
       stage: 'perfil', element: '#tour-perfil-datos',
-      popover: { title: 'Datos de tu empresa', description: 'Acá completás el resto: podés poner un Slogan que te diferencie ("Calidad y confianza en cada obra", por ejemplo), tu nombre de contacto, teléfono y email — todo esto sale en tus PDFs. Esto es tu perfil real, no lo vamos a modificar en el recorrido.' },
+      popover: { title: 'Datos de tu empresa', description: 'Acá completás el resto: podés poner un Slogan que te diferencie ("Calidad y confianza en cada obra", por ejemplo), tu nombre de contacto, teléfono y email — todo esto sale en tus PDFs. Esto es tu perfil real, no lo vamos a modificar en el recorrido.', side: 'top', align: 'start' },
       leaveAction: { type: 'navigate', url: URL_DASHBOARD }
     },
     // ── 2) Costo/m² (aha moment rápido) ────────────────────────────
@@ -76,14 +82,37 @@
     },
     {
       stage: 'costo_m2', element: '#tour-costo-m2-item1',
-      popover: { title: '¿Necesitás algo más rápido?', description: 'Elegís un ítem — por ejemplo este — y calculás en segundos su costo por m² o m³, sin tener que armar todo el presupuesto.' }
+      popover: { title: '¿Necesitás algo más rápido?', description: 'Elegís un ítem — por ejemplo este, que se calcula por metro lineal — y calculás en segundos su costo por ml, m² o m³, sin tener que armar todo el presupuesto.' },
+      leaveAction: { type: 'navigate', url: URL_RESULTADO_ZAPATA }
+    },
+    // Resultado de ejemplo #1: Zapata Ho Pobre (id=36) — scrollea y va
+    // iluminando Jornales, Adicionales y Desglose de materiales.
+    {
+      stage: 'resultado', element: '#tour-costo-jornales',
+      popover: { title: 'Así se ve el resultado', description: 'Por ejemplo, esta es "Zapata Hº Pobre". Acá, los Jornales — podés editarlos de acuerdo a lo que le pagás realmente a tu oficial y a tu ayudante.' }
     },
     {
-      stage: 'costo_m2', element: '#tour-costo-m2-item2',
-      popover: {
-        title: 'Cualquier ítem, de cualquier rubro',
-        description: 'Podés probar con este otro, por ejemplo. El resultado te da la mano de obra y el detalle de materiales con su costo, actualizado mes a mes — pero totalmente editable: podés ajustarlo según los precios de tu zona, igual que lo que le pagás a tu oficial y a tu ayudante.'
-      },
+      stage: 'resultado', element: '#tour-costo-adicionales',
+      popover: { title: 'Adicionales', description: 'También podés editar el % de Beneficio y de Seguro — se recalcula todo en vivo.' }
+    },
+    {
+      stage: 'resultado', element: '#tour-costo-desglose',
+      popover: { title: 'Desglose de materiales', description: 'Y acá el desglose de materiales: podés editar el precio de lista de cada uno según los valores de tu zona.' },
+      leaveAction: { type: 'navigate', url: URL_RESULTADO_MAMPOSTERIA }
+    },
+    // Resultado de ejemplo #2: Mamp. ladrillo comun 30cm (id=40) — mismo
+    // recorrido, para reforzar que funciona igual con cualquier ítem.
+    {
+      stage: 'resultado', element: '#tour-costo-jornales',
+      popover: { title: 'Lo mismo con cualquier ítem', description: 'Probemos con otro bien distinto: Mampostería de ladrillo común de 30cm. Los jornales, de nuevo, editables.' }
+    },
+    {
+      stage: 'resultado', element: '#tour-costo-adicionales',
+      popover: { title: 'Adicionales', description: 'Beneficio y Seguro, siempre editables acá.' }
+    },
+    {
+      stage: 'resultado', element: '#tour-costo-desglose',
+      popover: { title: 'Desglose de materiales', description: 'Y el desglose de materiales de este ítem, con precios también editables según tu zona.' },
       leaveAction: { type: 'navigate', url: URL_DEMO }
     },
     // ── 3) Presupuesto — Paso 1: Datos de obra ─────────────────────
@@ -93,13 +122,17 @@
     },
     {
       stage: 'paso1', element: '#tour-obra',
-      popover: { title: 'Datos de la obra', description: 'Descripción, dirección y tipo de obra — también de ejemplo. Nada de esto hace falta tocarlo ahora, seguimos con "Siguiente".' },
+      popover: { title: 'Datos de la obra', description: 'Descripción, dirección y tipo de obra — también de ejemplo. Nada de esto hace falta tocarlo ahora, seguimos con "Siguiente".', side: 'top', align: 'start' },
       leaveAction: { type: 'submit', formId: 'formObra' }
     },
     // ── Paso 2: Cómputo ─────────────────────────────────────────────
     {
-      stage: 'paso2', element: '#accordionRubros',
-      popover: { title: 'Cómputo de la obra', description: 'Elegimos 2-3 ítems de ejemplo, de distintos rubros. Acá cargás las cantidades reales de tu obra y el costo se calcula solo, en vivo.' },
+      stage: 'paso2', element: '#row-39',
+      popover: { title: 'Cómputo de la obra', description: 'Elegimos ejemplos de distintos rubros. Este es "Mamp. ladrillo común 15cm", dentro de Mampostería — ya con una cantidad cargada. Acá cargás las cantidades reales de tu obra y el costo se calcula solo, en vivo.' }
+    },
+    {
+      stage: 'paso2', element: '#row-54',
+      popover: { title: 'Otro rubro, mismo criterio', description: 'Y este es "Contrapiso cascotes 15cm", dentro de Contrapisos — otro ítem de ejemplo ya cargado.' },
       leaveAction: { type: 'submit', formId: 'formComputo' }
     },
     // ── Paso 3: Subcontratos ──────────────────────────────────────
@@ -124,7 +157,7 @@
     },
     {
       stage: 'paso5', element: '#tour-paso5-cuadro',
-      popover: { title: 'Costo Directo, Total Final y Ganancia Real', description: 'Con esos datos se arma este cuadro: el Costo Directo, el Total Final (lo que le cobrás al cliente) y — lo más importante — tu Ganancia Real.' },
+      popover: { title: 'Costo Directo, Total Final y Ganancia Real', description: 'Con esos datos se arma este cuadro: el Costo Directo, el Total Final (lo que le cobrás al cliente) y — lo más importante — tu Ganancia Real. Ojo: si vos mismo trabajás como uno de los oficiales, a esa Ganancia Real hay que sumarle también lo que cobrás por tu propio trabajo.' },
       leaveAction: { type: 'submit', formId: 'formModo' }
     },
     // ── Paso 6: Materiales ────────────────────────────────────────
@@ -150,7 +183,7 @@
     // ── Paso 8: Resumen y Guardar ─────────────────────────────────
     {
       stage: 'paso8', element: '#tour-p8-cliente-obra',
-      popover: { title: 'Resumen final', description: 'Arriba de todo, un resumen de cliente y obra.' }
+      popover: { title: 'Resumen final', description: 'Arriba de todo, un resumen de cliente y obra — con los mismos datos de ejemplo que cargamos antes.', side: 'top', align: 'start' }
     },
     {
       stage: 'paso8', element: '#tour-p8-totales',
@@ -166,7 +199,7 @@
     },
     {
       stage: 'paso8', element: '#tour-p8-descripcion',
-      popover: { title: 'Descripción de trabajos', description: 'Este texto se arma solo, a partir de los ítems que presupuestaste — y es editable antes de guardar. Sale en los 2 PDF.' }
+      popover: { title: 'Descripción de trabajos', description: 'Este texto se arma solo, a partir de los ítems que presupuestaste — y es editable antes de guardar. Sale en los 2 PDF.', side: 'top', align: 'start' }
     },
     {
       stage: 'paso8', element: '#tour-guardar',
@@ -230,9 +263,24 @@
     }
   }
 
+  // El acordeón de rubros (paso 2) arranca todo cerrado — antes de iluminar
+  // un ítem puntual adentro de un rubro, hay que abrir ese rubro (mismo
+  // mecanismo que el dropdown de "Mi empresa": Bootstrap Collapse por JS).
+  function abrirRubro(rnum) {
+    var el = document.getElementById('rubro' + rnum);
+    if (!el) return;
+    if (!el.classList.contains('show')) {
+      if (window.bootstrap && window.bootstrap.Collapse) {
+        try { window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show(); return; } catch (e) {}
+      }
+      el.classList.add('show'); // fallback sin bootstrap.js
+    }
+  }
+
   // Ajustes previos a iluminar un elemento puntual (el panel final del tour
   // arranca oculto — display:none — hasta que se llega a este paso; el link
-  // "Mi empresa" arranca dentro de un dropdown cerrado).
+  // "Mi empresa" arranca dentro de un dropdown cerrado; los ítems de
+  // Mampostería/Contrapisos arrancan dentro de un rubro colapsado).
   function prepararElemento(step) {
     if (!step) return;
     if (step.element === '#tour-fin-recorrido') {
@@ -242,6 +290,8 @@
     if (step.element === '#tour-mi-empresa') {
       abrirMenuUsuario();
     }
+    if (step.element === '#row-39') abrirRubro('06'); // Mampostería
+    if (step.element === '#row-54') abrirRubro('07'); // Contrapisos
   }
 
   // Usada tanto por "Siguiente" como por la X (cerrar) — cerrar un popover

@@ -56,7 +56,7 @@
       <i class="bi bi-tools"></i> PDF Constructor
     </a>
     <button type="button" class="btn btn-outline-dark btn-sm" title="Ver sin descargar"
-            onclick="verPdfPreview('{{ url_for('pdf.constructor', pid=p.id) }}', 'PDF Constructor')">
+            onclick="verPdfPreview('{{ url_for('pdf.constructor_preview', pid=p.id) }}', 'PDF Constructor')">
       <i class="bi bi-eye"></i>
     </button>
   </span>
@@ -77,7 +77,7 @@
         <i class="bi bi-file-person"></i> Ver PDF Propietario
       </button>
       <button type="button" class="btn btn-outline-dark"
-              onclick="verPdfPreview('{{ url_for('pdf.constructor', pid=p.id) }}', 'PDF Constructor')">
+              onclick="verPdfPreview('{{ url_for('pdf.constructor_preview', pid=p.id) }}', 'PDF Constructor')">
         <i class="bi bi-tools"></i> Ver PDF Constructor
       </button>
       <button type="button" class="btn btn-warning fw-bold"
