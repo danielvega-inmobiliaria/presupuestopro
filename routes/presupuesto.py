@@ -730,6 +730,61 @@ def editar(pid):
 
 
 # =========================================================================
+# DEMO DEL TOUR: precarga un presupuesto ficticio completo y manda a paso 1
+# =========================================================================
+@bp.route('/demo', methods=['GET'])
+@login_required
+def demo():
+    """Pedido de Daniel 02/08/2026: la primera versión del tour (multi-página
+    "real") le pedía al usuario escribir datos propios para poder ver los
+    pasos 3 a 8 — mucha fricción para alguien que recién se registra.
+    Ahora el tour arranca ACÁ: se precarga un presupuesto 100% ficticio
+    (cliente, ítems de 3 rubros distintos, 2 subcontratos, indirectos) y el
+    usuario solo va tocando "Siguiente" mientras static/js/tour.js explica
+    cada pantalla ya completada. Nada de esto se guarda hasta que el usuario
+    llegue de verdad al botón "Guardar" del paso 8 (mismo comportamiento que
+    cualquier presupuesto — ver resumen()).
+    Ver también: templates/dashboard.html (el botón "＋ Nuevo presupuesto"
+    cambia su href a esta ruta mientras el tour está activo, en
+    static/js/tour.js)."""
+    db = get_db()
+    # 3 rubros bien distintos (mampostería, contrapisos, techos) para que se
+    # note que el cómputo suma varios rubros, no uno solo. Cantidades
+    # elegidas para que den un presupuesto de magnitud creíble (obra chica).
+    rubros_demo = [('06', 8), ('07', 60), ('10', 60)]
+    rubros_cant = {}
+    for num, cant in rubros_demo:
+        row = db.execute(
+            "SELECT id FROM items_obra WHERE rubro_num=? ORDER BY orden, id LIMIT 1", (num,)
+        ).fetchone()
+        if row:
+            rubros_cant[str(row['id'])] = cant
+    db.close()
+
+    hoy = date.today().isoformat()
+    p = {
+        'cliente_nombre':   'Juan Pérez (ejemplo)',
+        'cliente_tel':      '11-5555-0000',
+        'cliente_email':    'juan.perez@ejemplo.com',
+        'obra_descripcion': 'Vivienda unifamiliar de 120 m² (presupuesto de ejemplo del recorrido guiado)',
+        'obra_direccion':   'Av. Ejemplo 1234, CABA',
+        'obra_tipo':        'Vivienda nueva',
+        'fecha_presup':     hoy,
+        'validez':          15,
+        'rubros_cant':      rubros_cant,
+        'subcontratos': [
+            {'id': 'electricidad', 'nombre': 'Electricidad', 'mo_local': 180000, 'mat_local': 120000,
+             'total_local': 300000, 'total_usd': 0, 'cantidad': 1, 'unidad': 'Global'},
+            {'id': 'plomeria', 'nombre': 'Plomería', 'mo_local': 150000, 'mat_local': 90000,
+             'total_local': 240000, 'total_usd': 0, 'cantidad': 1, 'unidad': 'Global'},
+        ],
+        'indirectos': {'movilidad': 25000, 'andamios': 40000, 'herramientas': 15000},
+    }
+    session['presup'] = p
+    return redirect(url_for('presupuesto.nuevo'))
+
+
+# =========================================================================
 # PASO 1: Datos de obra
 # =========================================================================
 @bp.route('/nuevo', methods=['GET', 'POST'])

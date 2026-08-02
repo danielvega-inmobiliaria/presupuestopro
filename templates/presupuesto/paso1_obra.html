@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}Nuevo presupuesto — Paso 1{% endblock %}
+{% block tour_stage %}paso1{% endblock %}
 
 {% block content %}
 <div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
 <form method="post" id="formObra" data-wizard-form>
-  <div class="bloque">
+  <div class="bloque" id="tour-datos-obra">
     <div class="bloque-cuerpo">
       <div class="grupo-tit primero">Cliente</div>
       <div class="campo">

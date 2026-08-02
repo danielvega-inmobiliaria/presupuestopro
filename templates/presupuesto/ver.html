@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Presupuesto {{ p.nro }}{% endblock %}
+{% block tour_stage %}ver{% endblock %}
 
 {% block content %}
 
@@ -43,12 +44,14 @@
   <a href="{{ url_for('presupuesto.editar', pid=p.id) }}" class="btn btn-outline-success btn-sm">
     <i class="bi bi-pencil"></i> Editar
   </a>
-  <a href="{{ url_for('pdf.propietario_preview', pid=p.id) }}" class="btn btn-outline-primary btn-sm">
-    <i class="bi bi-file-person"></i> PDF Propietario
-  </a>
-  <a href="{{ url_for('pdf.constructor', pid=p.id) }}" class="btn btn-outline-dark btn-sm">
-    <i class="bi bi-tools"></i> PDF Constructor
-  </a>
+  <span id="tour-pdfs" style="display:contents">
+    <a href="{{ url_for('pdf.propietario_preview', pid=p.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-file-person"></i> PDF Propietario
+    </a>
+    <a href="{{ url_for('pdf.constructor', pid=p.id) }}" class="btn btn-outline-dark btn-sm">
+      <i class="bi bi-tools"></i> PDF Constructor
+    </a>
+  </span>
 </div>
 
 <div class="row g-4">

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Indirectos — Paso 4{% endblock %}
+{% block tour_stage %}paso4{% endblock %}
 
 {% block content %}
 <div class="pp2 pp2-con-barra">
@@ -9,7 +10,7 @@
   <div class="bloque">
     <div class="bloque-cuerpo">
       <div class="grupo-tit primero">Costos indirectos</div>
-      <div class="trio">
+      <div class="trio" id="tour-indirectos">
         <div class="campo" style="margin:0">
           <label>Movilidad</label>
           <div class="sufijo"><input class="n" type="number" name="movilidad" id="movilidad" min="0" step="1000" placeholder="0"
