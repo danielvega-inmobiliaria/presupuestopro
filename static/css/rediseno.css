@@ -203,3 +203,59 @@
 @media (min-width:576px){
   .pp2 .sel{grid-template-columns:repeat(2,minmax(0,260px))}
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   TOUR INTERACTIVO (Driver.js) — theming, 02/08/2026
+   El popover de Driver.js se agrega directo a <body>, fuera del
+   div.pp2 de cada página — las variables de color de arriba (--tinta,
+   --amarillo, etc.) no llegan ahí por herencia de CSS, así que acá se
+   repiten los mismos valores en hexadecimal para que el tour se vea
+   con la misma paleta que el resto de la app (ver static/js/tour.js).
+   Clases de Driver.js documentadas en driverjs.com/docs/theming. ═══ */
+.driver-popover.pp-tour-popover{
+  font-family:"Segoe UI",Roboto,system-ui,-apple-system,sans-serif;
+  border-radius:8px;
+  box-shadow:0 8px 28px rgba(16,28,49,.28);
+  padding:16px;
+  max-width:320px;
+}
+.driver-popover.pp-tour-popover .driver-popover-title{
+  font-size:16px;font-weight:700;color:#101C31;
+}
+.driver-popover.pp-tour-popover .driver-popover-description{
+  font-size:14px;line-height:1.5;color:#5E6673;margin-top:6px;
+}
+.driver-popover.pp-tour-popover .driver-popover-close-btn{
+  color:#8B929C;
+}
+.driver-popover.pp-tour-popover .driver-popover-close-btn:hover{
+  color:#101C31;
+}
+.driver-popover.pp-tour-popover .driver-popover-footer{
+  margin-top:14px;
+}
+.driver-popover.pp-tour-popover .driver-popover-progress-text{
+  font-family:"SF Mono",Consolas,"Roboto Mono",monospace;
+  font-size:11px;color:#8B929C;
+}
+.driver-popover.pp-tour-popover .driver-popover-footer-btn{
+  font-family:inherit;font-size:13.5px;font-weight:600;
+  border-radius:4px;padding:8px 14px;min-height:36px;
+  text-shadow:none;border:1.5px solid transparent;
+}
+.driver-popover.pp-tour-popover .driver-popover-prev-btn{
+  background:#fff;color:#101C31;border-color:#D9DDD7;
+}
+.driver-popover.pp-tour-popover .driver-popover-next-btn{
+  background:#FDC300;color:#101C31;border-color:#FDC300;text-shadow:none;
+}
+.driver-popover.pp-tour-popover .driver-popover-next-btn.driver-popover-done-btn{
+  background:#0F7A4A;color:#fff;border-color:#0F7A4A;
+}
+.driver-popover.pp-tour-popover .driver-popover-arrow{
+  border-color:#fff;
+}
+/* Halo amarillo en el elemento iluminado, en vez del azul por defecto */
+.driver-active-element{
+  border-radius:6px;
+}

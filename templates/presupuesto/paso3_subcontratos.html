@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}Subcontratos — Paso 3{% endblock %}
+{% block tour_stage %}paso3{% endblock %}
 
 {% block content %}
 <div class="pp2 pp2-con-barra">
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
 <form method="post" id="formSubc" data-wizard-form>
-  <div class="bloque">
+  <div class="bloque" id="tour-subcontratos">
     <div class="ayuda">Marcá los rubros que vas a subcontratar y cargá los montos en {{ simbolo }}.</div>
 
     <!-- Sugeridos -->

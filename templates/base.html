@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/rediseno.css') }}">
+  <!-- Tour interactivo de onboarding (spotlight) — pedido de Daniel 02/08/2026,
+       estrategia de conversión (45/140 usuarios vencieron sin pagar nunca).
+       Driver.js: liviana (~5kb), sin dependencias. Ver static/js/tour.js. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1/dist/driver.css">
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#1a56db">
@@ -38,7 +42,7 @@
   /></noscript>
   <meta name="facebook-domain-verification" content="39xkjaz4s6n6ou5436fpgnikh1wibt" />
 </head>
-<body>
+<body data-tour-stage="{% block tour_stage %}{% endblock %}" data-tour-done="{{ '1' if user and user.tour_completado else '0' }}">
 
 {% if user %}
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow">
@@ -245,5 +249,12 @@ if ('serviceWorker' in navigator) {
   });
 })();
 </script>
+<!-- Tour interactivo de onboarding — ver static/js/tour.js. Se carga en
+     todas las páginas (liviano, ~5kb) porque el recorrido cruza varias
+     páginas del asistente; tour.js decide solo si corresponde arrancar/
+     retomar algo en cada una, en base a data-tour-stage/data-tour-done
+     de <body> arriba. -->
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1/dist/driver.js.iife.js"></script>
+<script src="{{ url_for('static', filename='js/tour.js') }}"></script>
 </body>
 </html>

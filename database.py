@@ -2519,6 +2519,24 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3b: email_consultas_entrantes agregada (webhook de mail entrante)")
 
+        # ── 3c. Tour interactivo de onboarding (spotlight, Driver.js) ─────
+        # Pedido de Daniel 02/08/2026: de 140 usuarios registrados, 45 vencieron
+        # la prueba sin pagar nunca (0 conversiones) — como parte de la
+        # estrategia de conversión, se arma un recorrido guiado que se dispara
+        # solo en el primer login (Dashboard) y acompaña al usuario por el
+        # asistente real hasta guardar su primer presupuesto (ver static/js/tour.js).
+        # tour_completado=1 se marca tanto al terminar el recorrido como al
+        # saltearlo (cerrar el popover) — en ambos casos no se muestra más.
+        ya_3c = db.execute("SELECT valor FROM config WHERE clave='3c_done'").fetchone()
+        if not ya_3c:
+            cols_users_3c = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            if 'tour_completado' not in cols_users_3c:
+                db.execute("ALTER TABLE users ADD COLUMN tour_completado INTEGER DEFAULT 0")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3c_done','2026-08-02')")
+            db.commit()
+            print("[migrate_db] 3c: users.tour_completado agregado (tour interactivo de onboarding)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

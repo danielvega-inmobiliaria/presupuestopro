@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard — PresupuestoPRO{% endblock %}
+{% block tour_stage %}dashboard{% endblock %}
 
 {% block content %}
 
@@ -45,8 +46,11 @@
 
 <div class="pp2">
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-    <a href="{{ url_for('presupuesto.nuevo', limpiar=1) }}" class="btn2 btn2-1" style="flex:1;min-width:180px">＋ Nuevo presupuesto</a>
-    <a href="{{ url_for('costo_m2.index') }}" class="btn2 btn2-2">Costo/m²</a>
+    <a id="tour-nuevo-presupuesto" href="{{ url_for('presupuesto.nuevo', limpiar=1) }}" class="btn2 btn2-1" style="flex:1;min-width:180px">＋ Nuevo presupuesto</a>
+    <button type="button" class="btn2 btn2-min" onclick="ppIniciarTour()" title="Volver a ver el recorrido guiado">
+      <i class="bi bi-compass"></i> Recorrido virtual
+    </button>
+    <a id="tour-costo-m2" href="{{ url_for('costo_m2.index') }}" class="btn2 btn2-2">Costo/m²</a>
   </div>
 
   {# ─── BORRADORES ────────────────────────────────────────────────────────── #}

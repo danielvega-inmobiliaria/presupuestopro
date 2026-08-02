@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Resumen — Paso 8{% endblock %}
+{% block tour_stage %}paso8{% endblock %}
 
 {% block content %}
 <div class="pp2 pp2-con-barra">
@@ -89,7 +90,7 @@
 <div class="barra-tot">
   <a href="{{ url_for('presupuesto.forma_pago') }}" class="btn2 btn2-back"><i class="bi bi-arrow-left"></i></a>
   <div class="bt-txt"><div class="bt-lbl">Total del presupuesto</div><div class="bt-val">{{ simbolo }} {{ "{:,.0f}".format(tot.get('total_final',0)).replace(',','.') }}</div></div>
-  <button type="submit" form="formResumen" class="btn2 btn2-ok"><i class="bi bi-check-lg"></i> Guardar</button>
+  <button type="submit" form="formResumen" id="tour-guardar" class="btn2 btn2-ok"><i class="bi bi-check-lg"></i> Guardar</button>
 </div>
 </div>
 {% endblock %}

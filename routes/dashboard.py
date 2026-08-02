@@ -8,6 +8,22 @@ from database import get_db
 bp = Blueprint('dashboard', __name__)
 
 
+@bp.route('/tour/completar', methods=['POST'])
+@login_required
+def tour_completar():
+    """Marca el tour interactivo de onboarding (spotlight, static/js/tour.js)
+    como terminado — se llama tanto al completar el último paso (Guardar
+    presupuesto, paso 8) como al saltearlo en cualquier momento (cerrar el
+    popover con la X). En ambos casos no debe volver a mostrarse. Pedido de
+    Daniel 02/08/2026, contexto: 45 de 140 usuarios vencieron la prueba sin
+    convertir nunca."""
+    db = get_db()
+    db.execute("UPDATE users SET tour_completado=1 WHERE id=?", (g.user['id'],))
+    db.commit()
+    db.close()
+    return jsonify({'ok': True})
+
+
 @bp.route('/')
 def index():
     user = get_current_user()
