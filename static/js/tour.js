@@ -22,10 +22,21 @@
      bloque Jinja {% block tour_stage %}). Este script solo actúa si
      la etapa de la página actual coincide con el paso que corresponde
      mostrar.
-   - Al cerrar el popover (botón "×") en cualquier paso, o al terminar
-     el último paso (Guardar, paso 8), se marca el tour como
-     completado — en ambos casos no vuelve a aparecer (POST a
-     /tour/completar, ver routes/dashboard.py).
+   - El botón "×" (cerrar) de cada paso NO cancela el recorrido entero —
+     solo cierra ese popover puntual y anota "ya vio este paso", igual
+     que si hubiera tocado "Siguiente" (fix 02/08/2026: la primera
+     versión marcaba el tour completo como terminado con solo cerrar
+     UN popover con la X — Daniel probó y solo llegó a ver los pasos
+     1/5 y 2/5 porque cerró el segundo con la X pensando que era un
+     simple "listo, entendido", y eso apagó el tour para siempre en su
+     cuenta). Ahora cerrar con la X y tocar "Siguiente" hacen lo mismo:
+     avanzan el recorrido a la próxima parada (misma página u otra).
+   - El único lugar donde se marca `tour_completado=1` (no se vuelve a
+     mostrar más) es: (a) al cerrar/terminar el último paso (Guardar,
+     paso 8), o (b) tocando el link chico "Saltar todo el recorrido"
+     que tiene cada popover — esa es la única forma real de saltearlo
+     del todo antes de llegar al final (POST a /tour/completar, ver
+     routes/dashboard.py).
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -51,7 +62,7 @@
       element: '#tour-costo-m2',
       popover: {
         title: '¿Necesitás algo más rápido?',
-        description: '¿Necesitás una respuesta rápida sin armar todo el presupuesto? Probá esto: calculá el costo de un solo ítem por m² o m³ en segundos, con los mismos precios de referencia.'
+        description: '¿Necesitás una respuesta rápida sin armar todo el presupuesto? Probá esto: calculá el costo de un solo ítem por m² o m³ en segundos, con los mismos precios de referencia. Cuando quieras seguir el recorrido, tocá "＋ Nuevo presupuesto" y te seguimos acompañando ahí.'
       }
     },
     {
@@ -110,10 +121,18 @@
     marcarCompletadoBackend();
   }
 
-  function avanzar(driverObj) {
+  // Usada tanto por "Siguiente" como por la X (cerrar) — fix 02/08/2026:
+  // antes la X mataba el tour entero (marcaba tour_completado=1 con solo
+  // cerrar un popover), y eso hacía que alguien que cerraba pensando
+  // "listo, ya entendí este paso" se quedara sin ver el resto para
+  // siempre. Ahora cerrar = "entendido, seguimos" (igual que Siguiente):
+  // avanza el puntero al próximo paso (misma página u otra) y recién
+  // marca completado si no queda ningún paso más.
+  function avanzarOTerminar(driverObj) {
     var activeIndex = driverObj.getActiveIndex();
     var siguiente = STEPS[activeIndex + 1];
-    if (!siguiente) { // no debería pasar (el último paso usa onDoneClick)
+    if (!siguiente) {
+      // No queda ningún paso más (se cerró/terminó el último, paso 8).
       terminarTour(driverObj);
       return;
     }
@@ -143,13 +162,31 @@
         return { element: s.element, popover: s.popover };
       }),
       onCloseClick: function () {
-        terminarTour(driverObj);
+        avanzarOTerminar(driverObj);
       },
       onDoneClick: function () {
         terminarTour(driverObj);
       },
       onNextClick: function () {
-        avanzar(driverObj);
+        avanzarOTerminar(driverObj);
+      },
+      // Link chico "Saltar todo el recorrido" en el pie del popover — la
+      // única forma de saltear el tour completo antes de llegar al final
+      // (pedido original de Daniel: "una sola vez, o hasta que lo
+      // salteen"). Separado a propósito del botón "×", que ahora solo
+      // avanza al próximo paso (ver avanzarOTerminar).
+      onPopoverRender: function (popover) {
+        var link = document.createElement('button');
+        link.type = 'button';
+        link.className = 'pp-tour-skip';
+        link.textContent = 'Saltar todo el recorrido';
+        link.addEventListener('click', function () {
+          terminarTour(driverObj);
+        });
+        // Se agrega al wrapper del popover (no a footerButtons) para que
+        // quede en su propia línea, debajo de todo, sin pelear con el
+        // layout flex de los botones Anterior/Siguiente.
+        popover.wrapper.appendChild(link);
       }
     });
     return driverObj;
