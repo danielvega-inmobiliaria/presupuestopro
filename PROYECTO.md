@@ -11,7 +11,122 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 18/07/2026 — 22:58 ART_
+_Última actualización: 02/08/2026 — 10:06 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont.) — Rediseño visual, fase 2 completa (Admin restante + login/registro/manual/perfil/costo_m2) ⚠️ SIN COMMITEAR
+Daniel pidió terminar la fase 2 que había quedado pendiente (ver sesión de abajo, línea "Pendiente para retomar"): migrar el resto de pantallas al sistema `.pp2` (`rediseno.css`). Se hicieron las 15 pantallas que faltaban.
+
+**Hecho:**
+- **Admin — resto de tablas/formularios de gestión**, todas migradas de tablas Bootstrap a listas de tarjetas `.fila`/`.bloque` (mismo criterio del wizard — sin scroll horizontal):
+  - `templates/admin/usuarios.html`: filtros (localidad/provincia/país, con el dropdown propio y el fix de autofill de Chrome intactos) + lista de usuarios en tarjetas con badges de estado, validación, contadores (presup./borr./costo m²) y los mismos botones de acción (editar, activar por email/WhatsApp, eliminar). JS sin tocar salvo mover `.closest('tr')`→no aplica acá (no había).
+  - `templates/admin/usuario_form.html`, `templates/admin/configuracion.html`, `templates/admin/tipos_cambio.html`: formularios a `.campo`/`.duo`/`.sufijo`.
+  - `templates/admin/precios.html`: jornales + precios de materiales por sector, a filas `.fila` con `.duo` (precio comercial / precio cálculo). JS `convertir()` ajustado de `closest('tr')` a `closest('.fila')`.
+  - `templates/admin/rendimientos.html`: filas por ítem con HOF/HAY en `.duo`, barra de guardar fija abajo (`.barra-tot`).
+  - `templates/admin/leads.html`: tarjetas por lead con WhatsApp directo, badges de estado con los colores del sistema, y el panel de editar (estado/notas) como `collapse` de Bootstrap dentro de la misma tarjeta (se mantiene `data-bs-toggle`, sigue andando con el JS de Bootstrap que ya carga en `base.html`).
+  - `templates/admin/localidades.html`: tarjetas con renombrar/fusionar.
+- **Login y registro** (`templates/login.html`, `templates/registro.html`): no extendían `base.html` (tienen su propio `<head>`), así que se les agregó el link a `rediseno.css` a mano y se envolvió el contenido en `.pp2`. Se mantuvo el fondo navy/marca amarilla de siempre (identidad de marca, no era parte de los 4 problemas diagnosticados) — solo los inputs/botones pasan a los componentes `.campo`/`.btn2`.
+- **`templates/manual.html`**: los bloques `card`→`.bloque` y `card-header`→`.bloque-hd`. El acordeón de los 8 pasos y el de FAQ **se dejaron con clases de Bootstrap intactas** (`accordion`, `data-bs-toggle`, etc.) — son funcionales (el plugin JS de Bootstrap depende de esas clases), no solo visuales, así que tocarlas era riesgo sin beneficio visual real.
+- **`templates/perfil/perfil.html`, `templates/perfil/cambiar_password.html`**: formularios a `.campo`/`.bloque`.
+- **`templates/costo_m2/index.html`**: lista de ítems a elegir, migrada a `.fila` dentro de un `.rubro` (header de rubro no colapsable, solo visual) + barra fija `.barra-tot` para "Calcular"/"Cancelar". Fix menor: la clase de highlight de fila seleccionada era `active` (inglés, sin CSS asociado) — se corrigió a `activa` (la que sí define `rediseno.css`), y se sacó el div `#barraEspaciado` que ya no hace falta (`.pp2-con-barra` da el padding-bottom).
+- **`templates/costo_m2/resultado.html`**: esta es la única pantalla que **no se restructuró** — se abre en un popup (`window.open` 600×800) y se exporta directo a PDF con `html2pdf` capturando `document.body`, así que tocar el layout era riesgo real de romper el PDF que los usuarios descargan. Se hizo un cambio más acotado: se linkeó `rediseno.css` y se reemplazaron los colores/tipografía hardcodeados (azul `#1a56db`, verde `#059669`, etc.) por las variables del sistema (`var(--azul)`, `var(--verde)`, `var(--tinta)`, `var(--amarillo)`, `var(--f-num)` para los números) — mismo look que el resto de la app, cero cambios de estructura/JS/cálculo.
+
+**Verificado (sin navegador real, mismo criterio que la fase 1):**
+- Se levantó la app Flask local con una copia de `presupuestopro.db`, sesión de admin simulada (mismo `session_token` que genera `login_user()`), y se pidieron las 15 pantallas tocadas + variantes (`/admin/usuarios/1/editar`, `/costo-m2/resultado?item_id=...`): **las 16 devuelven HTTP 200**, sin errores de Jinja.
+- Se extrajeron y validaron con `node --check` los **67 bloques `<script>`** de esas páginas ya renderizadas: todos con sintaxis válida.
+- Se confirmó que no queda ningún `<table class="table...">` de Bootstrap en ninguna de las pantallas migradas.
+- Se contaron `<div>`/`</div>` en el HTML final de cada pantalla: las 15 dan balanceado (mismo número de apertura y cierre) — descarta el error más común al envolver contenido a mano en `<div class="pp2">`.
+- **Sigue sin poder probarse visualmente con navegador real** (sin Chromium/Playwright en el sandbox). Recomendado: que Daniel pruebe en el celu antes de dar por cerrada esta fase, en particular `admin/usuarios.html` (la pantalla más grande y más manipulada) y `costo_m2/resultado.html` (confirmar que el PDF exportado sigue viéndose bien).
+
+**Archivos tocados en esta sesión:** `templates/admin/usuarios.html`, `templates/admin/usuario_form.html`, `templates/admin/precios.html`, `templates/admin/leads.html`, `templates/admin/localidades.html`, `templates/admin/configuracion.html`, `templates/admin/tipos_cambio.html`, `templates/admin/rendimientos.html`, `templates/login.html`, `templates/registro.html`, `templates/manual.html`, `templates/perfil/perfil.html`, `templates/perfil/cambiar_password.html`, `templates/costo_m2/index.html`, `templates/costo_m2/resultado.html`.
+
+**⚠️ Pendiente: SIN COMMITEAR.** Comando para cuando Daniel lo pruebe y confirme:
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/admin/usuarios.html templates/admin/usuario_form.html templates/admin/precios.html templates/admin/leads.html templates/admin/localidades.html templates/admin/configuracion.html templates/admin/tipos_cambio.html templates/admin/rendimientos.html templates/login.html templates/registro.html templates/manual.html templates/perfil/perfil.html templates/perfil/cambiar_password.html templates/costo_m2/index.html templates/costo_m2/resultado.html
+git commit -m "feat: rediseño visual fase 2 — resto de Admin, login, registro, manual, perfil y costo/m2 migrados al sistema .pp2 (rediseno.css)"
+git push
+```
+
+---
+
+### 🔴 CIERRE DE SESIÓN 01-02/08/2026 — leer esto primero al retomar
+**Qué falta commitear ahora mismo** (Daniel confirmó que fases 1-3 SÍ están commiteadas y pusheadas; fases 4 y 5 quedaron sin confirmación de commit — asumir que faltan hasta que Daniel diga lo contrario):
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add static/css/rediseno.css templates/presupuesto/paso6_materiales.html templates/presupuesto/ver.html
+git commit -m "fix: alineacion de labels en pares/tercias de campos (.duo/.trio), confirmacion antes de eliminar material, total de materiales faltante en la vista de presupuesto guardado"
+git push
+```
+Este comando cubre fase 4 (confirmación al eliminar material + total faltante en `ver.html` + alineación en `.trio`) y fase 5 (alineación en `.duo`) juntas — `rediseno.css` ya tiene ambos fixes acumulados en el mismo archivo. Si alguna de las dos fases ya se había commiteado suelta, `git add`/`commit` sobre archivos sin cambios no rompe nada (git simplemente no incluye lo que ya estaba igual).
+
+**Pendiente para retomar (no es urgente, es la fase 2 original que quedó afuera):** el resto de Admin (`usuarios.html`, `precios.html`, `leads.html`, `localidades.html`, `configuracion.html`, `tipos_cambio.html`, `rendimientos.html`, `usuario_form.html`) y otras pantallas (`login.html`, `registro.html`, `manual.html`, `perfil/*.html`, `costo_m2/*.html`) siguen sin migrar al sistema de diseño nuevo — quedaron con el look Bootstrap de siempre.
+
+---
+
+**Actualización (mismo día, fase 4 — pruebas de Daniel en el celu real):**
+- **Paso 4 (Indirectos):** las 3 etiquetas (Movilidad / Alquiler andamios / Alquiler herramientas) tenían distinto alto (una línea vs. dos), así que los inputs quedaban desalineados. Fix en `rediseno.css`: los `.campo label` dentro de un `.trio` reservan alto de 2 líneas y alinean el texto abajo, así los 3 inputs arrancan a la misma altura (aplica también a paso 7, mismo patrón de 3 campos).
+- **Paso 6 (Materiales):** la X para quitar un material borraba al toque, sin poder deshacerlo. Se agregó confirmación (`confirm()` con el nombre del material) antes de eliminar — mismo patrón ya usado para borrar borradores en el dashboard.
+- **`templates/presupuesto/ver.html` (vista del presupuesto ya guardado — no estaba en el alcance del rediseño visual, pero era un bug real):** la tabla "Materiales incluidos" no mostraba el total — se agregó fila de total al pie (`TOTAL MATERIALES`), sumando `subtotal` de todos los materiales con el filtro `sum` de Jinja. Verificado contra un presupuesto real de la base (id 3, 14 materiales) → total $2.615.732 calculado y mostrado bien.
+
+**Archivos tocados en esta fase 4:** `static/css/rediseno.css`, `templates/presupuesto/paso6_materiales.html`, `templates/presupuesto/ver.html` (nuevo archivo tocado — sumar a `git add` si no se hizo el commit de fases 1-3 todavía).
+
+### Sesión 01/08/2026 — Rediseño visual del wizard + dashboard + Admin ✅ FASES 1-3 COMMITEADAS Y PUSHEADAS (confirmado por Daniel) / ⚠️ FASE 4 SIN COMMITEAR
+**Actualización (mismo día, fase 3 — ajustes tras pruebas de Daniel en local):**
+- **Pedido:** en paso 2 (rubros), que el encabezado del rubro abierto quede fijo (sticky) debajo del navbar mientras se scrollean sus ítems, para poder cerrarlo sin volver a scrollear arriba.
+  - Primer intento: `top:56px` fijo → dejaba un hueco (navbar real no mide exactamente 56px) por donde se colaba contenido.
+  - Segundo intento: se agregó JS en `base.html` (`fixNavH()`) que mide el alto real del navbar y lo expone como variable CSS `--nav-h`, usada en vez del valor fijo. Seguía fallando.
+  - **Causa real encontrada:** el `scrollIntoView()` que ya existía (desde antes del rediseño) para centrar el rubro al abrirlo competía con el nuevo sticky recién aplicado, generando un salto de scroll que dejaba un pedazo de la primera fila visible arriba del header. Se sacó ese `scrollIntoView()` de `paso2_rubros.html` (ya no hace falta — al ser sticky, el header queda visible solo con que el usuario siga bajando) y se reforzó el CSS (`isolation:isolate` en `.rubro`, radios de borde repartidos entre `.rubro-hd`/`.rubro-body` en vez de depender de `overflow:hidden` en el contenedor, que podía generar glitches de recorte con sticky). **Confirmado por Daniel: "Perfecto".**
+- **Pedido:** en la barra de total fija (abajo) de cada paso, agregar un botón "Anterior" a la izquierda (además del total en el medio y "Siguiente" a la derecha), en todas las pantallas del wizard que lo permitan.
+  - Hecho en paso2 a paso8 (`.btn2-back`, ícono flecha izquierda, reutiliza la función `wizardGoto()` que ya existía — mismo comportamiento de guardar el paso actual antes de volver). Paso 1 no lleva botón de volver (es el primer paso).
+- **Aclarado a Daniel:** el rediseño (HTML/CSS de `templates/`) no toca ningún archivo de `routes/` ni `database.py` — la lógica de cálculo del wizard sigue exactamente igual que antes.
+- **Nota de proceso:** perder datos tipeados y no guardados al hacer *hard refresh* (`Ctrl+Shift+R`) es comportamiento normal del navegador (pasaba igual con el diseño viejo), no algo introducido por este cambio — para no perder nada al probar, conviene guardar con "Siguiente" antes de refrescar.
+
+**Archivos tocados en esta fase 3:** `static/css/rediseno.css`, `templates/base.html` (JS `fixNavH`), `templates/presupuesto/paso2_rubros.html`, `templates/presupuesto/paso3_subcontratos.html`, `templates/presupuesto/paso4_indirectos.html`, `templates/presupuesto/paso5_modo_tiempo.html`, `templates/presupuesto/paso6_materiales.html`, `templates/presupuesto/paso7_pago.html`, `templates/presupuesto/paso8_resumen.html` (se suman a la lista de "archivos tocados" de más abajo, no hay archivos nuevos).
+
+**Actualización (mismo día, fase 2):** Daniel probó fase 1 localmente ("se ve muy bien, más ordenado visualmente") y confirmó que la lógica de cálculos no se tocó (solo templates HTML/CSS, ningún archivo de `routes/` ni `database.py`). Pidió seguir con el panel de Admin, que había quedado con el look viejo.
+- `templates/admin/dashboard.html`: migrado al sistema `.pp2` — KPIs en grid de 2×2 con color por estado (usuarios=azul, activos=verde, vencidos=rojo, presupuestos=neutro), bloque "Requiere respuesta" (WhatsApp/Inscriptos/Messenger-Instagram/Contacto/Email/Sugerencias/Seguimiento con badge `.pend` rojo si hay pendientes, gris si no), "Próximos vencimientos" y "Gestión" (links a usuarios, precios, tipos de cambio, configuración, rendimientos). Mismo mockup (pantalla 8 de Opus).
+- Verificado igual que fase 1: la app local devuelve 200 en `/admin/` con los KPIs y las filas renderizando bien.
+- El resto de Admin (`usuarios.html`, `precios.html`, `leads.html`, `localidades.html`, `configuracion.html`, `tipos_cambio.html`, `rendimientos.html`, `usuario_form.html`) **sigue sin migrar** — son pantallas de tablas/gestión más grandes, no estaban en las 8 de referencia de Opus. Quedan para otra sesión si Daniel lo pide.
+
+### Sesión 01/08/2026 — Rediseño visual del wizard + dashboard (fase 1) ⚠️ SIN COMMITEAR
+Daniel le pidió a Claude Opus 5 que audite el aspecto visual de la app. Diagnosticó 4 problemas: (1) overflow horizontal en tablas de rubros/materiales/borradores, (2) sin jerarquía de color (3 azules + amarillo + verde + rojo + navy compitiendo), (3) el stepper de 8 tabs no entra en 360px y come 60px de alto, (4) el total se pierde al hacer scroll. Opus armó un sistema de diseño nuevo (CSS con variables, filas en vez de tablas, un solo azul, barra de total fija abajo, números en monoespaciado) + 8 pantallas HTML de referencia. Se adaptó ese sistema al stack real (Flask+Jinja2+Bootstrap 5.3.3).
+
+**Decisión de implementación:** el CSS nuevo vive en `static/css/rediseno.css`, con **todo el sistema scoped bajo la clase `.pp2`** (envolviendo el contenido de cada pantalla migrada en `<div class="pp2">`) — así no pisa Bootstrap ni rompe ninguna pantalla que todavía no se migró (login, registro, admin, manual, etc. siguen intactas). Confirmado con la app corriendo localmente: esas pantallas no migradas siguen en 200 sin cambios visuales.
+
+**Hecho (fase 1 — wizard completo + dashboard):**
+- `static/css/rediseno.css` (nuevo): sistema de diseño completo (variables de color/tipografía, `.fila`, `.rubro`, `.campo`, `.bloque`, `.barra-tot`, `.tot`, `.pres`, `.borrador`, `.sel`, `.sc`, etc.), todo bajo `.pp2`.
+- `templates/base.html`: agregado el link al nuevo CSS (después de `style.css`, no lo reemplaza).
+- `templates/presupuesto/_wizard_steps.html`: reemplazado el stepper de 8 tabs fijas por un encabezado compacto (Paso N/8 + título) + barra de progreso de 8 segmentos (solo visual) + panel plegable "Ver pasos" que conserva la navegación libre entre pasos ya visitados (mismo criterio `_max_step` de antes). Arregla el problema #3.
+- `templates/presupuesto/paso1_obra.html` a `paso8_resumen.html` (los 8 pasos del wizard): migrados al nuevo sistema. En **paso2 (rubros)** y **paso6 (materiales)** las tablas Bootstrap con scroll horizontal se reemplazaron por filas `.fila` (nombre en su propia línea, cantidad y subtotal debajo) — arregla el problema #1. En **todos los pasos** el total pasó a una barra fija abajo (`.barra-tot`, `position:fixed;bottom:0`) que siempre queda visible — arregla el problema #4. Colores reducidos a la paleta del sistema (un azul, un amarillo de acento, verde solo para positivo/confirmación) — arregla el problema #2.
+- `templates/dashboard.html` ("Mis presupuestos"): tarjetas `.pres` y `.borrador` en vez de tablas/cards Bootstrap sueltas.
+- **Toda la lógica JS existente se preservó tal cual** (mismos IDs, mismos nombres de función: `recalcularRubro`, `calcRow`, `recalc` de paso5/pago, `toggleSubc`, `agregarFila`, etc.) — solo cambió el HTML/CSS alrededor.
+- **Cambio de UX deliberado:** se sacaron los botones "Anterior" sueltos de cada paso (típicamente arriba, sticky) — ahora volver a un paso anterior se hace desde el panel "Ver pasos" del stepper (que ya permitía saltar a cualquier paso visitado). Menos botones, mismo resultado. **Confirmar con Daniel que este cambio de UX está bien** antes o al probar en producción.
+- Se sacó la columna "P. Unit." (precio unitario, solo visible en desktop) de la tabla de rubros del paso 2 — no está en el mockup de Opus, y simplifica la fila. El subtotal por ítem se sigue mostrando igual.
+
+**Verificado (sin usar la DB real — copia de trabajo en sandbox):**
+- Se levantó la app Flask localmente con una copia de `presupuestopro.db` y se pidió cada pantalla tocada (dashboard, paso1 a paso8) con sesión de admin: **las 9 devuelven HTTP 200**, sin errores de Jinja.
+- Se extrajeron y validaron con `node --check` los 34 bloques `<script>` de las páginas migradas: **todos con sintaxis válida**.
+- Se confirmó que los IDs que usa el JS (`n_of`, `bar1-cd`, `pct_ant`, `cuadro-pago`, `mat-cant`, `desc-hidden`, etc.) aparecen exactamente una vez en el HTML renderizado de cada paso — ningún ID duplicado ni faltante.
+- Se confirmó que ya no queda ningún `<table class="table...">` de Bootstrap en `paso2_rubros.html` (la causa del overflow horizontal).
+- Se pegó `/login`, `/registro`, `/admin/`, `/perfil/` — siguen en 200, sin romperse por el CSS nuevo.
+- **No se pudo hacer una verificación visual con navegador real** (sin Chromium/Playwright disponible en el sandbox) — la verificación fue estructural (HTTP 200 + JS válido + IDs íntegros + sin tablas Bootstrap remanentes), no una captura de pantalla. Recomendado: que Daniel pruebe manualmente en el celu (elegido el motivo original del pedido) antes de dar por cerrada la fase 1.
+
+**Pendiente — fase 2 (no se tocó en esta sesión):**
+- Panel de Admin (`templates/admin/*.html`) — el mockup de Opus incluía una pantalla de referencia (KPIs + listas), no se migró todavía.
+- `templates/login.html`, `templates/registro.html`, `templates/manual.html`, `templates/perfil/*.html`, `templates/costo_m2/*.html`, `templates/presupuesto/ver.html` — quedan con el look viejo (Bootstrap navy/amarillo de siempre). No estaban en el diagnóstico de los 4 problemas ni en las 8 pantallas de referencia de Opus, así que se priorizó el wizard.
+- Confirmar visualmente en el celu que no quedó ningún detalle roto (colapsar/expandir rubros, checkbox de subcontratos, etc.) antes de sacar la fase 2.
+
+**Archivos tocados (fase 1 + fase 2):** `static/css/rediseno.css` (nuevo), `templates/base.html`, `templates/presupuesto/_wizard_steps.html`, `templates/presupuesto/paso1_obra.html`, `templates/presupuesto/paso2_rubros.html`, `templates/presupuesto/paso3_subcontratos.html`, `templates/presupuesto/paso4_indirectos.html`, `templates/presupuesto/paso5_modo_tiempo.html`, `templates/presupuesto/paso6_materiales.html`, `templates/presupuesto/paso7_pago.html`, `templates/presupuesto/paso8_resumen.html`, `templates/dashboard.html`, `templates/admin/dashboard.html`.
+**⚠️ Pendiente: SIN COMMITEAR** (fase 1 confirmada por Daniel tras probar local; fase 2 — Admin — recién agregada, todavía sin probar por Daniel). Comando cuando esté todo probado y confirmado:
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add static/css/rediseno.css templates/base.html templates/presupuesto/_wizard_steps.html templates/presupuesto/paso1_obra.html templates/presupuesto/paso2_rubros.html templates/presupuesto/paso3_subcontratos.html templates/presupuesto/paso4_indirectos.html templates/presupuesto/paso5_modo_tiempo.html templates/presupuesto/paso6_materiales.html templates/presupuesto/paso7_pago.html templates/presupuesto/paso8_resumen.html templates/dashboard.html templates/admin/dashboard.html
+git commit -m "feat: rediseño visual del wizard (8 pasos), dashboard y panel de Admin — sistema de diseño scoped en rediseno.css, arregla overflow horizontal, stepper que no entraba en 360px, total perdido al scrollear, y exceso de colores compitiendo"
+git push
+```
 
 ### Sesión 16-18/07/2026 — Formulario de registro: nueva pregunta + todo obligatorio + fix WhatsApp prematuro ✅ COMMITEADO (parte 1) / ✅ COMMITEADO Y PROBADO (parte 2)
 Pedido de Daniel: agregar al formulario de registro una pregunta sobre el método actual del usuario (app, Excel/planilla, a mano), para tener ese dato de producto/marketing. Implementado con el mismo patrón que "¿Cómo nos conociste?" (select cerrado + "Otro" con texto libre).

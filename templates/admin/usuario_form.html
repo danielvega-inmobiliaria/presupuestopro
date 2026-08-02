@@ -2,72 +2,71 @@
 {% block title %}{{ 'Editar' if u else 'Nuevo' }} usuario — Admin{% endblock %}
 
 {% block content %}
-<div class="mx-auto" style="max-width:600px">
-  <div class="card">
-    <div class="card-header card-header-blue">
-      <i class="bi bi-person-gear"></i>
+<div class="pp2">
+  <div class="bloque" style="max-width:600px;margin:0 auto">
+    <div class="bloque-hd"><i class="bi bi-person-gear"></i>
       {{ 'Editar usuario: ' + (u.email if u else '') if u else 'Nuevo usuario' }}
     </div>
-    <div class="card-body">
+    <div class="bloque-cuerpo">
       <form method="post">
-        <div class="mb-3">
-          <label class="form-label">Email *</label>
-          <input type="email" name="email" class="form-control"
+        <div class="campo">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" name="email"
                  value="{{ u.email if u else '' }}" {{ 'readonly' if u else 'required' }}>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Nombre</label>
-          <input type="text" name="nombre" class="form-control"
+        <div class="campo">
+          <label>Nombre</label>
+          <input type="text" name="nombre"
                  value="{{ u.nombre if u else '' }}">
         </div>
-        <div class="mb-3">
-          <label class="form-label">Teléfono / WhatsApp</label>
-          <input type="tel" name="telefono" class="form-control" placeholder="Ej: 1134567890"
+        <div class="campo">
+          <label>Teléfono / WhatsApp</label>
+          <input type="tel" name="telefono" placeholder="Ej: 1134567890"
                  value="{{ u.telefono if u else '' }}">
         </div>
-        <div class="row mb-3">
-          <div class="col">
-            <label class="form-label">Ciudad</label>
-            <input type="text" name="ciudad" class="form-control" placeholder="Ej: Buenos Aires"
+        <div class="duo">
+          <div class="campo">
+            <label>Ciudad</label>
+            <input type="text" name="ciudad" placeholder="Ej: Buenos Aires"
                    value="{{ u.ciudad if u else '' }}">
           </div>
-          <div class="col">
-            <label class="form-label">Provincia / Zona</label>
-            <input type="text" name="provincia" class="form-control" placeholder="Ej: CABA"
+          <div class="campo">
+            <label>Provincia / Zona</label>
+            <input type="text" name="provincia" placeholder="Ej: CABA"
                    value="{{ u.provincia if u else '' }}">
           </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">País</label>
-          <select name="pais" class="form-select">
+        <div class="campo">
+          <label>País</label>
+          <select name="pais">
             {% for cod, info in [('AR','Argentina'),('CL','Chile'),('UY','Uruguay'),('BR','Brasil'),('PY','Paraguay')] %}
             <option value="{{ cod }}" {{ 'selected' if (u and u.pais == cod) else '' }}>{{ info }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="mb-3">
-          <label class="form-label">{{ 'Nueva contraseña (dejar vacío para no cambiar)' if u else 'Contraseña *' }}</label>
-          <input type="password" name="password" class="form-control"
+        <div class="campo">
+          <label>{{ 'Nueva contraseña (dejar vacío para no cambiar)' if u else 'Contraseña *' }}</label>
+          <input type="password" name="password"
                  {{ '' if u else 'required' }}>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Suscripción vence</label>
-          <input type="date" name="subscription_expires" class="form-control"
+        <div class="campo">
+          <label>Suscripción vence</label>
+          <input type="date" name="subscription_expires"
                  value="{{ u.subscription_expires if u else (now_date + timedelta(days=30)).strftime('%Y-%m-%d') }}">
         </div>
         {% if u %}
-        <div class="mb-3 form-check">
-          <input type="checkbox" name="active" class="form-check-input" id="chkActive"
+        <div class="campo" style="display:flex;align-items:center;gap:9px">
+          <input type="checkbox" name="active" id="chkActive" style="width:22px;height:22px;accent-color:var(--verde)"
                  {{ 'checked' if u.active else '' }}>
-          <label class="form-check-label" for="chkActive">Usuario activo</label>
+          <label for="chkActive" style="margin:0;text-transform:none;font-size:14.5px;font-weight:500;color:var(--tinta)">Usuario activo</label>
         </div>
         {% endif %}
 
-        <div class="d-flex justify-content-between mt-4">
-          <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-secondary">
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:20px">
+          <a href="{{ url_for('admin.usuarios') }}" class="btn2 btn2-2">
             <i class="bi bi-arrow-left"></i> Volver
           </a>
-          <button type="submit" class="btn btn-primary px-5">
+          <button type="submit" class="btn2 btn2-1">
             <i class="bi bi-save"></i> Guardar
           </button>
         </div>

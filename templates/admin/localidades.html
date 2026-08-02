@@ -2,84 +2,75 @@
 {% block title %}Localidades — Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="bi bi-geo-alt"></i> Localidades <span class="badge bg-secondary">{{ filas|length }}</span></h4>
-  <a href="{{ url_for('admin.usuarios') }}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left"></i> Volver a Usuarios
-  </a>
-</div>
+<div class="pp2">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="font-weight:700;font-size:19px"><i class="bi bi-geo-alt"></i> Localidades <span class="pend q">{{ filas|length }}</span></div>
+    <a href="{{ url_for('admin.usuarios') }}" class="btn2 btn2-min">
+      <i class="bi bi-arrow-left"></i> Volver a Usuarios
+    </a>
+  </div>
 
-<p class="text-muted small">
-  Esta lista se alimenta sola con lo que van escribiendo los usuarios al registrarse — la normalización automática
-  agrupa mayúsculas/tildes/espacios (ej. "Rosario" y "rosario" ya quedan juntas solas), pero cosas como
-  "Rosario" vs "Rosario Norte" o errores de tipeo distintos no se detectan solas. Acá podés <strong>renombrar</strong>
-  una entrada (corrige la grafía en todos los usuarios que la tengan) o <strong>fusionar</strong> dos que sean el
-  mismo lugar (todos los usuarios de la fusionada pasan a la otra, y de ahí en más cualquiera que escriba esa
-  localidad también cae ahí).
-</p>
+  <p class="ayuda" style="padding:0 0 12px">
+    Esta lista se alimenta sola con lo que van escribiendo los usuarios al registrarse — la normalización automática
+    agrupa mayúsculas/tildes/espacios (ej. "Rosario" y "rosario" ya quedan juntas solas), pero cosas como
+    "Rosario" vs "Rosario Norte" o errores de tipeo distintos no se detectan solas. Acá podés <strong>renombrar</strong>
+    una entrada (corrige la grafía en todos los usuarios que la tengan) o <strong>fusionar</strong> dos que sean el
+    mismo lugar (todos los usuarios de la fusionada pasan a la otra, y de ahí en más cualquiera que escriba esa
+    localidad también cae ahí).
+  </p>
 
-{% set activas = filas|rejectattr('merged_en')|list %}
+  {% set activas = filas|rejectattr('merged_en')|list %}
 
-<div class="card">
-  <div class="table-responsive">
-    <table class="table table-hover mb-0 align-middle">
-      <thead class="table-dark">
-        <tr>
-          <th>Localidad</th>
-          <th>Provincia</th>
-          <th class="text-center">Usos</th>
-          <th>Renombrar</th>
-          <th>Fusionar hacia...</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in filas %}
-        <tr class="{% if f.merged_en %}table-secondary{% endif %}">
-          <td>
-            {{ f.nombre_display }}
-            {% if f.merged_en %}
-              <div class="small text-muted">
-                <i class="bi bi-arrow-right"></i> fusionada en
-                <strong>{{ por_clave[f.merged_en].nombre_display if f.merged_en in por_clave else f.merged_en }}</strong>
-              </div>
-            {% endif %}
-          </td>
-          <td class="small text-muted">{{ f.provincia or '—' }}</td>
-          <td class="text-center"><span class="badge bg-primary">{{ f.veces_usada }}</span></td>
-          <td>
-            {% if not f.merged_en %}
-            <form method="post" action="{{ url_for('admin.localidad_renombrar', lid=f.id) }}" class="d-flex gap-1">
-              <input type="text" name="nombre_display" value="{{ f.nombre_display }}"
-                     class="form-control form-control-sm" style="min-width:140px">
-              <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check"></i></button>
-            </form>
-            {% endif %}
-          </td>
-          <td>
-            {% if not f.merged_en %}
-            <form method="post" action="{{ url_for('admin.localidad_fusionar') }}" class="d-flex gap-1">
-              <input type="hidden" name="origen_id" value="{{ f.id }}">
-              <select name="destino_id" class="form-select form-select-sm" style="min-width:140px" required>
-                <option value="">Elegí destino...</option>
-                {% for otra in activas %}
-                  {% if otra.id != f.id %}
-                  <option value="{{ otra.id }}">{{ otra.nombre_display }}</option>
-                  {% endif %}
-                {% endfor %}
-              </select>
-              <button type="submit" class="btn btn-sm btn-outline-warning"
-                      onclick="return confirm('¿Fusionar {{ f.nombre_display }} hacia la elegida? Todos los usuarios con {{ f.nombre_display }} van a pasar a la otra.')">
-                <i class="bi bi-arrow-right-circle"></i>
-              </button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="5" class="text-center text-muted py-4">Todavía no se cargó ninguna localidad.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="bloque">
+    {% for f in filas %}
+    <div class="fila{% if f.merged_en %} activa{% endif %}">
+      <div class="fila-nom">{{ f.nombre_display }}
+        {% if f.merged_en %}<span class="unidad">fusionada</span>{% endif %}
+      </div>
+      {% if f.merged_en %}
+      <div style="font-size:13px;color:var(--gris)">
+        <i class="bi bi-arrow-right"></i> fusionada en
+        <strong>{{ por_clave[f.merged_en].nombre_display if f.merged_en in por_clave else f.merged_en }}</strong>
+      </div>
+      {% else %}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px;font-size:13px;color:var(--gris)">
+        <span>{{ f.provincia or '—' }}</span>
+        <span class="num">{{ f.veces_usada }} uso(s)</span>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <form method="post" action="{{ url_for('admin.localidad_renombrar', lid=f.id) }}"
+              style="display:flex;gap:6px;align-items:flex-end;flex:1;min-width:190px">
+          <div class="campo" style="margin-bottom:0;flex:1">
+            <label>Renombrar</label>
+            <input type="text" name="nombre_display" value="{{ f.nombre_display }}">
+          </div>
+          <button type="submit" class="btn2 btn2-min"><i class="bi bi-check"></i></button>
+        </form>
+        <form method="post" action="{{ url_for('admin.localidad_fusionar') }}"
+              style="display:flex;gap:6px;align-items:flex-end;flex:1;min-width:210px">
+          <input type="hidden" name="origen_id" value="{{ f.id }}">
+          <div class="campo" style="margin-bottom:0;flex:1">
+            <label>Fusionar hacia...</label>
+            <select name="destino_id" required>
+              <option value="">Elegí destino...</option>
+              {% for otra in activas %}
+                {% if otra.id != f.id %}
+                <option value="{{ otra.id }}">{{ otra.nombre_display }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn2 btn2-min" style="color:#8A6A00;border-color:var(--amarillo)"
+                  onclick="return confirm('¿Fusionar {{ f.nombre_display }} hacia la elegida? Todos los usuarios con {{ f.nombre_display }} van a pasar a la otra.')">
+            <i class="bi bi-arrow-right-circle"></i>
+          </button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="fila"><div style="text-align:center;color:var(--gris)">Todavía no se cargó ninguna localidad.</div></div>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}

@@ -2,17 +2,18 @@
 {% block title %}Manual del Usuario — PresupuestoPRO{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-  <h4 class="mb-1"><i class="bi bi-book"></i> Manual del Usuario</h4>
-  <p class="text-muted small mb-0">Guía completa de PresupuestoPRO: cómo empezar y cómo usar cada función.</p>
+<div class="pp2">
+<div style="margin-bottom:16px">
+  <div style="font-weight:700;font-size:20px"><i class="bi bi-book"></i> Manual del Usuario</div>
+  <p class="ayuda" style="padding:2px 0 0">Guía completa de PresupuestoPRO: cómo empezar y cómo usar cada función.</p>
 </div>
 
 <div class="row">
   <!-- Índice lateral -->
   <div class="col-lg-3 d-none d-lg-block">
-    <div class="card shadow-sm" style="position:sticky; top:80px;">
-      <div class="card-body py-2">
-        <div class="small fw-bold text-muted text-uppercase mb-2" style="letter-spacing:.05em">Índice</div>
+    <div class="bloque" style="position:sticky; top:80px;">
+      <div class="bloque-hd" style="text-transform:uppercase;font-size:12.5px;letter-spacing:.05em;color:var(--gris)">Índice</div>
+      <div class="bloque-cuerpo" style="padding:8px 14px">
         <nav class="nav flex-column small">
           <a class="nav-link py-1 px-0" href="#empezar">1. Cómo empezar</a>
           <a class="nav-link py-1 px-0" href="#login">2. Iniciar sesión</a>
@@ -33,9 +34,9 @@
   <!-- Contenido -->
   <div class="col-lg-9">
 
-    <div class="card mb-3" id="empezar">
-      <div class="card-header card-header-blue"><i class="bi bi-rocket-takeoff"></i> 1. Cómo empezar (registro y suscripción)</div>
-      <div class="card-body">
+    <div class="bloque" id="empezar">
+      <div class="bloque-hd"><i class="bi bi-rocket-takeoff"></i> 1. Cómo empezar (registro y suscripción)</div>
+      <div class="bloque-cuerpo">
         <p>PresupuestoPRO funciona por suscripción mensual, pero se puede probar gratis antes de pagar.</p>
 
         <h6 class="text-muted mb-2">Prueba gratis</h6>
@@ -53,15 +54,15 @@
           <li>Desde ese aviso o desde "Suscribirme" se abre Mercado Pago para dar de alta el pago recurrente mensual.</li>
           <li>Una vez acreditado el pago, la cuenta queda activa sin límites.</li>
         </ol>
-        <div class="alert alert-success py-2 mb-0 mt-3 small">
+        <div class="aviso aviso-ok">
           <i class="bi bi-lightbulb"></i> Si el pago no se acredita o tenés problemas para suscribirte, escribí desde "Sugerencias" dentro de la app.
         </div>
       </div>
     </div>
 
-    <div class="card mb-3" id="login">
-      <div class="card-header card-header-blue"><i class="bi bi-box-arrow-in-right"></i> 2. Iniciar sesión y recuperar contraseña</div>
-      <div class="card-body">
+    <div class="bloque" id="login">
+      <div class="bloque-hd"><i class="bi bi-box-arrow-in-right"></i> 2. Iniciar sesión y recuperar contraseña</div>
+      <div class="bloque-cuerpo">
         <p>Con la cuenta activa, entrá en cualquier momento desde la página de inicio con tu email y contraseña.</p>
         <h6 class="text-muted">Si olvidaste tu contraseña</h6>
         <ol>
@@ -77,9 +78,9 @@
       </div>
     </div>
 
-    <div class="card mb-3" id="dashboard">
-      <div class="card-header card-header-blue"><i class="bi bi-grid"></i> 3. Panel principal (Dashboard)</div>
-      <div class="card-body">
+    <div class="bloque" id="dashboard">
+      <div class="bloque-hd"><i class="bi bi-grid"></i> 3. Panel principal (Dashboard)</div>
+      <div class="bloque-cuerpo">
         <p>Es la pantalla que ves al iniciar sesión. Desde acá se maneja todo:</p>
         <ul>
           <li><strong>Borradores en progreso:</strong> presupuestos que empezaste pero no terminaste de guardar. Se muestra en qué paso del asistente quedaste. Tocá <strong>Retomar</strong> para seguir donde dejaste, o el tacho de basura para eliminarlo.</li>
@@ -90,9 +91,9 @@
       </div>
     </div>
 
-    <div class="card mb-3" id="wizard">
-      <div class="card-header card-header-blue"><i class="bi bi-list-ol"></i> 4. Crear un presupuesto: el asistente de 8 pasos</div>
-      <div class="card-body">
+    <div class="bloque" id="wizard">
+      <div class="bloque-hd"><i class="bi bi-list-ol"></i> 4. Crear un presupuesto: el asistente de 8 pasos</div>
+      <div class="bloque-cuerpo">
         <p>Un presupuesto se arma respondiendo 8 pantallas en orden. Todo se va guardando automáticamente como <strong>borrador</strong> a medida que avanzás con "Siguiente", así que podés cerrar la app y retomarlo después desde el Dashboard sin perder nada.</p>
 
         <div class="accordion" id="accordionPasos">
@@ -184,17 +185,17 @@
       </div>
     </div>
 
-    <div class="card mb-3" id="navegacion">
-      <div class="card-header card-header-blue"><i class="bi bi-signpost-split"></i> 5. Navegar entre pasos y editar borradores</div>
-      <div class="card-body">
+    <div class="bloque" id="navegacion">
+      <div class="bloque-hd"><i class="bi bi-signpost-split"></i> 5. Navegar entre pasos y editar borradores</div>
+      <div class="bloque-cuerpo">
         <p>En la parte superior de cada pantalla del asistente hay una barra con 8 íconos (INICIO, CÓMPUTO, SUBCONT, INDIR, MODO, MATER, F PAGO, RESUMEN). Los pasos ya visitados se habilitan en verde y podés saltar directamente a cualquiera, en el orden que quieras — la pantalla actual se guarda automáticamente antes de moverte.</p>
         <p class="mb-0">Para retomar un borrador más tarde: Dashboard → <strong>Retomar</strong> en "Borradores en progreso".</p>
       </div>
     </div>
 
-    <div class="card mb-3" id="ver-pdf">
-      <div class="card-header card-header-blue"><i class="bi bi-file-earmark-pdf"></i> 6. Ver, editar y descargar un presupuesto</div>
-      <div class="card-body">
+    <div class="bloque" id="ver-pdf">
+      <div class="bloque-hd"><i class="bi bi-file-earmark-pdf"></i> 6. Ver, editar y descargar un presupuesto</div>
+      <div class="bloque-cuerpo">
         <div class="table-responsive">
           <table class="table table-sm table-bordered">
             <thead class="table-light"><tr><th>Acción</th><th>Qué hace</th></tr></thead>
@@ -209,9 +210,9 @@
       </div>
     </div>
 
-    <div class="card mb-3" id="costo-m2">
-      <div class="card-header card-header-blue"><i class="bi bi-rulers"></i> 7. Calculadora Costo por m²</div>
-      <div class="card-body">
+    <div class="bloque" id="costo-m2">
+      <div class="bloque-hd"><i class="bi bi-rulers"></i> 7. Calculadora Costo por m²</div>
+      <div class="bloque-cuerpo">
         <p>Herramienta rápida para cotizar UN ítem por m² o m³ sin armar un presupuesto completo (botón "Costo/m²" del Dashboard).</p>
         <ol class="mb-0">
           <li>Elegí el ítem de la lista.</li>
@@ -223,9 +224,9 @@
       </div>
     </div>
 
-    <div class="card mb-3" id="mi-empresa">
-      <div class="card-header card-header-blue"><i class="bi bi-building"></i> 8. Mi Empresa (perfil y logo)</div>
-      <div class="card-body">
+    <div class="bloque" id="mi-empresa">
+      <div class="bloque-hd"><i class="bi bi-building"></i> 8. Mi Empresa (perfil y logo)</div>
+      <div class="bloque-cuerpo">
         <p>Menú de usuario → "Mi empresa" — datos que aparecen en los PDFs enviados a los clientes:</p>
         <ul class="mb-0">
           <li>Logo (PNG, JPG o SVG, máx. 2 MB). Sin logo, el PDF muestra un cuadro con las iniciales.</li>
@@ -235,19 +236,19 @@
       </div>
     </div>
 
-    <div class="card mb-3" id="sugerencias-sec">
-      <div class="card-header card-header-blue"><i class="bi bi-lightbulb"></i> 9. Sugerencias</div>
-      <div class="card-body mb-0">
+    <div class="bloque" id="sugerencias-sec">
+      <div class="bloque-hd"><i class="bi bi-lightbulb"></i> 9. Sugerencias</div>
+      <div class="bloque-cuerpo">
         <p class="mb-0">Menú principal → "Sugerencias": escribí cualquier idea o pedido de mejora. Queda registrada y el equipo la revisa; cuando se responde o implementa se marca "Respondida" en tu propia lista.</p>
       </div>
     </div>
 
-    <div class="card mb-3" id="pantalla-inicio">
-      <div class="card-header card-header-blue"><i class="bi bi-phone"></i> 10. Agregar el acceso directo a la pantalla de inicio del celular</div>
-      <div class="card-body">
+    <div class="bloque" id="pantalla-inicio">
+      <div class="bloque-hd"><i class="bi bi-phone"></i> 10. Agregar el acceso directo a la pantalla de inicio del celular</div>
+      <div class="bloque-cuerpo">
         <p>PresupuestoPRO se puede instalar como si fuera una app: queda un ícono en la pantalla de inicio y se abre a pantalla completa, sin la barra del navegador.</p>
 
-        <div class="alert alert-info py-2 small">
+        <div class="aviso aviso-i">
           <i class="bi bi-download"></i> Atajo: menú de usuario (arriba a la derecha) → <strong>"Instalar app"</strong>. En Android/Chrome/compu abre directo el instalador del navegador; en iPhone/iPad abre esta misma explicación en una ventana.
         </div>
 
@@ -267,15 +268,15 @@
           <li>Confirmá tocando <strong>"Instalar"</strong> o <strong>"Agregar"</strong>.</li>
         </ol>
 
-        <div class="alert alert-success py-2 mb-0 mt-3 small">
+        <div class="aviso aviso-ok">
           <i class="bi bi-lightbulb"></i> Una vez instalada, el ícono abre la app directo, como cualquier otra app del celular — no hace falta escribir la dirección cada vez.
         </div>
       </div>
     </div>
 
-    <div class="card mb-4" id="faq">
-      <div class="card-header card-header-blue"><i class="bi bi-question-circle"></i> 11. Preguntas frecuentes</div>
-      <div class="card-body">
+    <div class="bloque" id="faq">
+      <div class="bloque-hd"><i class="bi bi-question-circle"></i> 11. Preguntas frecuentes</div>
+      <div class="bloque-cuerpo">
         <div class="accordion" id="accordionFaq">
           {% set faqs = [
             ("Perdí la conexión a mitad de un paso, ¿se pierde lo que cargué?",
@@ -303,5 +304,6 @@
     </div>
 
   </div>
+</div>
 </div>
 {% endblock %}

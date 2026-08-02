@@ -2,20 +2,21 @@
 {% block title %}Usuarios — Admin{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="bi bi-people"></i> Usuarios <span class="badge bg-secondary">{{ total_usuarios }}</span></h4>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('admin.localidades') }}" class="btn btn-outline-secondary">
-      <i class="bi bi-geo-alt"></i> Gestionar localidades
+<div class="pp2">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+  <div style="font-weight:700;font-size:19px"><i class="bi bi-people"></i> Usuarios <span class="pend q">{{ total_usuarios }}</span></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a href="{{ url_for('admin.localidades') }}" class="btn2 btn2-min">
+      <i class="bi bi-geo-alt"></i> Localidades
     </a>
     {# Fix 15/07/2026, pedido de Daniel: exportar en un click el Excel de
        usuarios a contactar (sin validar email / con 1 solo presupuesto o
        borrador), con mensajes de WhatsApp y email ya sugeridos por fila.
        Antes esto se armaba a mano con capturas de pantalla de esta tabla. #}
-    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn btn-outline-primary" title="Descarga un Excel con los usuarios sin validar email y los que hicieron solo 1 presupuesto/borrador, con mensajes sugeridos">
-      <i class="bi bi-file-earmark-excel"></i> Exportar para contactar
+    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn2 btn2-min" title="Descarga un Excel con los usuarios sin validar email y los que hicieron solo 1 presupuesto/borrador, con mensajes sugeridos">
+      <i class="bi bi-file-earmark-excel"></i> Exportar
     </a>
-    <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn btn-success">
+    <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn2 btn2-1">
       <i class="bi bi-person-plus"></i> Nuevo usuario
     </a>
   </div>
@@ -38,191 +39,152 @@
      provincia/país aunque no estén elegidos explícitamente, a partir de la
      ciudad/provincia que sí esté activa). Se deja un botón submit oculto
      (accesibilidad / Enter en el teclado) y un ícono chico de "Limpiar". ── #}
-<form method="GET" class="card mb-3" id="filtro-form" style="position: sticky; top: var(--navbar-h, 56px); z-index: 1015;">
-  <div class="card-body py-2">
-    <div class="row g-2 align-items-end">
-      <div class="col-6 col-md-4 position-relative">
-        <label class="form-label form-label-sm mb-0 text-muted">
-          Localidad
-          {% if contadores.ciudad is not none %}<span class="badge bg-secondary">{{ contadores.ciudad }}</span>{% endif %}
-        </label>
-        {# Fix 12/07/2026 (1ra vuelta): reemplazado <input list="..."> con
-           <datalist> nativo por un dropdown propio en JS (pensando que el
-           datalist era el responsable de la tira horizontal de sugerencias
-           en mobile). No alcanzó: lo que Daniel seguía viendo (Rosario/Roldán
-           en el mismo lugar tras el fix) no era nuestro datalist ni nuestro
-           dropdown — era el AUTOFILL nativo de Chrome, que recuerda valores
-           tipeados antes en un campo con el mismo "name" y los sugiere,
-           IGNORANDO autocomplete="off" en muchas versiones de Chrome Android
-           (comportamiento documentado, no es un bug nuestro).
+<form method="GET" class="bloque" id="filtro-form" style="position: sticky; top: var(--navbar-h, 56px); z-index: 1015; padding: 12px 14px;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end">
+    <div class="campo" style="margin-bottom:0;position:relative">
+      <label>
+        Localidad
+        {% if contadores.ciudad is not none %}<span class="unidad">{{ contadores.ciudad }}</span>{% endif %}
+      </label>
+      {# Fix 12/07/2026 (1ra vuelta): reemplazado <input list="..."> con
+         <datalist> nativo por un dropdown propio en JS (pensando que el
+         datalist era el responsable de la tira horizontal de sugerencias
+         en mobile). No alcanzó: lo que Daniel seguía viendo (Rosario/Roldán
+         en el mismo lugar tras el fix) no era nuestro datalist ni nuestro
+         dropdown — era el AUTOFILL nativo de Chrome, que recuerda valores
+         tipeados antes en un campo con el mismo "name" y los sugiere,
+         IGNORANDO autocomplete="off" en muchas versiones de Chrome Android
+         (comportamiento documentado, no es un bug nuestro).
 
-           Fix 12/07/2026 (2da vuelta, definitivo): se separa el campo VISIBLE
-           (sin "name", así Chrome no tiene qué campo recordar) del campo que
-           realmente se envía en el formulario (input hidden "f_ciudad",
-           nunca recibe foco → Chrome nunca le ofrece autofill). JS sincroniza
-           ambos. #}
-        <input type="text" id="input-localidad" class="form-control form-control-sm" autocomplete="off"
-               value="{{ f_ciudad }}" placeholder="Ej: Rosario">
-        <input type="hidden" name="f_ciudad" id="input-localidad-hidden" value="{{ f_ciudad }}">
-        <div id="loc-dropdown" class="list-group shadow-sm" style="display:none; position:absolute; z-index:1020; max-height:220px; overflow-y:auto; width:100%;"></div>
-      </div>
-      <div class="col-6 col-md-4">
-        <label class="form-label form-label-sm mb-0 text-muted">
-          Provincia
-          {% if contadores.provincia %}
-          <span class="badge bg-secondary">{{ contadores.provincia.cantidad }}</span>
-          {% if not f_provincia %}<span class="text-muted">{{ contadores.provincia.nombre }}</span>{% endif %}
-          {% endif %}
-        </label>
-        <select name="f_provincia" class="form-select form-select-sm">
-          <option value="">Todas</option>
-          {% for p in provincias %}
-          <option value="{{ p }}" {{ 'selected' if f_provincia == p }}>{{ p }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-6 col-md-3">
-        <label class="form-label form-label-sm mb-0 text-muted">
-          País
-          {% if contadores.pais %}
-          <span class="badge bg-secondary">{{ contadores.pais.cantidad }}</span>
-          {% if not f_pais %}<span class="text-muted">{{ contadores.pais.nombre }}</span>{% endif %}
-          {% endif %}
-        </label>
-        <select name="f_pais" class="form-select form-select-sm">
-          <option value="">Todos</option>
-          {% for code, info in paises.items() %}
-          <option value="{{ code }}" {{ 'selected' if f_pais == code }}>{{ info.nombre }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-6 col-md-1">
-        <a href="{{ url_for('admin.usuarios') }}" class="btn btn-sm btn-outline-secondary w-100" title="Limpiar filtros">
-          <i class="bi bi-x-lg"></i>
-        </a>
-      </div>
+         Fix 12/07/2026 (2da vuelta, definitivo): se separa el campo VISIBLE
+         (sin "name", así Chrome no tiene qué campo recordar) del campo que
+         realmente se envía en el formulario (input hidden "f_ciudad",
+         nunca recibe foco → Chrome nunca le ofrece autofill). JS sincroniza
+         ambos. #}
+      <input type="text" id="input-localidad" autocomplete="off"
+             value="{{ f_ciudad }}" placeholder="Ej: Rosario">
+      <input type="hidden" name="f_ciudad" id="input-localidad-hidden" value="{{ f_ciudad }}">
+      <div id="loc-dropdown" class="list-group shadow-sm" style="display:none; position:absolute; z-index:1020; max-height:220px; overflow-y:auto; width:100%;"></div>
     </div>
-    <button type="submit" class="visually-hidden">Filtrar</button>
+    <div class="campo" style="margin-bottom:0">
+      <label>
+        Provincia
+        {% if contadores.provincia %}
+        <span class="unidad">{{ contadores.provincia.cantidad }}</span>
+        {% if not f_provincia %}<span style="text-transform:none;font-weight:400">{{ contadores.provincia.nombre }}</span>{% endif %}
+        {% endif %}
+      </label>
+      <select name="f_provincia">
+        <option value="">Todas</option>
+        {% for p in provincias %}
+        <option value="{{ p }}" {{ 'selected' if f_provincia == p }}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campo" style="margin-bottom:0">
+      <label>
+        País
+        {% if contadores.pais %}
+        <span class="unidad">{{ contadores.pais.cantidad }}</span>
+        {% if not f_pais %}<span style="text-transform:none;font-weight:400">{{ contadores.pais.nombre }}</span>{% endif %}
+        {% endif %}
+      </label>
+      <select name="f_pais">
+        <option value="">Todos</option>
+        {% for code, info in paises.items() %}
+        <option value="{{ code }}" {{ 'selected' if f_pais == code }}>{{ info.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <a href="{{ url_for('admin.usuarios') }}" class="btn2 btn2-2" title="Limpiar filtros" style="min-height:var(--tap)">
+      <i class="bi bi-x-lg"></i>
+    </a>
   </div>
+  <button type="submit" class="visually-hidden">Filtrar</button>
 </form>
 
-{# Fix 10/07/2026 (pedido de Daniel): encabezado de la tabla fijo al scrollear,
-   pegado justo debajo del navbar, para poder leer los títulos de columna con
-   listas largas de usuarios.
+{# Fix 10/07/2026 (pedido de Daniel): la tabla se reemplazó por una lista de
+   tarjetas (mismo criterio que el resto del rediseño — sin scroll horizontal
+   ni columnas que se aplastan en mobile). El scroll vertical acotado
+   (max-height + overflow-y:auto) se mantiene igual que antes para no perder
+   de vista los filtros de arriba con listas largas. #}
+<div class="bloque" id="tabla-scroll-wrap" style="max-height: 68vh; overflow-y: auto;">
+  {% for u in users %}
+  <div class="fila">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+      <div class="fila-nom" style="margin-bottom:0">{{ u.nombre or '—' }}</div>
+      {% if u.active %}
+      <span style="font-family:var(--f-num);font-size:11px;font-weight:700;background:var(--verde);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;white-space:nowrap">Activo</span>
+      {% else %}
+      <span style="font-family:var(--f-num);font-size:11px;font-weight:700;background:var(--rojo);color:#fff;padding:2px 8px;border-radius:10px;flex-shrink:0;white-space:nowrap">Inactivo</span>
+      {% endif %}
+    </div>
+    <div style="font-size:13.5px;color:var(--gris);margin-bottom:2px">{{ u.email }}</div>
+    {% if u.telefono %}
+    <div style="font-size:13px;color:var(--verde);margin-bottom:2px"><i class="bi bi-whatsapp"></i> {{ u.telefono }}</div>
+    {% endif %}
+    {% if u.ciudad or u.provincia %}
+    <div style="font-size:12.5px;color:var(--gris);margin-bottom:2px"><i class="bi bi-geo-alt"></i> {{ u.ciudad or '' }}{% if u.ciudad and u.provincia %}, {% endif %}{{ u.provincia or '' }}</div>
+    {% endif %}
+    {% if u.como_nos_conocio %}
+    <div style="font-size:12.5px;color:var(--gris);margin-bottom:2px"><i class="bi bi-megaphone"></i> {{ u.como_nos_conocio }}</div>
+    {% endif %}
+    {% if u.como_presupuestaba %}
+    <div style="font-size:12.5px;color:var(--gris);margin-bottom:2px"><i class="bi bi-calculator"></i> {{ u.como_presupuestaba }}</div>
+    {% endif %}
+    {% if u.metodo_verificacion %}
+      {% set validado = (u.metodo_verificacion == 'whatsapp' and u.phone_verificado) or (u.metodo_verificacion != 'whatsapp' and u.email_verificado) %}
+      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;margin-top:3px;
+                   {% if validado %}background:var(--verde-cl);color:#0A5334{% else %}background:var(--amarillo-cl);color:#5C4400{% endif %}">
+        {% if validado %}<i class="bi bi-patch-check"></i> Validado{% else %}<i class="bi bi-clock"></i> Sin validar{% endif %}
+        ({{ u.metodo_verificacion }})
+      </span>
+    {% endif %}
 
-   1er intento: "position: sticky" en los <th> daba un glitch de
-   ghosting/tearing (bug de Chrome con sticky dentro de un contenedor con
-   overflow-x:auto pero SIN overflow-y explícito, mientras la página entera
-   scrolleaba). 2do intento: clon del <thead> con position:fixed + JS
-   sincronizando scroll/anchos — funcionaba en desktop pero en mobile el
-   encabezado desaparecía al scrollear (reportado por Daniel 12/07/2026),
-   por la combinación de scroll de página + teclado virtual + recálculo de
-   viewport, poco confiable en ese hack.
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:9px 0">
+      <span class="unidad">{{ u.pais }}</span>
+      <span class="unidad">Presup. {{ u.n_presupuestos }}</span>
+      <span class="unidad">Borr. {{ u.n_borradores }}</span>
+      <span class="unidad">Costo/m² {{ u.n_costo_m2 }}</span>
+      <span class="unidad">Vence {{ u.subscription_expires or '∞' }}</span>
+      <span class="unidad">Creado {{ u.created_at[:10] if u.created_at else '—' }}</span>
+    </div>
 
-   Fix 12/07/2026 (3er enfoque, definitivo): el propio contenedor
-   `.table-responsive` pasa a ser el scroll (max-height + overflow-y:auto,
-   además del overflow-x:auto que ya tenía) y el <thead> usa position:sticky
-   normal (top:0) DENTRO de ese contenedor. Este es el patrón estándar para
-   encabezados de tabla fijos — al ser el propio contenedor el que scrollea
-   (no la página), no depende de JS ni tiene el bug de ghosting de Chrome, y
-   funciona igual en desktop y mobile. #}
-<div class="card">
-  <div class="table-responsive" id="tabla-scroll-wrap" style="max-height: 65vh; overflow-y: auto;">
-    <table class="table table-hover mb-0" id="tabla-usuarios">
-      <thead class="table-dark" id="thead-original" style="position: sticky; top: 0; z-index: 5;">
-        <tr>
-          <th>Nombre</th>
-          <th>Email / Teléfono</th>
-          <th>País</th>
-          <th class="text-center">Presup.</th>
-          <th class="text-center">Borr.</th>
-          <th class="text-center">Costo/m²</th>
-          <th>Estado</th>
-          <th>Vence</th>
-          <th>Creado</th>
-          <th class="text-center">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for u in users %}
-        <tr>
-          <td>{{ u.nombre or '—' }}</td>
-          <td>
-            <div class="text-muted">{{ u.email }}</div>
-            {% if u.telefono %}
-            <div class="small text-success"><i class="bi bi-whatsapp"></i> {{ u.telefono }}</div>
-            {% endif %}
-            {% if u.ciudad or u.provincia %}
-            <div class="small text-muted"><i class="bi bi-geo-alt"></i> {{ u.ciudad or '' }}{% if u.ciudad and u.provincia %}, {% endif %}{{ u.provincia or '' }}</div>
-            {% endif %}
-            {% if u.como_nos_conocio %}
-            <div class="small text-muted"><i class="bi bi-megaphone"></i> {{ u.como_nos_conocio }}</div>
-            {% endif %}
-            {% if u.como_presupuestaba %}
-            <div class="small text-muted"><i class="bi bi-calculator"></i> {{ u.como_presupuestaba }}</div>
-            {% endif %}
-            {% if u.metodo_verificacion %}
-              {% set validado = (u.metodo_verificacion == 'whatsapp' and u.phone_verificado) or (u.metodo_verificacion != 'whatsapp' and u.email_verificado) %}
-              <span class="badge {% if validado %}bg-success{% else %}bg-warning text-dark{% endif %} mt-1">
-                {% if validado %}<i class="bi bi-patch-check"></i> Validado{% else %}<i class="bi bi-clock"></i> Sin validar{% endif %}
-                ({{ u.metodo_verificacion }})
-              </span>
-            {% endif %}
-          </td>
-          <td><span class="badge bg-secondary badge-pais">{{ u.pais }}</span></td>
-          <td class="text-center"><span class="badge bg-primary">{{ u.n_presupuestos }}</span></td>
-          <td class="text-center"><span class="badge bg-warning text-dark">{{ u.n_borradores }}</span></td>
-          <td class="text-center"><span class="badge bg-info text-dark">{{ u.n_costo_m2 }}</span></td>
-          <td>
-            {% if u.active %}
-              <span class="badge bg-success">Activo</span>
-            {% else %}
-              <span class="badge bg-danger">Inactivo</span>
-            {% endif %}
-          </td>
-          <td class="text-muted small">{{ u.subscription_expires or '∞' }}</td>
-          <td class="text-muted small">{{ u.created_at[:10] if u.created_at else '' }}</td>
-          <td class="text-center">
-            <div class="d-flex gap-1 justify-content-center">
-              <a href="{{ url_for('admin.usuario_editar', uid=u.id) }}"
-                 class="btn btn-sm btn-outline-primary" title="Editar">
-                <i class="bi bi-pencil"></i>
-              </a>
-              <form method="POST"
-                    action="{{ url_for('admin.usuario_enviar_activacion', uid=u.id) }}"
-                    onsubmit="return confirm('Enviar email de activación a {{ u.email }}?')">
-                <button type="submit" class="btn btn-sm btn-outline-success" title="Enviar email de activación">
-                  <i class="bi bi-envelope-check"></i>
-                </button>
-              </form>
-              {% if u.telefono %}
-              <a href="#" onclick="waActivacion('{{ u.telefono|e }}', '{{ u.nombre|e }}')"
-                 class="btn btn-sm btn-success" title="Enviar WhatsApp de activación">
-                <i class="bi bi-whatsapp"></i>
-              </a>
-              {% else %}
-              <a href="#" onclick="waActivacionSinNumero('{{ u.nombre|e }}')"
-                 class="btn btn-sm btn-outline-success" title="WhatsApp (sin número guardado)"
-                 style="opacity:.5">
-                <i class="bi bi-whatsapp"></i>
-              </a>
-              {% endif %}
-              <form method="POST"
-                    action="{{ url_for('admin.usuario_eliminar', uid=u.id) }}"
-                    onsubmit="return confirm('¿Eliminar definitivamente a {{ u.email|e }}? Esto borra también sus presupuestos, suscripciones y demás datos asociados. No se puede deshacer.')">
-                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar usuario">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
-            </div>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="10" class="text-center text-muted py-4">Sin usuarios que coincidan con el filtro</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <a href="{{ url_for('admin.usuario_editar', uid=u.id) }}" class="btn2 btn2-min" title="Editar">
+        <i class="bi bi-pencil"></i>
+      </a>
+      <form method="POST"
+            action="{{ url_for('admin.usuario_enviar_activacion', uid=u.id) }}"
+            onsubmit="return confirm('Enviar email de activación a {{ u.email }}?')">
+        <button type="submit" class="btn2 btn2-min" style="color:var(--verde);border-color:var(--verde)" title="Enviar email de activación">
+          <i class="bi bi-envelope-check"></i>
+        </button>
+      </form>
+      {% if u.telefono %}
+      <a href="#" onclick="waActivacion('{{ u.telefono|e }}', '{{ u.nombre|e }}')"
+         class="btn2 btn2-min" style="background:var(--verde);color:#fff;border-color:var(--verde)" title="Enviar WhatsApp de activación">
+        <i class="bi bi-whatsapp"></i>
+      </a>
+      {% else %}
+      <a href="#" onclick="waActivacionSinNumero('{{ u.nombre|e }}')"
+         class="btn2 btn2-min" title="WhatsApp (sin número guardado)" style="opacity:.5">
+        <i class="bi bi-whatsapp"></i>
+      </a>
+      {% endif %}
+      <form method="POST"
+            action="{{ url_for('admin.usuario_eliminar', uid=u.id) }}"
+            onsubmit="return confirm('¿Eliminar definitivamente a {{ u.email|e }}? Esto borra también sus presupuestos, suscripciones y demás datos asociados. No se puede deshacer.')"
+            style="margin-left:auto">
+        <button type="submit" class="btn2 btn2-min" style="color:var(--rojo);border-color:var(--rojo)" title="Eliminar usuario">
+          <i class="bi bi-trash"></i>
+        </button>
+      </form>
+    </div>
   </div>
+  {% else %}
+  <div class="fila"><div style="text-align:center;color:var(--gris)">Sin usuarios que coincidan con el filtro</div></div>
+  {% endfor %}
 </div>
 
 <script>
@@ -352,4 +314,5 @@ function waActivacionSinNumero(nombre) {
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 </script>
+</div>
 {% endblock %}

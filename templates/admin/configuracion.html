@@ -2,65 +2,66 @@
 {% block title %}Configuración — Admin{% endblock %}
 
 {% block content %}
-<h4 class="mb-4"><i class="bi bi-sliders"></i> Configuración global</h4>
+<div class="pp2">
+  <div style="font-weight:700;font-size:21px;margin-bottom:14px"><i class="bi bi-sliders"></i> Configuración global</div>
 
-<div class="card mx-auto" style="max-width:450px">
-  <div class="card-body">
-    <p class="text-muted small">Estos valores son los <strong>porcentajes por defecto</strong> que se pre-cargan en cada presupuesto. Cada constructor los puede modificar en su propio presupuesto.</p>
-    <form method="post">
-      <div class="mb-4">
-        <label class="form-label fw-semibold">% Gastos generales / Beneficio (GG)</label>
-        <div class="input-group">
-          <input type="number" name="pct_gg" class="form-control"
-                 value="{{ cfg.get('pct_gg', '20') }}" step="0.5" min="0" max="100">
-          <span class="input-group-text">%</span>
+  <div class="bloque" style="max-width:450px;margin:0 auto">
+    <div class="bloque-cuerpo">
+      <p class="ayuda" style="padding:0 0 13px">Estos valores son los <strong>porcentajes por defecto</strong> que se pre-cargan en cada presupuesto. Cada constructor los puede modificar en su propio presupuesto.</p>
+      <form method="post">
+        <div class="duo">
+          <div class="campo sufijo">
+            <label>% Gastos generales / Beneficio (GG)</label>
+            <input type="number" name="pct_gg" class="n"
+                   value="{{ cfg.get('pct_gg', '20') }}" step="0.5" min="0" max="100">
+            <span>%</span>
+            <div class="pista">Por defecto: 20%</div>
+          </div>
+          <div class="campo sufijo">
+            <label>% Impuestos y seguros</label>
+            <input type="number" name="pct_impuestos" class="n"
+                   value="{{ cfg.get('pct_impuestos', '7') }}" step="0.5" min="0" max="100">
+            <span>%</span>
+            <div class="pista">Por defecto: 7%</div>
+          </div>
         </div>
-        <div class="form-text">Por defecto: 20%</div>
-      </div>
-      <div class="mb-4">
-        <label class="form-label fw-semibold">% Impuestos y seguros</label>
-        <div class="input-group">
-          <input type="number" name="pct_impuestos" class="form-control"
-                 value="{{ cfg.get('pct_impuestos', '7') }}" step="0.5" min="0" max="100">
-          <span class="input-group-text">%</span>
+
+        <div class="grupo-tit">Validación de cuenta</div>
+        <div class="campo" style="display:flex;align-items:center;gap:9px">
+          <input type="checkbox" role="switch" name="verificacion_activa" id="verificacion_activa"
+                 style="width:22px;height:22px;accent-color:var(--verde)"
+                 {% if cfg.get('verificacion_activa') == '1' %}checked{% endif %}>
+          <label for="verificacion_activa" style="margin:0;text-transform:none;font-size:14.5px;font-weight:600;color:var(--tinta)">Validación de cuenta obligatoria (email/WhatsApp)</label>
         </div>
-        <div class="form-text">Por defecto: 7%</div>
-      </div>
-      <hr>
-      <div class="mb-2 form-check form-switch">
-        <input class="form-check-input" type="checkbox" role="switch" name="verificacion_activa"
-               id="verificacion_activa" {% if cfg.get('verificacion_activa') == '1' %}checked{% endif %}>
-        <label class="form-check-label fw-semibold" for="verificacion_activa">
-          Validación de cuenta obligatoria (email/WhatsApp)
-        </label>
-      </div>
-      <p class="form-text mt-0">
-        Con esto prendido, un usuario nuevo no puede crear presupuestos, usar Costo/m² ni
-        descargar PDFs hasta validar el código que le mandamos por el canal que eligió al
-        registrarse. Las cuentas que ya existían no se ven afectadas.
-        {% if pendientes_validar %}
-        <br><span class="text-warning fw-semibold">{{ pendientes_validar }} cuenta(s) esperando validar ahora mismo.</span>
-        {% endif %}
-        <br>Recomendado: probalo primero con tu propia cuenta antes de dejarlo prendido para todos.
-      </p>
-      <hr>
-      <div class="mb-2 form-check form-switch">
-        <input class="form-check-input" type="checkbox" role="switch" name="whatsapp_validacion_habilitada"
-               id="whatsapp_validacion_habilitada" {% if cfg.get('whatsapp_validacion_habilitada') == '1' %}checked{% endif %}>
-        <label class="form-check-label fw-semibold" for="whatsapp_validacion_habilitada">
-          Mostrar "Por WhatsApp" como opción de validación en el registro
-        </label>
-      </div>
-      <p class="form-text mt-0">
-        Apagado por defecto aunque WHATSAPP_TOKEN/WHATSAPP_PHONE_ID ya estén cargadas en
-        Railway — así podés tener las credenciales listas sin que la opción se muestre a los
-        usuarios todavía. Prendelo recién cuando Meta apruebe el negocio y hayas probado el
-        envío real con tu propia cuenta.
-      </p>
-      <button type="submit" class="btn btn-warning fw-bold w-100">
-        <i class="bi bi-save"></i> Guardar configuración
-      </button>
-    </form>
+        <p class="ayuda" style="padding:0 0 15px">
+          Con esto prendido, un usuario nuevo no puede crear presupuestos, usar Costo/m² ni
+          descargar PDFs hasta validar el código que le mandamos por el canal que eligió al
+          registrarse. Las cuentas que ya existían no se ven afectadas.
+          {% if pendientes_validar %}
+          <br><strong style="color:var(--rojo)">{{ pendientes_validar }} cuenta(s) esperando validar ahora mismo.</strong>
+          {% endif %}
+          <br>Recomendado: probalo primero con tu propia cuenta antes de dejarlo prendido para todos.
+        </p>
+
+        <div class="grupo-tit">Registro</div>
+        <div class="campo" style="display:flex;align-items:center;gap:9px">
+          <input type="checkbox" role="switch" name="whatsapp_validacion_habilitada" id="whatsapp_validacion_habilitada"
+                 style="width:22px;height:22px;accent-color:var(--verde)"
+                 {% if cfg.get('whatsapp_validacion_habilitada') == '1' %}checked{% endif %}>
+          <label for="whatsapp_validacion_habilitada" style="margin:0;text-transform:none;font-size:14.5px;font-weight:600;color:var(--tinta)">Mostrar "Por WhatsApp" como opción de validación en el registro</label>
+        </div>
+        <p class="ayuda" style="padding:0 0 4px">
+          Apagado por defecto aunque WHATSAPP_TOKEN/WHATSAPP_PHONE_ID ya estén cargadas en
+          Railway — así podés tener las credenciales listas sin que la opción se muestre a los
+          usuarios todavía. Prendelo recién cuando Meta apruebe el negocio y hayas probado el
+          envío real con tu propia cuenta.
+        </p>
+
+        <button type="submit" class="btn2 btn2-1" style="width:100%;margin-top:14px">
+          <i class="bi bi-save"></i> Guardar configuración
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 {% endblock %}
