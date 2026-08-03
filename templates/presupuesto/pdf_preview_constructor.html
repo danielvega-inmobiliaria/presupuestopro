@@ -16,14 +16,24 @@
   </a>
 </div>
 
+{# Fix 03/08/2026: mismo agregado que templates/presupuesto/pdf_preview.html
+   (placeholder de iniciales + línea de contacto/teléfono) — ver comentario
+   ahí para el detalle del pedido de Daniel. #}
 {% if empresa.get('nombre') or empresa.get('logo_data') %}
 <div class="d-flex align-items-center gap-3 mb-3 p-2 bg-light rounded">
   {% if empresa.get('logo_data') %}
   <img src="data:image/*;base64,{{ empresa.logo_data }}" alt="Logo" style="max-height:56px;max-width:120px;object-fit:contain">
+  {% elif empresa.get('nombre') %}
+  <div style="width:56px;height:56px;flex-shrink:0;border-radius:6px;background:#eab308;color:#0f1e3c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;letter-spacing:.5px">{{ empresa.nombre|iniciales_empresa }}</div>
   {% endif %}
   <div>
     {% if empresa.get('nombre') %}<div class="fw-bold">{{ empresa.nombre }}</div>{% endif %}
     {% if empresa.get('slogan') %}<div class="text-muted small fst-italic">{{ empresa.slogan }}</div>{% endif %}
+    {% set contacto = empresa.get('contacto','') %}
+    {% set telefono = empresa.get('telefono','') %}
+    {% if contacto or telefono %}
+    <div class="text-muted small">{{ [contacto, telefono] | select | join(' | ') }}</div>
+    {% endif %}
   </div>
 </div>
 {% endif %}
