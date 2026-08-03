@@ -385,6 +385,26 @@ def migrate_db():
             db.commit()
             print("[migrate_db] Columnas agregadas: {}".format(len(nuevas)))
 
+        # Backfill único (fix 03/08/2026, mismo pedido de arriba): si
+        # 'es_demo' recién se agregó en este deploy, marcar retroactivamente
+        # los presupuestos de ejemplo del tour que ya se habían guardado
+        # ANTES de que existiera la columna — si no, siguen contando contra
+        # el límite de la prueba gratis de quien los generó (Daniel, en este
+        # caso, con 2 presupuestos "de recorrido" comiéndole el límite de 3).
+        # Fingerprint: mismos datos fijos de routes/presupuesto.py::demo()
+        # (cliente y descripción de obra de ejemplo) — no hay forma de que un
+        # presupuesto real de un cliente coincida con este texto exacto.
+        if 'es_demo' not in cols:
+            n_backfill = db.execute(
+                "UPDATE presupuestos SET es_demo=1 "
+                "WHERE (es_demo IS NULL OR es_demo=0) "
+                "AND cliente_nombre LIKE 'Juan Pérez (ejemplo)%' "
+                "AND obra_descripcion LIKE '%recorrido guiado%'"
+            ).rowcount
+            db.commit()
+            if n_backfill:
+                print("[migrate_db] es_demo backfill: {} presupuestos de ejemplo del tour marcados".format(n_backfill))
+
         # 0. Crear tabla suscripciones si no existe (DBs anteriores a MP)
         db.execute("""
             CREATE TABLE IF NOT EXISTS suscripciones (

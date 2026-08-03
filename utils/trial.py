@@ -23,8 +23,20 @@ def get_trial_status(user):
         return {'es_trial': False, 'vencido': False}
 
     db = get_db()
+    # Fix 03/08/2026 (bug reportado por Daniel: el recorrido guiado del tour
+    # generó 2 presupuestos de ejemplo que le comieron el límite de 3 de su
+    # propia prueba gratis, sin dejarle margen para probar presupuestos
+    # reales). El paso final del tour dispara el submit real de "Guardar"
+    # (ver static/js/tour.js) — CUALQUIER usuario, no solo cuentas de
+    # prueba internas, que llega al final del recorrido guiado (o lo repite
+    # con "Recorrido virtual") termina con un presupuesto 'completo' de
+    # verdad en la base. Se excluyen acá los marcados es_demo=1 (columna
+    # agregada en database.py, seteada en routes/presupuesto.py::resumen()
+    # cuando el presupuesto viene de demo()) para que no cuenten contra su
+    # límite.
     n_presupuestos = db.execute(
-        "SELECT COUNT(*) c FROM presupuestos WHERE user_id=? AND status='completo'",
+        "SELECT COUNT(*) c FROM presupuestos WHERE user_id=? AND status='completo' "
+        "AND (es_demo IS NULL OR es_demo=0)",
         (user['id'],)
     ).fetchone()['c']
     db.close()
