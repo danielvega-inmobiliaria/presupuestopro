@@ -39,14 +39,26 @@
              burbuja (mismo cálculo que el PDF real, vía el filtro Jinja
              `iniciales_empresa` — ver utils/pdf_generator.py y app.py) para
              que se vea, dentro de #tour-perfil-logo, exactamente lo que el
-             popover promete. #}
-          {% set iniciales = perfil.get('nombre', '')|iniciales_empresa %}
-          {% if iniciales %}
+             popover promete.
+             Fix 03/08/2026 (2da vuelta, "sigue sin mostrar el logo de
+             ejemplo en el Tour"): la burbuja solo aparecía si el perfil YA
+             tenía Nombre de empresa cargado — en la cuenta de prueba de
+             Daniel ese campo está vacío, así que nunca se veía nada, ni
+             siquiera durante el tour. Ahora, si todavía no hay nombre real,
+             se muestra igual un ejemplo (mismas iniciales "CE" que ya usan
+             los PDF de muestra del tour — ver PROYECTO.md cont. 14) en vez
+             de dejar la burbuja vacía/oculta, con el texto aclarando que es
+             un ejemplo. #}
+          {% set nombre_real = perfil.get('nombre', '') %}
+          {% set iniciales = nombre_real|iniciales_empresa or 'CE' %}
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
             <div style="width:44px;height:44px;flex-shrink:0;border-radius:6px;background:#eab308;color:#0f1e3c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;letter-spacing:.5px">{{ iniciales }}</div>
+            {% if nombre_real %}
             <p style="margin:0;font-size:12.5px;color:var(--gris)">Sin logo cargado, así se ven tus iniciales en el PDF mientras tanto.</p>
+            {% else %}
+            <p style="margin:0;font-size:12.5px;color:var(--gris)">Ejemplo: así se ven las iniciales en el PDF cuando no subís un logo — con tu nombre real, una vez que lo completes acá abajo.</p>
+            {% endif %}
           </div>
-          {% endif %}
           <label style="display:block;font-size:12.5px;font-weight:600;color:var(--gris);margin-bottom:5px">Subir logo <span style="text-transform:none;font-weight:400">(PNG, JPG, SVG — max. 2 MB)</span></label>
           {% endif %}
           <input type="file" name="logo" accept="image/*" style="min-height:var(--tap);border:1.5px solid var(--linea);border-radius:var(--r);padding:10px 12px;width:100%;font-size:14px;background:#fff">
