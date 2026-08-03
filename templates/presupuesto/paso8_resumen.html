@@ -13,10 +13,18 @@
    (5 filas) era muy alto para el recorrido — se separó en 2 tarjetas
    cortas (Cliente+Obra / Dirección+Fecha+Equipo) para que el popover no
    tape ningún dato. #}
+{# Fix 03/08/2026 (cont. 18, pedido de Daniel para grabar el video del
+   tour): red de seguridad SOLO para el presupuesto de ejemplo (_demo=True,
+   seteado en demo()) — si por lo que sea cliente_nombre llega vacío acá,
+   se muestra igual el nombre de ejemplo en vez de una fila en blanco. No
+   se pudo reproducir la causa real (ver PROYECTO.md cont. 18), pero esto
+   garantiza que el resumen del tour nunca se vea sin cliente, sin tocar
+   el comportamiento de presupuestos reales (ahí sigue vacío si no se
+   cargó nombre). #}
 <div class="bloque" id="tour-p8-cliente-obra">
   <div class="bloque-hd">Cliente y obra</div>
   <table class="tot">
-    <tr><td class="lbl">Cliente</td><td class="txt">{{ p.get('cliente_nombre') }}</td></tr>
+    <tr><td class="lbl">Cliente</td><td class="txt">{{ p.get('cliente_nombre') or ('Juan Pérez (ejemplo)' if p.get('_demo') else '') }}</td></tr>
     <tr><td class="lbl">Obra</td><td class="txt">{{ p.get('obra_descripcion') }}</td></tr>
   </table>
 </div>

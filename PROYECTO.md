@@ -7,11 +7,155 @@
 ---
 
 ## Descripción del proyecto
-PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos de obra de construcción en minutos: carga de rubros e ítems, cálculo automático de materiales, mano de obra (oficial y ayudante) y costo por m², con precios actualizados para el mercado argentino. Funciona por suscripción mensual vía Mercado Pago ($12.500 ARS). Lanzada el 01/07/2026, apunta a contratistas, albañiles y profesionales de la construcción que hoy arman presupuestos a mano o en planillas. Slogan: "De los metros a los pesos, en minutos."
+_(457 caracteres — la versión anterior de este archivo tenía 532 y excedía el límite de 500 del campo; esta ya es la que está pegada en el campo real)_
+
+PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra de construcción en minutos — rubros e ítems, cálculo automático de materiales, mano de obra (oficial/ayudante) y costo por m2, con precios actualizados para Argentina. Suscripción mensual vía Mercado Pago ($12.500 ARS). Lanzada 01/07/2026, para contratistas, albañiles y profesionales que hoy presupuestan a mano o en planillas. Slogan: "De los metros a los pesos, en minutos."
 
 ---
 
-_Última actualización: 02/08/2026 — 22:34 ART_
+_Última actualización: 03/08/2026 — 18:31 ART_
+
+### ✅ CONFIRMADO: cont. 13 a 17 COMMITEADOS Y PUSHEADOS
+`git status` sobre el repo real confirma `main` sincronizado 1:1 con `origin/main` (0 commits de diferencia en ningún sentido) y el último commit es `9b4b298` ("PDF preview: barra fija... + aviso WhatsApp Constructor"). Es decir: **todo lo marcado como "⚠️ SIN COMMITEAR" en las entradas cont. 13 a 17 de abajo ya está commiteado y en producción** (Daniel corrió esos git blocks en algún momento de la sesión sin que quedara confirmado en el chat). No hace falta re-pushear nada de esa lista.
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 18) — Bug reportado "Cliente en blanco en el resumen del tour" → NO reproducido, probable caché vieja
+Daniel probó el tour y mandó una captura del paso 8 ("Resumen final") mostrando la fila "Cliente" vacía en la tarjeta "Cliente y obra" — "Obra" sí se veía bien. Pedido: "Agregame el nombre del cliente ficticio, que nunca sale escrito en el resumen."
+
+**Investigación:** se armó una simulación completa del flujo real con Flask `test_client()` sobre una copia local de la base — `demo()` → GET/POST de los 8 pasos del wizard (`paso1_obra` → `rubros` → `subcontratos` → `indirectos` → `modo-tiempo` → `materiales` → `forma-pago` → `resumen`), extrayendo y reenviando los valores reales de cada formulario en cada paso (mismo comportamiento que un envío real del navegador). Resultado: **`cliente_nombre` ("Juan Pérez (ejemplo)") sobrevive correctamente en la sesión y se renderiza bien en el HTML del resumen final, en los 8 pasos, sin excepción.** No se pudo reproducir el bug con el código actual.
+
+**Pista fuerte de que es caché vieja, no un bug de código:** la captura de Daniel muestra el contador del tour en **"28 of 37"** — pero el tour actual (desde cont. 13, ya deployado) tiene **38 pasos**. Si su navegador todavía corre una versión vieja de `static/js/tour.js` (cacheada), es consistente con ver un dato en blanco que en el código actual no ocurre — no necesariamente por el mismo motivo, pero confirma que no estaba viendo la versión más nueva del sitio en ese momento.
+
+**Revisado y descartado como causa:** `tour.js` no tiene ninguna lógica que toque `cliente_nombre` (solo ilumina `#tour-cliente` en paso 1 y `#tour-p8-cliente-obra` en el resumen, sin JS que llene o vacíe campos). El Service Worker (`static/sw.js`) es network-first para el HTML (no debería servir una página vieja), pero los archivos estáticos (`tour.js`) sí pueden quedar cacheados por el navegador según sus headers HTTP normales, aparte del Service Worker.
+
+**Pendiente / próximo paso:** pedirle a Daniel que description limpie caché del sitio (o simplemente cierre sesión, borre datos del sitio en el navegador del celular, o pruebe en una ventana privada) y vuelva a correr el tour completo de punta a punta — si el contador ya dice "X of 38" y el bug persiste, ahí sí es un bug de código nuevo y hay que retomar la investigación (quedaría revisar puntualmente si el presupuesto que vio en la captura era uno VIEJO ya guardado con `cliente_nombre` vacío en la base — desde antes de algún fix — en vez de uno recién generado por el tour).
+
+**Archivos tocados:** ninguno (solo investigación, no se tocó código).
+
+**Verificado:** simulación completa del flujo (8 pasos) vía `test_client()`, sin reproducir el bug.
+
+**Addendum (mismo día, cont. 19) — red de seguridad pedida por Daniel para poder grabar el video del tour ya, sin esperar a diagnosticar la causa real:** Daniel confirmó que le sigue apareciendo en blanco y pidió agregar el nombre directamente en el resumen, para no quedar bloqueado grabando el video. Se agregó un fallback SOLO para el presupuesto de ejemplo del tour (`p.get('_demo')`, la marca que pone `demo()`) en `templates/presupuesto/paso8_resumen.html`: si `cliente_nombre` llega vacío a esa pantalla, se muestra igual "Juan Pérez (ejemplo)" en vez de una fila en blanco. Los presupuestos reales no se tocan — si un presupuesto real no tiene nombre cargado, la fila sigue vacía como siempre (no se les mete un nombre falso). Esto no reemplaza la investigación de la causa raíz (sigue sin encontrarse) — es un parche defensivo puntual para desbloquear la grabación del video.
+
+**Verificado:** se probó la expresión Jinja aislada con 4 casos (demo+vacío → muestra "Juan Pérez (ejemplo)"; real+vacío → sigue vacío; demo+nombre real cargado → respeta el nombre real, no lo pisa; demo sin la key → también cae al fallback) — los 4 dieron el resultado esperado.
+
+**Archivo tocado:** `templates/presupuesto/paso8_resumen.html`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 17) — Barra fija en previews de PDF (WhatsApp/Presupuesto/Inicio) ⚠️ SIN COMMITEAR
+Pedido de Daniel: en `pdf_preview.html` (Propietario) y `pdf_preview_constructor.html` (Constructor) no había forma de volver a la app sin scrollear hasta el final — si se abría el preview y se scrolleaba, había que cerrar la pestaña y volver a entrar de cero. Se agregó una barra fija abajo, siempre visible, con 3 accesos: "WhatsApp", "Presupuesto" (vuelve a `ver.html`) e "Inicio" (Dashboard).
+
+**Ojo con el WhatsApp del Constructor:** ese PDF es el desglose INTERNO, con el % de Beneficio/Ganancia real — no correspondía reusar el mismo link que el Propietario (que precarga el teléfono del cliente). El de Constructor arma el link de WhatsApp SIN destinatario precargado (`wa.me/?text=...`, sin número), para que quien lo mande elija a mano a quién — así no se repite el riesgo de mandarle sin querer los márgenes internos al cliente.
+
+La barra nueva se armó envuelta en un `div.pp2` (las páginas de preview no usaban esa clase) para heredar gratis las variables de color y la clase `.barra-tot`/`.btn2` ya probadas en el resto de la app (misma barra fija que usa el wizard para el total), en vez de inventar estilos nuevos. Se agregó un espaciador al final del contenido para que la barra no tape el último tramo al llegar abajo. El botón "Descargar PDF" que ya existía se dejó como estaba (no era uno de los 3 pedidos, pero sigue siendo útil); "Volver al presupuesto" queda duplicado (una vez arriba como enlace normal, otra en la barra fija) — cosmético, no se sacó por las dudas, avisar si se quiere limpiar.
+
+**Verificado:** `py_compile` OK en `routes/pdf_routes.py`, los 2 templates parsean bien con Jinja2 (incluidos los casos con/sin `wa_url`).
+
+**Addendum (mismo día, 16:47 ART):** no alcanzaba con que el WhatsApp del Constructor abriera sin destinatario precargado — Daniel pidió que directamente AVISE antes de mandarlo, porque ese PDF muestra la ganancia real. Se agregó un cartel de confirmación (`onclick="return confirm(...)"`, mismo patrón que "Eliminar logo" en `perfil.html`) al botón de WhatsApp de `pdf_preview_constructor.html` — si cancela, no se abre WhatsApp.
+
+**Archivos tocados:** `routes/pdf_routes.py`, `templates/presupuesto/pdf_preview.html`, `templates/presupuesto/pdf_preview_constructor.html`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 16) — Admin con la misma cuenta corregida + numeración correlativa real ⚠️ SIN COMMITEAR
+Daniel preguntó si borrar presupuestos desde el Admin también le baja el contador (sí — es la misma tabla, no hay historial aparte) y pidió corregir la lógica de trial duplicada en `admin.py` (cont. 15 solo tocó `utils/trial.py`) + que la numeración de presupuestos (`nro`, ej. "2026-002") sea correlativa "de verdad", sin que el tour le meta números en el medio.
+
+**1) `admin.py` tenía su PROPIA copia del cálculo** (no llama a `get_trial_status()`, a propósito, para no abrir una conexión a DB por usuario en listas largas — ver comentario existente en `_usuarios_seguimiento()`). Se encontraron 4 lugares con el mismo `COUNT(*) FROM presupuestos WHERE status='completo'` sin excluir `es_demo` (`usuarios()`, `usuarios_exportar_contactar()`, `_usuarios_seguimiento()`, `seguimiento_detalle()`) — los 4 corregidos con el mismo filtro que `utils/trial.py`.
+
+**2) Numeración `nro`, 2 problemas de fondo (no solo el del tour):**
+- Los presupuestos demo consumían un número real de la secuencia (por eso la cuenta de Daniel llegó a "2026-003" con 2 de esos 3 siendo del tour).
+- La numeración vieja era `COUNT+1` — frágil ante borrados: borrar "2026-002" y crear uno nuevo después iba a generar "2026-002" de nuevo, para un presupuesto DISTINTO (2 documentos reales con el mismo número).
+
+**Fix:** en `routes/presupuesto.py::resumen()`, los presupuestos demo ahora reciben `nro = "DEMO-{id}"` (no tocan la secuencia para nada). Los reales usan `MAX(sufijo numérico)+1` en vez de `COUNT+1` — verificado con una simulación en sqlite en memoria (3 escenarios: demo no afecta la secuencia, numeración sube normal, y borrar de en medio NO repite un número ya usado). Backfill idempotente en `database.py` (corre en cada deploy, no hace nada una vez corregido) para renombrar el `nro` de los 2 presupuestos demo que Daniel ya tiene guardados con números reales viejos ("2026-002"/"2026-003" → "DEMO-2"/"DEMO-3"), liberándolos para la numeración real.
+
+**Verificado:** `py_compile` OK en los 4 archivos tocados. La lógica de MAX+backfill se probó en sqlite en memoria simulando el estado real de la cuenta de Daniel (1 real + 2 demo ya marcados) — el backfill los renombra a DEMO-2/DEMO-3 y el próximo número real calculado da "2026-002" (correcto, listo para reusarse por un presupuesto real de verdad).
+
+**Nota aparte, todavía sin resolver (pregunta de Daniel, no una decisión tomada):** borrar y volver a crear presupuestos completos sigue permitiendo estirar el límite de 3 de la prueba gratis indefinidamente (el conteo del límite es en vivo, no acumulado — ver intercambio de las 14:35). Quedó planteado con 3 opciones (dejarlo así / contador acumulado real en `users` / restringir el borrado de completos a un margen de tiempo) — pendiente de que Daniel elija antes de tocar nada ahí.
+
+**Archivos tocados:** `routes/admin.py`, `routes/presupuesto.py`, `database.py`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 15) — Bug real: el tour consume el límite de la prueba gratis ⚠️ SIN COMMITEAR
+Daniel probó y le apareció el banner "Tu prueba gratis terminó" con solo 2 presupuestos reales — los otros 2 que contaban eran presupuestos del recorrido guiado (paso final del tour dispara el submit real de "Guardar", ver `static/js/tour.js`). **No es un problema solo de su cuenta de prueba: le pasaría a CUALQUIER usuario real** que complete el tour (primera vez, o de nuevo con "Recorrido virtual") — su límite de 3 presupuestos gratis (`utils/trial.py`) se comería 1 o más con presupuestos de ejemplo, no reales.
+
+**Fix:**
+1. `utils/trial.py::get_trial_status()` — la cuenta de presupuestos ahora excluye `es_demo=1` (columna agregada en cont. 14 para la marca del tour).
+2. `database.py::migrate_db()` — backfill único: cuando la columna `es_demo` se agrega por primera vez, marca retroactivamente los presupuestos ya guardados que coinciden con el fingerprint fijo del demo (cliente "Juan Pérez (ejemplo)" + obra con "recorrido guiado" en la descripción) — así los 2 que ya tiene Daniel en su cuenta quedan corregidos automáticamente al deployar, sin que él tenga que borrar nada a mano.
+
+**Verificado:** `py_compile` OK en los 2 archivos. No se pudo probar contra producción (no hay forma de correr una migración de DB desde acá) — al deployar, Daniel debería ver que baja la cuenta de presupuestos "reales" y el banner de prueba vencida desaparece si tenía margen.
+
+**Archivos tocados:** `utils/trial.py`, `database.py`.
+
+**⚠️ Pendiente: SIN COMMITEAR** — mismo lote sin pushear que cont. 13/14.
+
+---
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 14) — Marca de ejemplo en los PDFs del tour + header más grande en TODOS los PDFs ⚠️ SIN COMMITEAR
+Daniel mandó capturas de los 2 PDF generados al terminar el recorrido guiado (Propietario y Constructor/Desglose interno): ningún header mostraba logo ni nombre de empresa. Pedido: "en los PDFs de muestra también ponerle el Logo y los datos del constructor en un tamaño que resalte y se distinga [...] Constructora Ejemplo y logo CE, el slogan y telefono de ejemplo. Igual para el cliente, todos los datos de ejemplo" (el cliente ya estaba con datos de ejemplo — "Juan Pérez (ejemplo)" — desde `demo()`; lo que faltaba era el lado empresa).
+
+**Causa:** el PDF siempre usa el perfil REAL del usuario logueado (`utils/pdf_generator.py`, vía `empresa_perfil` en `routes/pdf_routes.py::cargar_presupuesto`) — en una cuenta de prueba que nunca completó "Nombre de empresa" en Perfil, el header cae al diseño genérico sin marca (`elif empresa_nombre:` nunca se cumple).
+
+**Fix (3 partes):**
+1. `routes/presupuesto.py::demo()` marca el presupuesto con `'_demo': True` en el dict de sesión.
+2. Nueva columna `es_demo` en `presupuestos` (migración en `database.py`, mismo patrón que las demás columnas nuevas) — necesaria porque `session_json` se resetea a `'{}'` al guardar (`resumen()`), así que la marca `_demo` no sobrevivía hasta el momento de generar el PDF si solo viajaba ahí. `resumen()` ahora guarda `es_demo=1` cuando corresponde, en el INSERT y el UPDATE.
+3. `routes/pdf_routes.py::cargar_presupuesto()`: si `es_demo`, reemplaza `empresa` por datos 100% de ejemplo (Constructora Ejemplo / CE / slogan y teléfono de ejemplo) en vez del perfil real — afecta los 4 endpoints que la usan (preview y descarga, Propietario y Constructor).
+
+**Además, pedido explícito de "tamaño que resalte":** en `utils/pdf_generator.py` se agrandó el header para TODOS los PDF (no solo los de demo): banner de 32→36px, nombre de empresa de 14→17pt, slogan/contacto/teléfono de 8→9.5pt, y la burbuja de iniciales placeholder (cuando no hay logo subido) con la letra más grande dentro del mismo recuadro (factor 2.1→2.3).
+
+**Verificado (no solo sintaxis):** se instaló `fpdf2` en el sandbox y se generaron los 2 PDF reales (`generar_pdf_propietario`/`generar_pdf_constructor`) con los datos de ejemplo, convertidos a imagen (`pdftoppm`) y revisados visualmente — el header nuevo entra bien dentro del banner agrandado, sin superponerse con nada, en los dos diseños (banner claro del Propietario y banner oscuro del Constructor). También se verificó con Jinja2 en aislado que el filtro `iniciales_empresa` da "CE" para "Constructora Ejemplo", vacío para nombre vacío (sin burbuja) y las 2 primeras letras para una sola palabra. `py_compile` OK en los 5 archivos Python tocados.
+
+**Archivos tocados (además de los de cont. 13):** `routes/presupuesto.py`, `routes/pdf_routes.py`, `database.py`.
+
+**Pendiente:** confirmar visualmente en el sitio real después de deployar (no se pudo probar el flujo completo end-to-end contra producción por la sesión de Chrome caída — ver cont. 13).
+
+**Addendum (mismo día, 13:36 ART) — "Sigue sin mostrar el logo de ejemplo en el Tour":** Daniel deployó y probó; el paso "Tu logo" del perfil (cont. 13, punto 1) seguía sin burbuja porque su cuenta de prueba no tiene Nombre de empresa cargado — la condición `{% if iniciales %}` escondía la burbuja entera cuando el cálculo daba vacío. Fix en `templates/perfil/perfil.html`: ahora, si no hay nombre real, se muestra igual un ejemplo ("CE", mismas iniciales que ya usan los PDF de muestra) con el texto aclarando que es un ejemplo — la burbuja ya no depende de que el perfil real esté completo.
+
+**Addendum 2 (mismo día, 13:42 ART) — "En los PDFs de cliente y constructor tampoco aparece el logo y falta el teléfono de ejemplo":** las pantallas `PDF Propietario`/`PDF Constructor` que ve Daniel en el celular NO son el PDF real — son réplicas en HTML (`templates/presupuesto/pdf_preview.html` y `pdf_preview_constructor.html`, ver comentario de Daniel del 02/08 en esos archivos) que se mantienen a mano en paralelo a `utils/pdf_generator.py`. El fix de cont. 14 solo tocó el PDF real; estas 2 réplicas HTML tenían su propio bloque de header, más viejo, que solo mostraba el logo si `empresa.logo_data` era una imagen real (nunca el placeholder de iniciales) y directamente no tenía línea de contacto/teléfono. Se les agregó el mismo placeholder "CE" y la línea contacto+teléfono, mismo criterio que el PDF real y que `perfil.html` (reutilizando el filtro `iniciales_empresa`). **Ojo para el futuro:** cualquier cambio de header en `utils/pdf_generator.py` hay que replicarlo a mano en estos 2 HTML también — no comparten código.
+
+**⚠️ Pendiente: SIN COMMITEAR** — junto con todo lo de cont. 13 (mismo lote sin pushear).
+
+---
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 13) — 2 pedidos de Daniel probando el tour en el celular real, tras confirmar cont. 12 deployado ⚠️ SIN COMMITEAR
+Confirmado: el fix de cont. 12 (`e6d57b9`) ya está commiteado y deployado en Railway. Daniel volvió a probar en el celular real y encontró 2 cosas más (no son el mismo bug de superposición, son de contenido/flujo):
+
+**1) Paso "Tu logo" (perfil) — el popover describía algo que no existía en pantalla.** El texto dice "usamos las iniciales de tu empresa" pero `templates/perfil/perfil.html` nunca tuvo esa burbuja — las iniciales solo existían del lado del PDF real (`utils/pdf_generator.py::_iniciales_empresa`, fix del 05/07) y en la demo pública de `landing.html` (`getIniciales()`, JS). El tour iluminaba la caja de subir archivo nomás, sin nada que respalde el texto. Fix: se expuso el cálculo de iniciales del PDF como filtro Jinja (`iniciales_empresa`, registrado en `app.py`, la función en `pdf_generator.py` se renombró sacándole el guion bajo — queda un alias `_iniciales_empresa` para no romper el único call site interno) y se agregó la burbuja visual (mismo estilo que el PDF: fondo dorado `#eab308`, texto azul `#0f1e3c`) dentro de `#tour-perfil-logo`, en la rama "sin logo cargado" de `perfil.html`. Ahora el elemento iluminado por el tour incluye exactamente lo que el popover describe.
+
+**2) Salto directo a la demo sin pasar por el botón real del Dashboard.** Entre el último paso de Costo/m² (Mampostería) y el paso 1 del presupuesto, el tour saltaba derecho a `/presupuesto/demo` — el usuario nunca veía el botón real "+ Nuevo presupuesto" que va a usar después, fuera del tour. Fix en `static/js/tour.js`: el step de Mampostería-desglose ahora navega al Dashboard (antes iba directo a la demo), y se sumó un step nuevo `stage:'dashboard', element:'#tour-nuevo-presupuesto'` que ilumina el botón real y desde ahí sí navega a la demo. El recorrido pasa de 37 a 38 pasos (verificado con un script que extrae y cuenta el array `STEPS` — orden y `leaveAction` de cada paso confirmados uno por uno).
+
+**Verificación:** `node --check` OK en `tour.js`, `py_compile` OK en `app.py` y `utils/pdf_generator.py`, parseo Jinja2 real de `perfil.html` OK (con el filtro nuevo registrado). El array `STEPS` completo se extrajo y se imprimió paso por paso para confirmar los 38 pasos en el orden correcto. **No se pudo verificar visualmente en el navegador real** (la sesión de Chrome conectada se cerró/perdió el login a mitad de la prueba y no corresponde que yo vuelva a loguearme) — Daniel tiene que confirmar visualmente los 2 puntos después de deployar.
+
+**Archivos tocados:** `static/js/tour.js`, `templates/perfil/perfil.html`, `utils/pdf_generator.py`, `app.py`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
+
+### 🟢 CIERRE DE SESIÓN 02/08/2026 (cont. 12) — 6ta vuelta: CAUSA RAÍZ REAL encontrada y probada en vivo sobre el sitio real (no simulada) ⚠️ SIN COMMITEAR
+Daniel volvió a probar tras el fix de cont. 11 y mandó 6 capturas nuevas: seguía tapando en Costo/m² (nombre del ítem), Fundaciones (% Beneficio/Seguro), Mampostería y Contrapisos (paso 2, ítem de ejemplo), Modo tiempo (% GG/Beneficio) y paso 8 (Descripción de trabajos). Esta vez, en vez de seguir ajustando a ciegas, se entró con el conector de Chrome a la sesión real de Daniel (ya logueada) y se reprodujo el bug en vivo, midiendo con JavaScript directo sobre el DOM real — no más adivinar.
+
+**Causa raíz #1 (afecta TODOS los pasos, es la principal): el scroll nunca fue instantáneo.** El sitio tiene `scroll-behavior: smooth` en `<html>` — no lo pusimos nosotros, es un default del Reboot de Bootstrap 5 (`@media (prefers-reduced-motion: no-preference)`). Por spec, `behavior:'auto'` en `scrollTo` (lo que usaba `scrollearYEsperar` desde cont. 11) significa "hacé lo que diga el CSS del elemento" — como el CSS dice `smooth`, el scroll quedaba ANIMADO en vez de instantáneo. Probado en vivo: ni `scrollTo({behavior:'auto'})` ni `scrollTop = x` movían la página en 250ms; solo `behavior:'instant'` (que ignora el CSS) funcionó. El `setTimeout(callback, 150)` que seguía al scroll asumía que ya había terminado, pero en la práctica Driver.js calculaba y congelaba la posición del popover a MITAD de la animación, y la página seguía moviéndose después — de ahí el desfasaje en todos los puntos reportados, en los 5 intentos anteriores (ninguno tocaba esto).
+
+**Causa raíz #2 (específica de pantallas con su propio sub-header, como Costo/m²): `navH` solo medía `nav.navbar`.** En Costo/m² (y probablemente el acordeón de rubros en paso 2) hay un `<div class="sticky-top">` PROPIO de esa pantalla (95px: título + "Volver" + "Seleccioná un ítem...") que no es el navbar — de hecho esa pantalla ni siquiera tiene `nav.navbar` (navExists:false, confirmado en vivo). `navH` caía al fallback de 56px, así que el ítem quedaba scrolleado a y:68, tapado por ese sticky propio que ocupa hasta y:95. Fix: en vez de asumir que lo único pegado arriba es el navbar, ahora se mide en vivo, en cada scroll, el borde inferior real de TODOS los elementos pegados al techo de la pantalla en ese momento (`alturaStickyTope()`) — sirve para cualquier pantalla sin hardcodear una altura distinta por cada una. Ojo con un detalle no obvio: un `position:sticky` recién cargado (scrollY:0) todavía no está "pegado" y su `rect.top` puede no ser 0 — hay que mirar su `top` de CSS (a qué altura se pega cuando se activa), no su posición actual, si no el cálculo da 0 en el primer paso de cada página.
+
+**Verificado en vivo (no solo en teoría), con el conector de Chrome sobre `presupuestopro.com.ar` real:**
+- Costo/m² (`#tour-costo-m2-item1`): antes tapaba el nombre del ítem ("Cerco de obra" ilegible, se veía "Berlantes" cortado). Con el fix: "Cerco de obra" queda completamente visible arriba del popover.
+- Fundaciones/Zapata (`#tour-costo-adicionales`): antes tapaba directamente el bloque de Adicionales. Con el fix: "Beneficio: 10.0% $2.800" y "Seguros: 7.0% $1.960" quedan completamente visibles.
+- Paso 2 (Mampostería) no se pudo re-probar con datos reales del tour (la sesión de prueba no tenía la carga demo activa), pero usa la misma función corregida — no hay motivo para que se comporte distinto a los dos casos ya verificados.
+
+**Archivo tocado:** `static/js/tour.js` — `scrollearYEsperar()` ahora usa `behavior:'instant'` y una nueva función `alturaStickyTope()` reemplaza el cálculo de `navH` basado solo en `--nav-h`/`nav.navbar`.
+
+**Pendiente:** Daniel tiene que probar el recorrido completo de nuevo (los 6 puntos + el resto) para confirmar en su propio dispositivo. Si algo TODAVÍA tapa después de este fix, ya no debería ser por el scroll ni por el navH — sería un tercer problema distinto (por ejemplo el propio ancho del popover en pantallas muy angostas, o un `stagePadding`/`popoverOffset` de Driver.js a ajustar).
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma al mismo commit pendiente de cont. 4 a 11 (mismo archivo, `static/js/tour.js`).
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 11) — 5ta vuelta: fix definitivo de posición (scroll manual + side forzado), separar paso5-margenes, Equipo→Cuadrilla en paso8/ver ⚠️ SIN COMMITEAR
 Daniel probó de nuevo (5 capturas) tras el fix de cont. 10: seguía tapando en paso5-barra1, paso2-cómputo y paso8-descripción. Además: en "Tu cuadrilla y tus márgenes" (paso 5) el % GG y % Impuestos no se veían — pensó que estaban en otra pantalla (en realidad el bloque `#tour-paso5-config` era demasiado alto, quedaban fuera de la parte visible). Y pidió renombrar "Ubicación y equipo" → "Ubicación y Cuadrilla" y la fila "Equipo" → "Cuadrilla" en el resumen final (paso 8).
