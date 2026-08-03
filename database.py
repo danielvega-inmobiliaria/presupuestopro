@@ -405,6 +405,24 @@ def migrate_db():
             if n_backfill:
                 print("[migrate_db] es_demo backfill: {} presupuestos de ejemplo del tour marcados".format(n_backfill))
 
+        # Backfill idempotente (fix 03/08/2026, pedido de Daniel: numeración
+        # correlativa "real", sin los del tour): los presupuestos demo que ya
+        # existían ANTES de este fix quedaron con un nro real tipo
+        # "2026-002" (asignado por la numeración vieja, por COUNT). Ahora que
+        # routes/presupuesto.py::resumen() les da "DEMO-{id}" a los nuevos,
+        # hay que liberar esos números viejos también, si no la próxima
+        # numeración por MAX podría chocar con uno de estos (mismo nro real
+        # para un presupuesto demo Y uno real). Sin guardia de "recién
+        # agregada la columna": corre en cada deploy, pero no encuentra nada
+        # para tocar una vez que ya se corrigió (WHERE nro NOT LIKE 'DEMO-%').
+        n_renombrados = db.execute(
+            "UPDATE presupuestos SET nro = 'DEMO-' || id "
+            "WHERE es_demo=1 AND (nro IS NULL OR nro NOT LIKE 'DEMO-%')"
+        ).rowcount
+        if n_renombrados:
+            db.commit()
+            print("[migrate_db] nro de presupuestos demo renombrado: {}".format(n_renombrados))
+
         # 0. Crear tabla suscripciones si no existe (DBs anteriores a MP)
         db.execute("""
             CREATE TABLE IF NOT EXISTS suscripciones (

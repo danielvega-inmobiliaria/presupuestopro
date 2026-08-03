@@ -1514,12 +1514,31 @@ def resumen():
         # Generar nro solo si es nuevo (sin _editando_nro)
         nro = p.get('_editando_nro') or None
         if not nro:
-            year = date.today().year
-            count = db.execute(
-                "SELECT COUNT(*) as c FROM presupuestos WHERE user_id=? AND status='completo' AND strftime('%Y',created_at)=?",
-                (g.user['id'], str(year))
-            ).fetchone()['c'] + 1
-            nro = '{}-{}'.format(year, str(count).zfill(3))
+            # Fix 03/08/2026 (pedido de Daniel): 2 problemas con la numeración
+            # vieja. (1) Los presupuestos de ejemplo del tour consumían un
+            # número real de la secuencia (ej. su cuenta llegó a "2026-003"
+            # con 2 de esos 3 siendo del tour) — ahora, si es demo, ni
+            # siquiera entra acá: se le pone un nro fijo "DEMO-{id}" que no
+            # toca la secuencia para nada (ver bloque de abajo). (2) La
+            # numeración por COUNT+1 es frágil ante los borrados: si se borra
+            # el presupuesto "2026-002" y se crea uno nuevo después, COUNT
+            # vuelve a dar el mismo "2026-002" para un presupuesto DISTINTO
+            # — dos documentos reales con el mismo número. Se cambia a
+            # MAX(sufijo numérico)+1: aunque se borren de en medio, el
+            # próximo número sigue siendo mayor a cualquiera que se haya
+            # usado antes para este usuario en el año, nunca se repite.
+            if p.get('_demo'):
+                nro = 'DEMO-{}'.format(pid or '0')
+            else:
+                year = date.today().year
+                fila_max = db.execute(
+                    "SELECT MAX(CAST(SUBSTR(nro, 6) AS INTEGER)) AS mx FROM presupuestos "
+                    "WHERE user_id=? AND status='completo' AND strftime('%Y',created_at)=? "
+                    "AND (es_demo IS NULL OR es_demo=0) AND nro LIKE ?",
+                    (g.user['id'], str(year), '{}-%'.format(year))
+                ).fetchone()
+                count = (fila_max['mx'] or 0) + 1
+                nro = '{}-{}'.format(year, str(count).zfill(3))
 
         campos = {
             'cliente_nombre':    p.get('cliente_nombre'),

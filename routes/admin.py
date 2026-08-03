@@ -139,7 +139,8 @@ def usuarios():
     db = get_db()
     users = db.execute(
         f"""SELECT u.*,
-                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
+                      AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                    (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
                    (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
             FROM users u
@@ -233,7 +234,8 @@ def usuarios_exportar_contactar():
     db = get_db()
     usuarios = db.execute(
         """SELECT u.*,
-                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
+                     AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
            FROM users u
@@ -263,7 +265,8 @@ def _usuarios_seguimiento():
     db = get_db()
     usuarios = db.execute(
         """SELECT u.*,
-                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
+                     AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2,
                   (SELECT MAX(created_at) FROM retencion_contactos rc WHERE rc.user_id=u.id)          AS ultimo_contacto,
@@ -446,7 +449,8 @@ def seguimiento_detalle(uid):
     db = get_db()
     u = db.execute(
         """SELECT u.*,
-                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo') AS n_presupuestos,
+                  (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
+                     AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
            FROM users u WHERE u.id=?""",
