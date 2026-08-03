@@ -337,6 +337,25 @@
   // "Mi empresa" arranca dentro de un dropdown cerrado; los ítems de
   // Mampostería/Contrapisos arrancan dentro de un rubro colapsado). Recibe
   // un callback porque abrir un rubro es asíncrono (espera la animación).
+  // Fix 02/08/2026 (bug reportado por Daniel, 4ta vuelta — el popover
+  // SEGUÍA tapando contenido pese a dividir los bloques altos): se probó
+  // primero `side:'top'` por paso (no alcanzaba), después la opción de
+  // config `scrollIntoViewOptions: {block:'start'}` (Round 5→7 de esta
+  // sesión) — comprobado ahora con una prueba real en un iframe de 390px
+  // (ancho de celular) que ESA OPCIÓN NO HACE NADA: el elemento terminaba
+  // scrolleado a una posición arbitraria (ni arriba, ni centrado), cortado
+  // por el borde inferior de la pantalla. En vez de seguir confiando en esa
+  // opción de Driver.js, ahora se hace el scroll A MANO acá, ANTES de
+  // iluminar — mismo patrón que ya funcionó para el bug de la animación del
+  // acordeón en paso 2 (esperar a que el layout se asiente antes de que
+  // Driver.js calcule dónde poner el popover).
+  function scrollearYEsperar(selector, callback) {
+    var el = document.querySelector(selector);
+    if (!el || !el.scrollIntoView) { callback(); return; }
+    el.scrollIntoView({ block: 'center', behavior: 'auto' });
+    setTimeout(callback, 120); // deja que el reflow/scroll se asiente
+  }
+
   function prepararElemento(step, callback) {
     callback = callback || function () {};
     if (!step) { callback(); return; }
@@ -347,9 +366,15 @@
     if (step.element === '#tour-mi-empresa') {
       abrirMenuUsuario();
     }
-    if (step.element === '#rubro06 .fila.activa') { abrirRubroYEsperar('06', callback); return; }
-    if (step.element === '#rubro07 .fila.activa') { abrirRubroYEsperar('07', callback); return; }
-    callback();
+    if (step.element === '#rubro06 .fila.activa') {
+      abrirRubroYEsperar('06', function () { scrollearYEsperar(step.element, callback); });
+      return;
+    }
+    if (step.element === '#rubro07 .fila.activa') {
+      abrirRubroYEsperar('07', function () { scrollearYEsperar(step.element, callback); });
+      return;
+    }
+    scrollearYEsperar(step.element, callback);
   }
 
   // Usada tanto por "Siguiente" como por la X (cerrar) — cerrar un popover
@@ -433,15 +458,14 @@
       // se saca directamente: "Saltar todo el recorrido" ya cubre esa
       // necesidad, sin el elemento ambiguo de más.
       allowClose: false,
-      // Fix 02/08/2026 (bug reportado por Daniel: los popovers tapaban los
-      // datos que estaban explicando en bloques altos — Datos de la
-      // empresa, Datos de la obra, Cliente y obra, etc.). En vez de forzar
-      // side/align por paso (no alcanzaba en bloques altos, sin espacio
-      // arriba NI abajo en pantallas chicas), se hace scroll para que el
-      // elemento iluminado quede SIEMPRE arriba de todo ("start") — así el
-      // popover tiene todo el resto de la pantalla libre, abajo, sin tapar
-      // nada del elemento.
-      scrollIntoViewOptions: { block: 'start', behavior: 'smooth' },
+      // Fix 02/08/2026 (4ta vuelta): se sacó `scrollIntoViewOptions` de acá
+      // — probado con una prueba real en viewport de celular (390px) que no
+      // tiene ningún efecto (el elemento no quedaba ni arriba ni centrado,
+      // sino cortado por el borde inferior). El scroll ahora se hace a mano
+      // ANTES de iluminar, ver scrollearYEsperar()/prepararElemento() más
+      // abajo — mismo patrón que ya funcionó para el bug del acordeón en
+      // paso 2 (esperar a que el layout se asiente antes de que Driver.js
+      // calcule la posición del popover).
       steps: STEPS.map(function (s) {
         return { element: s.element, popover: s.popover };
       }),

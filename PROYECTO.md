@@ -11,7 +11,22 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 21:37 ART_
+_Última actualización: 02/08/2026 — 22:02 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 10) — Entré al sitio real a diagnosticar en vivo (Chrome) ⚠️ SIN COMMITEAR
+Daniel mandó una captura de escritorio (Chrome, sesión real logueada como Administrador) mostrando el popover "Contacto" tapando el campo "NOMBRE DEL CONTACTO" en Perfil, y preguntó si podía entrar a revisar directamente. Con su OK, usé el conector de Chrome para entrar a `presupuestopro.com.ar/perfil/` con su sesión real (ya logueada, no usé ninguna contraseña) y probé el recorrido en vivo, incluyendo un iframe de 390px para simular un celular real.
+
+**Confirmado con medición directa (no más adivinar):** la opción `scrollIntoViewOptions: {block:'start', behavior:'smooth'}` que se había agregado en la vuelta anterior (cont. 8) **no tiene ningún efecto real** — medí la posición del elemento iluminado antes y después y no cambiaba nada. Por eso ningún intento de fix basado en esa opción funcionó, por más vueltas que le diera.
+
+**Fix aplicado:** se saca esa opción y en su lugar `tour.js` ahora hace el scroll A MANO, con `element.scrollIntoView({block:'center'})`, y espera 120ms a que el layout se asiente ANTES de recién ahí calcular dónde poner el popover — mismo patrón que ya funcionó para el bug del acordeón de paso 2 (cont. 9).
+
+**Lo que NO pude confirmar:** en mis pruebas en vivo (ancho de escritorio real ~1536px Y un iframe de 390px simulando celular), Driver.js elegía una posición sin tapar el campo — no logré reproducir el tapado exacto de tu captura. Puede depender de tu zoom del navegador o el tamaño exacto de ventana en tu equipo. Le pedí a Daniel confirmar zoom al 100% (Ctrl+0) en el próximo test para descartar esa variable.
+
+**Archivo tocado:** `static/js/tour.js` (se agrega este fix, además de lo ya sumado en cont. 9 — mismo archivo, no genera un commit aparte).
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma al mismo commit pendiente de cont. 4 a 9.
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 9) — Eliminar presupuesto + 4to intento de fix de popovers (esta vez dividiendo bloques) + race condition en paso 2 ⚠️ SIN COMMITEAR
 Daniel volvió a probar (cont. 8) y mandó capturas: los popovers de Perfil/Datos de la obra/paso 2/paso 5 SEGUÍAN tapando contenido pese a los 2 intentos anteriores (`side:'top'` en cont.7, `scrollIntoViewOptions` en cont.8). Y pidió una función nueva: poder eliminar un presupuesto ya guardado.
