@@ -22,12 +22,12 @@
 </div>
 
 <div class="bloque" id="tour-p8-obra-datos">
-  <div class="bloque-hd">Ubicación y equipo</div>
+  <div class="bloque-hd">Ubicación y cuadrilla</div>
   <table class="tot">
     <tr><td class="lbl">Dirección</td><td class="txt">{{ p.get('obra_direccion') }}</td></tr>
     {% set fraw = p.get('fecha_presup','') %}
     <tr><td class="lbl">Fecha</td><td>{{ fraw[8:10] }}-{{ fraw[5:7] }}-{{ fraw[0:4] }}</td></tr>
-    <tr><td class="lbl">Equipo</td><td class="txt">{{ p.get('n_oficiales',0) }} of. + {{ p.get('n_ayudantes',0) }} ay. · {{ p.get('dias_obra',0) }} días</td></tr>
+    <tr><td class="lbl">Cuadrilla</td><td class="txt">{{ p.get('n_oficiales',0) }} of. + {{ p.get('n_ayudantes',0) }} ay. · {{ p.get('dias_obra',0) }} días</td></tr>
   </table>
 </div>
 

@@ -7,7 +7,7 @@
 {% include 'presupuesto/_wizard_steps.html' with context %}
 
 <form method="post" id="formModo" data-wizard-form>
-  <div class="bloque" id="tour-paso5-config">
+  <div class="bloque" id="tour-paso5-modo">
     <div class="bloque-cuerpo">
 
       <!-- Modo -->
@@ -65,9 +65,18 @@
                placeholder="Ingresá los días" inputmode="numeric">
         <div class="pista">Editable manualmente o usá "Aplicar". <span id="tiempo-display"></span></div>
       </div>
+    </div>
+  </div>
 
+  {# Fix 02/08/2026 (bug reportado por Daniel, 5ta vuelta): el bloque
+     #tour-paso5-config original (Modo+Cuadrilla+Duración+Beneficio y
+     cargas) era demasiado alto — GG e Impuestos quedaban fuera de la
+     pantalla visible junto con el popover. Se separó "Beneficio y cargas"
+     en su propio bloque corto (#tour-paso5-margenes). #}
+  <div class="bloque" id="tour-paso5-margenes">
+    <div class="bloque-cuerpo">
       <!-- GG e Impuestos (movidos desde paso 4) -->
-      <div class="grupo-tit">Beneficio y cargas</div>
+      <div class="grupo-tit primero">Beneficio y cargas</div>
       <div class="duo">
         <div class="campo" style="margin:0"><label>% Gastos generales / Beneficio</label>
           <div class="sufijo"><input class="n" type="number" name="pct_gg" id="pct_gg" min="0" max="100" step="0.5" value="{{ pct_gg }}"><span>%</span></div></div>

@@ -11,7 +11,26 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 22:02 ART_
+_Última actualización: 02/08/2026 — 22:34 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 11) — 5ta vuelta: fix definitivo de posición (scroll manual + side forzado), separar paso5-margenes, Equipo→Cuadrilla en paso8/ver ⚠️ SIN COMMITEAR
+Daniel probó de nuevo (5 capturas) tras el fix de cont. 10: seguía tapando en paso5-barra1, paso2-cómputo y paso8-descripción. Además: en "Tu cuadrilla y tus márgenes" (paso 5) el % GG y % Impuestos no se veían — pensó que estaban en otra pantalla (en realidad el bloque `#tour-paso5-config` era demasiado alto, quedaban fuera de la parte visible). Y pidió renombrar "Ubicación y equipo" → "Ubicación y Cuadrilla" y la fila "Equipo" → "Cuadrilla" en el resumen final (paso 8).
+
+**Diagnóstico definitivo (con medición en vivo, Chrome conectado a la sesión real):** el patrón repetido de "el popover queda pegado en la esquina superior izquierda, tapando el propio elemento" pasa cuando Driver.js no encuentra espacio claro de ningún lado y usa un fallback de superposición. `scrollIntoView({block:'center'})` (cont. 10) no alcanzaba porque en páginas cortas no hay margen de scroll suficiente para centrar. Fix definitivo, dos partes:
+1. El scroll manual ahora lleva el elemento SIEMPRE arriba de todo (debajo del navbar sticky, descontando su alto real `--nav-h`) — así queda garantizado que TODO el resto de la pantalla, hacia abajo, está libre.
+2. Se fuerza explícitamente `side:'bottom', align:'start'` en TODOS los pasos (antes se dejaba que Driver.js decidiera solo) — elimina la "adivinanza" que terminaba en superposición.
+
+**Separación de bloque:** `#tour-paso5-config` (Modo+Cuadrilla+Duración+Beneficio y cargas, muy alto) se separó en `#tour-paso5-modo` (Modo+Cuadrilla+Duración) y `#tour-paso5-margenes` (Beneficio y cargas: % GG, % Impuestos) — 2 pasos de tour en vez de 1. El recorrido pasa de 36 a 37 pasos.
+
+**Renombres:** "Ubicación y equipo" → "Ubicación y cuadrilla" y fila "Equipo" → "Cuadrilla" en `paso8_resumen.html` (resumen) y en `ver.html` (presupuesto guardado) — mismo criterio ya aplicado en paso 5 ("Cuadrilla de trabajo"). Título/descripción del popover correspondiente actualizados en `tour.js`.
+
+**Archivos tocados:** `static/js/tour.js`, `templates/presupuesto/paso5_modo_tiempo.html`, `templates/presupuesto/paso8_resumen.html`, `templates/presupuesto/ver.html`.
+
+**Límite encontrado en esta sesión de testeo en vivo:** el navegador remoto que uso para probar en tu sitio real no deja simular `window.scrollTo` de forma confiable (limitación del entorno de pruebas, no del código) — no pude re-verificar visualmente el resultado final de este 5to fix antes de pasártelo. Sigue siendo necesario que lo confirmes vos en tu próxima prueba.
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma al mismo commit pendiente de cont. 4 a 10.
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 10) — Entré al sitio real a diagnosticar en vivo (Chrome) ⚠️ SIN COMMITEAR
 Daniel mandó una captura de escritorio (Chrome, sesión real logueada como Administrador) mostrando el popover "Contacto" tapando el campo "NOMBRE DEL CONTACTO" en Perfil, y preguntó si podía entrar a revisar directamente. Con su OK, usé el conector de Chrome para entrar a `presupuestopro.com.ar/perfil/` con su sesión real (ya logueada, no usé ninguna contraseña) y probé el recorrido en vivo, incluyendo un iframe de 390px para simular un celular real.

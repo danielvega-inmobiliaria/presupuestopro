@@ -177,11 +177,23 @@
       leaveAction: { type: 'submit', formId: 'formInd' }
     },
     // ── Paso 5: Modo y tiempo ────────────────────────────────────────
+    // Fix 02/08/2026 (bug reportado por Daniel, 5ta vuelta): el bloque
+    // único #tour-paso5-config era muy alto — el % GG y % Impuestos
+    // quedaban fuera de la pantalla visible junto con el popover. Se separó
+    // en 2 pasos: Cuadrilla (#tour-paso5-modo) y Márgenes
+    // (#tour-paso5-margenes).
     {
-      stage: 'paso5', element: '#tour-paso5-config', pageUrl: URL_PASO5,
+      stage: 'paso5', element: '#tour-paso5-modo', pageUrl: URL_PASO5,
       popover: {
-        title: 'Tu cuadrilla y tus márgenes',
-        description: 'Acá podés ajustar cuántos oficiales y ayudantes usás, cuánto les pagás por día, y el % de gastos generales y de impuestos/seguros. Si tu presupuesto no incluye materiales (los pone el cliente), arriba de todo podés elegir "Solo mano de obra".'
+        title: 'Tu cuadrilla',
+        description: 'Acá ajustás cuántos oficiales y ayudantes usás y cuánto les pagás por día. Si tu presupuesto no incluye materiales (los pone el cliente), arriba de todo podés elegir "Solo mano de obra".'
+      }
+    },
+    {
+      stage: 'paso5', element: '#tour-paso5-margenes', pageUrl: URL_PASO5,
+      popover: {
+        title: 'Tus márgenes',
+        description: 'Y acá el % de gastos generales/beneficio y el % de impuestos y seguros — con esto se arma el Costo Directo y el Total final.'
       }
     },
     {
@@ -220,7 +232,7 @@
     },
     {
       stage: 'paso8', element: '#tour-p8-obra-datos', pageUrl: URL_PASO8,
-      popover: { title: 'Ubicación y equipo', description: 'Dirección, fecha y el equipo de trabajo que definiste en el paso 5.' }
+      popover: { title: 'Ubicación y cuadrilla', description: 'Dirección, fecha y la cuadrilla de trabajo que definiste en el paso 5.' }
     },
     {
       stage: 'paso8', element: '#tour-p8-totales', pageUrl: URL_PASO8,
@@ -349,11 +361,30 @@
   // iluminar — mismo patrón que ya funcionó para el bug de la animación del
   // acordeón en paso 2 (esperar a que el layout se asiente antes de que
   // Driver.js calcule dónde poner el popover).
+  // Fix 02/08/2026 (5ta vuelta): probado en vivo que 'center' no alcanza —
+  // en pantallas donde el documento no tiene mucho margen para scrollear
+  // (bloques cerca del principio o del final de una página corta), centrar
+  // no deja lugar de sobra en ningún lado y Driver.js termina superponiendo
+  // el popover sobre el propio elemento (esquina superior izquierda). Ahora
+  // se scrollea el elemento SIEMPRE arriba de todo ("start") — así queda
+  // garantizado que TODO el resto de la pantalla, hacia abajo, está libre —
+  // y se fuerza side:'bottom'/align:'start' en cada paso (ver
+  // crearDriverTour) para que Driver.js no tenga que "adivinar" un lado y
+  // vuelva a caer en el fallback de superponer.
   function scrollearYEsperar(selector, callback) {
     var el = document.querySelector(selector);
-    if (!el || !el.scrollIntoView) { callback(); return; }
-    el.scrollIntoView({ block: 'center', behavior: 'auto' });
-    setTimeout(callback, 120); // deja que el reflow/scroll se asiente
+    if (!el) { callback(); return; }
+    // El navbar es sticky-top (ver base.html) — si scrolleamos el elemento
+    // justo al borde superior (y:0), queda tapado DETRÁS del navbar. Se
+    // descuenta su alto real (--nav-h, medido en base.html) + un margen.
+    var navH = 56;
+    try {
+      var v = getComputedStyle(document.documentElement).getPropertyValue('--nav-h');
+      if (v) navH = parseInt(v, 10) || 56;
+    } catch (e) {}
+    var destino = el.getBoundingClientRect().top + window.scrollY - navH - 12;
+    window.scrollTo({ top: Math.max(destino, 0), behavior: 'auto' });
+    setTimeout(callback, 150); // deja que el reflow/scroll se asiente
   }
 
   function prepararElemento(step, callback) {
@@ -466,8 +497,20 @@
       // abajo — mismo patrón que ya funcionó para el bug del acordeón en
       // paso 2 (esperar a que el layout se asiente antes de que Driver.js
       // calcule la posición del popover).
+      // Fix 02/08/2026 (5ta vuelta): antes se dejaba que Driver.js
+      // calculara solo de qué lado poner el popover (side/align
+      // automáticos). Combinado con el scroll manual de arriba (que deja
+      // el elemento pegado arriba de todo, debajo del navbar), forzamos acá
+      // side:'bottom'/align:'start' en TODOS los pasos — así el popover
+      // siempre va DEBAJO del elemento iluminado, nunca superpuesto en su
+      // esquina (que es lo que pasaba cuando Driver.js no encontraba lugar
+      // claro de ningún lado).
       steps: STEPS.map(function (s) {
-        return { element: s.element, popover: s.popover };
+        var pop = {};
+        for (var k in s.popover) { pop[k] = s.popover[k]; }
+        if (!pop.side) pop.side = 'bottom';
+        if (!pop.align) pop.align = 'start';
+        return { element: s.element, popover: pop };
       }),
       onCloseClick: function () { avanzarOTerminar(driverObj); },
       onDoneClick: function () { terminarTour(driverObj); },
