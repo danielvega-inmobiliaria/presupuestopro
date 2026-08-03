@@ -40,6 +40,24 @@ def cargar_presupuesto(pid, user_id):
         except Exception:
             p['materiales'] = []
     empresa = dict(empresa_row) if empresa_row else {}
+    # Fix 03/08/2026 (pedido de Daniel): el presupuesto de ejemplo del tour
+    # (routes/presupuesto.py::demo(), marcado con es_demo=1 — ver migración
+    # en database.py) usa datos de CLIENTE de ejemplo ("Juan Pérez
+    # (ejemplo)"), pero hasta ahora el PDF mostraba el perfil de EMPRESA real
+    # del usuario logueado — vacío en una cuenta que todavía no cargó Nombre
+    # de empresa, así que el header salía sin logo ni marca. Se reemplaza acá
+    # por datos de empresa también de ejemplo, consistente con el resto del
+    # presupuesto — "Constructora Ejemplo" da iniciales "CE" en el placeholder
+    # de logo (ver utils/pdf_generator.py::iniciales_empresa).
+    if p.get('es_demo'):
+        empresa = {
+            'nombre':   'Constructora Ejemplo',
+            'slogan':   'Calidad y confianza en cada obra',
+            'contacto': 'Juan Constructor (ejemplo)',
+            'telefono': '11-5555-1234',
+            'logo_data': '',
+            'logo_filename': '',
+        }
     return p, empresa
 
 @bp.route('/<int:pid>/propietario-preview')

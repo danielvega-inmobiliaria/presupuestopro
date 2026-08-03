@@ -31,6 +31,22 @@
           </div>
           <label style="display:block;font-size:12.5px;font-weight:600;color:var(--gris);margin-bottom:5px">Reemplazar logo:</label>
           {% else %}
+          {# Fix 03/08/2026 (bug reportado por Daniel probando el tour en el
+             celular): el popover de "Tu logo" dice "usamos las iniciales de
+             tu empresa" pero acá no había NINGÚN elemento visual con esas
+             iniciales — el tour iluminaba solo la caja de subir archivo, sin
+             nada que coincida con lo que el texto describe. Se agrega esta
+             burbuja (mismo cálculo que el PDF real, vía el filtro Jinja
+             `iniciales_empresa` — ver utils/pdf_generator.py y app.py) para
+             que se vea, dentro de #tour-perfil-logo, exactamente lo que el
+             popover promete. #}
+          {% set iniciales = perfil.get('nombre', '')|iniciales_empresa %}
+          {% if iniciales %}
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <div style="width:44px;height:44px;flex-shrink:0;border-radius:6px;background:#eab308;color:#0f1e3c;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;letter-spacing:.5px">{{ iniciales }}</div>
+            <p style="margin:0;font-size:12.5px;color:var(--gris)">Sin logo cargado, así se ven tus iniciales en el PDF mientras tanto.</p>
+          </div>
+          {% endif %}
           <label style="display:block;font-size:12.5px;font-weight:600;color:var(--gris);margin-bottom:5px">Subir logo <span style="text-transform:none;font-weight:400">(PNG, JPG, SVG — max. 2 MB)</span></label>
           {% endif %}
           <input type="file" name="logo" accept="image/*" style="min-height:var(--tap);border:1.5px solid var(--linea);border-radius:var(--r);padding:10px 12px;width:100%;font-size:14px;background:#fff">

@@ -132,6 +132,18 @@
     {
       stage: 'resultado', element: '#tour-costo-desglose', pageUrl: URL_RESULTADO_MAMPOSTERIA,
       popover: { title: 'Desglose de materiales', description: 'Y el desglose de materiales de este ítem, con precios también editables según tu zona.' },
+      // Fix 03/08/2026 (pedido de Daniel probando en el celular): antes esto
+      // saltaba directo a URL_DEMO — el usuario nunca veía el botón real
+      // "+ Nuevo presupuesto" del Dashboard, que es como arrancaría un
+      // presupuesto de verdad después del tour. Ahora vuelve al Dashboard
+      // primero (ver el paso nuevo de acá abajo) y de ahí recién a la demo.
+      leaveAction: { type: 'navigate', url: URL_DASHBOARD }
+    },
+    // Parada intermedia en el Dashboard: mismo botón real que el usuario va
+    // a usar después, fuera del tour, para arrancar su primer presupuesto.
+    {
+      stage: 'dashboard', element: '#tour-nuevo-presupuesto', pageUrl: URL_DASHBOARD,
+      popover: { title: 'Así arrancás un presupuesto real', description: 'Este es el botón que vas a usar de acá en adelante. Para seguir viendo cómo sigue el asistente, dale "Siguiente".' },
       leaveAction: { type: 'navigate', url: URL_DEMO }
     },
     // ── 3) Presupuesto — Paso 1: Datos de obra ─────────────────────

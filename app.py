@@ -4,6 +4,7 @@ from flask import Flask
 from config import Config
 from database import init_db, migrate_db
 from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual, whatsapp_bot, social_bot, email_bot
+from utils.pdf_generator import iniciales_empresa
 
 
 def local_dt(value, fmt='%d/%m %H:%M'):
@@ -26,6 +27,10 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.jinja_env.filters['local_dt'] = local_dt
+    # Fix 03/08/2026 (tour, paso "Tu logo"): mismo cálculo de iniciales que
+    # usa el PDF real (utils/pdf_generator.py), expuesto como filtro Jinja
+    # para poder mostrar la burbuja de iniciales también en templates/perfil/perfil.html.
+    app.jinja_env.filters['iniciales_empresa'] = iniciales_empresa
 
     app.register_blueprint(auth.bp)
     app.register_blueprint(dashboard.bp)

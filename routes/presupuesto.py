@@ -785,6 +785,15 @@ def demo():
         # pago sugerida en paso 7 es semanal (antes quedaba en "mensual" por
         # default, sin relación con ningún pedido explícito).
         'frecuencia': 'semanal',
+        # Fix 03/08/2026 (pedido de Daniel): marca este presupuesto como el
+        # de ejemplo del tour — sobrevive el wizard dentro de `p` y termina
+        # persistido en `session_json` al guardar (ver _guardar_borrador/
+        # resumen() más abajo, que hacen json.dumps de todo `p` tal cual).
+        # routes/pdf_routes.py::cargar_presupuesto() lo lee de ahí para
+        # reemplazar los datos de la empresa por los de ejemplo en los PDFs
+        # de este presupuesto puntual — antes mostraban el perfil REAL del
+        # usuario (vacío en una cuenta de prueba => sin logo ni nombre).
+        '_demo': True,
     }
     session['presup'] = p
     return redirect(url_for('presupuesto.nuevo'))
@@ -1550,6 +1559,11 @@ def resumen():
             'status':            'completo',
             'wizard_step':       8,
             'session_json':      '{}',
+            # Fix 03/08/2026 (pedido de Daniel): session_json se resetea acá
+            # arriba mismo, así que la marca '_demo' puesta en demo() se
+            # perdería si no se guarda en su propia columna — ver migración
+            # en database.py y el override de empresa en routes/pdf_routes.py.
+            'es_demo':           1 if p.get('_demo') else 0,
         }
 
         if pid:

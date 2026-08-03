@@ -365,6 +365,15 @@ def migrate_db():
             'wizard_step':        "ALTER TABLE presupuestos ADD COLUMN wizard_step INTEGER DEFAULT 8",
             'session_json':       "ALTER TABLE presupuestos ADD COLUMN session_json TEXT DEFAULT '{}'",
             'updated_at':         "ALTER TABLE presupuestos ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP",
+            # Fix 03/08/2026 (pedido de Daniel): marca si un presupuesto es el
+            # de ejemplo del tour de onboarding. session_json se resetea a
+            # '{}' cuando el presupuesto pasa a 'completo' (ver
+            # routes/presupuesto.py::resumen()), así que la marca '_demo' que
+            # viaja ahí durante el wizard se perdía justo antes de guardar —
+            # necesita columna propia para sobrevivir hasta que
+            # routes/pdf_routes.py::cargar_presupuesto() la lea y reemplace
+            # los datos de la empresa por los de ejemplo en los PDFs.
+            'es_demo':            "ALTER TABLE presupuestos ADD COLUMN es_demo INTEGER DEFAULT 0",
         }
         nuevas = []
         for col, sql in columnas_nuevas.items():

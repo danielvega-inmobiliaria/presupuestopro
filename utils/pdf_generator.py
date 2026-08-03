@@ -31,15 +31,26 @@ def fmt_cant(n):
     return txt
 
 
-def _iniciales_empresa(nombre):
+def iniciales_empresa(nombre):
     """2 iniciales a partir del nombre de la empresa (ej. 'Vega Construcciones' -> 'VC'),
-    usadas como placeholder de logo cuando la empresa no cargó uno (fix 05/07/2026)."""
+    usadas como placeholder de logo cuando la empresa no cargó uno (fix 05/07/2026).
+    Fix 03/08/2026: se saca el guion bajo inicial (era privada de este archivo)
+    porque ahora también se usa como filtro Jinja en templates/perfil/perfil.html
+    — ver registro en app.py — para mostrar la MISMA burbuja de iniciales que ya
+    se ve en el PDF real, en el paso "Tu logo" del tour (antes el tour describía
+    esta burbuja pero no existía ningún elemento visual en la pantalla real que
+    mostrarla, bug reportado por Daniel probando en el celular)."""
     palabras = [w for w in (nombre or '').strip().split() if w]
     if not palabras:
         return ''
     if len(palabras) == 1:
         return palabras[0][:2].upper()
     return (palabras[0][0] + palabras[1][0]).upper()
+
+
+# Alias retrocompatible por si algo más en este archivo (o import externo)
+# todavía usa el nombre viejo con guion bajo.
+_iniciales_empresa = iniciales_empresa
 
 
 def _conectar_ultima(lista):
@@ -83,8 +94,12 @@ class PDF(FPDF):
         empresa_slogan = self.empresa.get('slogan', '').strip()
         tiene_empresa  = empresa_nombre or self._logo_bytes
 
-        # Altura del banner: 22 sin empresa, 32 con nombre/logo (espacio para contacto/tel)
-        banner_h = 32 if tiene_empresa else 22
+        # Altura del banner: 22 sin empresa, 36 con nombre/logo (espacio para
+        # contacto/tel). Fix 03/08/2026 (pedido de Daniel: "que el logo y los
+        # datos del constructor se vean en un tamaño que resalte y se
+        # distinga") — antes 32, se agranda para dar lugar a fuentes más
+        # grandes (ver más abajo) sin apretar el contenido.
+        banner_h = 36 if tiene_empresa else 22
 
         color_banner = AZUL_M if self.banner_claro else AZUL
         self.set_fill_color(*color_banner)
@@ -114,32 +129,40 @@ class PDF(FPDF):
                 self.set_fill_color(*AMAR)
                 self.rect(15, 3, logo_w, logo_h, 'F')
                 self.set_text_color(*AZUL)
-                self.set_font('Helvetica', 'B', logo_h * 2.1)
+                # Fix 03/08/2026: factor de fuente 2.1 -> 2.3 (pedido de
+                # Daniel de que el logo/iniciales resalten más) — el
+                # placeholder ya venía creciendo con banner_h (32->36), esto
+                # además agranda un poco la letra dentro del mismo recuadro.
+                self.set_font('Helvetica', 'B', logo_h * 2.3)
                 self.set_xy(15, 3 + logo_h * 0.24)
                 self.cell(logo_w, logo_h * 0.55, iniciales, align='C')
                 x_texto = 15 + logo_w + 4
 
         # Nombre empresa (línea superior) — fix 05/07/2026: tamaño de fuente
-        # aumentado de 11 a 14 (pedido "un poco más grande").
+        # aumentado de 11 a 14 (pedido "un poco más grande"). Fix 03/08/2026
+        # (pedido de Daniel: "el logo y los datos del constructor en un
+        # tamaño que resalte y se distinga") — otra vuelta de tamaño, de 14 a
+        # 17, más grande también el slogan/contacto/teléfono (8 -> 9.5) y las
+        # celdas correspondientes, aprovechando el banner_h más alto de arriba.
         if empresa_nombre:
-            self.set_font('Helvetica', 'B', 14)
+            self.set_font('Helvetica', 'B', 17)
             self.set_text_color(*AMAR)
             self.set_xy(x_texto, 3.5)
-            self.cell(0, 6.5, empresa_nombre, ln=1)
+            self.cell(0, 7.5, empresa_nombre, ln=1)
             if empresa_slogan:
-                self.set_font('Helvetica', 'I', 8)
+                self.set_font('Helvetica', 'I', 9.5)
                 self.set_text_color(200, 210, 230)
                 self.set_x(x_texto)
-                self.cell(0, 4, empresa_slogan, ln=1)
+                self.cell(0, 4.5, empresa_slogan, ln=1)
             # Contacto y teléfono
             contacto  = self.empresa.get('contacto', '').strip()
             telefono  = self.empresa.get('telefono', '').strip()
             info_line = ' | '.join(filter(None, [contacto, telefono]))
             if info_line:
-                self.set_font('Helvetica', '', 8)
+                self.set_font('Helvetica', '', 9.5)
                 self.set_text_color(200, 210, 230)
                 self.set_x(x_texto)
-                self.cell(0, 4, info_line, ln=1)
+                self.cell(0, 4.5, info_line, ln=1)
             # Titulo del PDF
             self.set_font('Helvetica', 'B', 9)
             self.set_text_color(255, 255, 255)
