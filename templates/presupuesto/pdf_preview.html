@@ -141,13 +141,32 @@
   <a href="{{ url_for('pdf.propietario', pid=p.id) }}" class="btn btn-danger">
     <i class="bi bi-download me-2"></i>Descargar PDF
   </a>
-  {% if wa_url %}
-  <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-success">
-    <i class="bi bi-whatsapp me-2"></i>Enviar por WhatsApp
-  </a>
-  {% endif %}
-  <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left me-1"></i>Volver al presupuesto
-  </a>
 </div>
+
+{# Fix 03/08/2026 (pedido de Daniel): en esta pantalla no había forma de
+   volver sin scrollear hasta el final — si se abría el preview y se
+   scrolleaba para revisar el detalle, había que cerrar la pestaña y volver
+   a entrar de cero para salir. Barra fija abajo, siempre visible, con los 3
+   accesos pedidos. Envuelta en `.pp2` para heredar las variables de color
+   (--tinta, --amarillo, etc.) y las clases .btn2 ya existentes en
+   rediseno.css (mismo patrón que la barra de total del wizard) — esta
+   página no usa `.pp2` en el resto del contenido, así que se limita el
+   scope a esta barra nomás. El espaciador de abajo evita que la barra tape
+   el último tramo del contenido al llegar al final. #}
+<div class="pp2">
+  <div class="barra-tot" style="justify-content:space-between">
+    {% if wa_url %}
+    <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer" class="btn2 btn2-min" style="flex:1;background:#25D366;border-color:#25D366;color:#fff">
+      <i class="bi bi-whatsapp"></i> WhatsApp
+    </a>
+    {% endif %}
+    <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn2 btn2-min" style="flex:1">
+      <i class="bi bi-file-earmark-text"></i> Presupuesto
+    </a>
+    <a href="{{ url_for('dashboard.index') }}" class="btn2 btn2-min" style="flex:1">
+      <i class="bi bi-house"></i> Inicio
+    </a>
+  </div>
+</div>
+<div style="height:64px" aria-hidden="true"></div>
 {% endblock %}

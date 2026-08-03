@@ -143,8 +143,35 @@
   <a href="{{ url_for('pdf.constructor', pid=p.id) }}" class="btn btn-dark">
     <i class="bi bi-download me-2"></i>Descargar PDF
   </a>
-  <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left me-1"></i>Volver al presupuesto
-  </a>
 </div>
+
+{# Fix 03/08/2026: mismo agregado que templates/presupuesto/pdf_preview.html
+   (barra fija con WhatsApp/Presupuesto/Inicio) — ver comentario ahí para el
+   detalle del pedido de Daniel. El WhatsApp de acá NO tiene destinatario
+   precargado (ver routes/pdf_routes.py::constructor_preview) porque este es
+   el desglose INTERNO con el margen real — no hay que arriesgarse a que
+   quede precargado el teléfono del cliente. #}
+<div class="pp2">
+  <div class="barra-tot" style="justify-content:space-between">
+    {% if wa_url %}
+    {# Fix 03/08/2026 (2da vuelta, pedido de Daniel): no alcanza con que
+       WhatsApp abra sin destinatario precargado — pidió que directamente
+       AVISE antes de mandarlo, porque este PDF muestra la ganancia real.
+       Cartel de confirmación (mismo patrón `onclick="return confirm(...)"`
+       que ya se usa para "Eliminar logo" en templates/perfil/perfil.html) —
+       si cancela, no se abre WhatsApp. #}
+    <a href="{{ wa_url }}" target="_blank" rel="noopener noreferrer" class="btn2 btn2-min" style="flex:1;background:#25D366;border-color:#25D366;color:#fff"
+       onclick="return confirm('Este PDF muestra tu ganancia real (Beneficio). Elegí bien a quién se lo mandás — no es para el cliente. ¿Continuar?')">
+      <i class="bi bi-whatsapp"></i> WhatsApp
+    </a>
+    {% endif %}
+    <a href="{{ url_for('presupuesto.ver', pid=p.id) }}" class="btn2 btn2-min" style="flex:1">
+      <i class="bi bi-file-earmark-text"></i> Presupuesto
+    </a>
+    <a href="{{ url_for('dashboard.index') }}" class="btn2 btn2-min" style="flex:1">
+      <i class="bi bi-house"></i> Inicio
+    </a>
+  </div>
+</div>
+<div style="height:64px" aria-hidden="true"></div>
 {% endblock %}

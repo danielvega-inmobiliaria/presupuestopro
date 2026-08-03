@@ -114,12 +114,23 @@ def constructor_preview(pid):
     beneficio = round(base * pct_gg / 100)
     impuestos = round(base * pct_imp / 100)
 
+    # Fix 03/08/2026 (pedido de Daniel: barra fija con "Enviar por WhatsApp"
+    # también en esta vista): a diferencia del PDF Propietario, este es el
+    # desglose INTERNO (con el % de Beneficio/Ganancia real) — no debería
+    # mandarse por default al teléfono del cliente. Se arma el link de
+    # WhatsApp SIN destinatario precargado (wa.me/?text=...), para que quien
+    # lo mande elija a mano a quién (él mismo, un socio, etc.), y no repetir
+    # el error de mandarle sin querer los márgenes internos al cliente.
+    msg = f"Desglose interno (uso del constructor) — Presupuesto N° {p.get('nro','')} — {p.get('cliente_nombre','')}."
+    wa_url = f"https://wa.me/?text={quote(msg)}"
+
     return render_template('presupuesto/pdf_preview_constructor.html',
                            p=p, empresa=empresa,
                            simbolo=p.get('simbolo', '$'),
                            costo_directo=costo_directo,
                            beneficio=beneficio,
-                           impuestos=impuestos)
+                           impuestos=impuestos,
+                           wa_url=wa_url)
 
 
 @bp.route('/<int:pid>/propietario')
