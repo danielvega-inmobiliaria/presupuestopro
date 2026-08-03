@@ -1671,3 +1671,32 @@ def eliminar_borrador(pid):
     db.close()
     flash('Borrador eliminado.', 'info')
     return redirect(url_for('dashboard.index'))
+
+
+# =========================================================================
+# ELIMINAR presupuesto completo (pedido de Daniel 02/08/2026: "si quiero
+# eliminar algún presupuesto, no tengo como hacerlo" — antes solo existía
+# eliminar_borrador(), restringido a status='borrador'. Ruta separada (no
+# se reusa eliminar_borrador) para no aflojar ese guard: acá el WHERE exige
+# status='completo' a propósito, y además valida ownership (user_id=?).
+# =========================================================================
+@bp.route('/<int:pid>/eliminar', methods=['POST'])
+@login_required
+def eliminar(pid):
+    db = get_db()
+    row = db.execute(
+        "SELECT nro FROM presupuestos WHERE id=? AND user_id=? AND status='completo'",
+        (pid, g.user['id'])
+    ).fetchone()
+    if not row:
+        db.close()
+        flash('Presupuesto no encontrado.', 'error')
+        return redirect(url_for('dashboard.index'))
+    db.execute(
+        "DELETE FROM presupuestos WHERE id=? AND user_id=? AND status='completo'",
+        (pid, g.user['id'])
+    )
+    db.commit()
+    db.close()
+    flash(f"Presupuesto N° {row['nro']} eliminado.", 'info')
+    return redirect(url_for('dashboard.index'))

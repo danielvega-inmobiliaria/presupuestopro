@@ -60,6 +60,15 @@
       <i class="bi bi-eye"></i>
     </button>
   </span>
+  {# Fix 02/08/2026 (pedido de Daniel): "si quiero eliminar algún
+     presupuesto, no tengo como hacerlo" — antes solo se podían eliminar
+     borradores. Nueva ruta presupuesto.eliminar (solo status='completo'). #}
+  <form method="post" action="{{ url_for('presupuesto.eliminar', pid=p.id) }}"
+        onsubmit="return confirm('¿Eliminar el presupuesto {{ p.nro }}? Esta acción no se puede deshacer.')" style="display:inline">
+    <button type="submit" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-trash"></i> Eliminar
+    </button>
+  </form>
 </div>
 
 {# Fix 02/08/2026 (pedido de Daniel, recorrido guiado): panel de cierre del

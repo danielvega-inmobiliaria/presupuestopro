@@ -107,6 +107,10 @@
       <a href="{{ url_for('presupuesto.editar', pid=pto.id) }}" class="btn2-min"><i class="bi bi-pencil"></i> Editar</a>
       <a href="{{ url_for('pdf.propietario', pid=pto.id) }}" class="btn2-min"><i class="bi bi-file-person"></i> PDF cliente</a>
       <a href="{{ url_for('pdf.constructor', pid=pto.id) }}" class="btn2-min"><i class="bi bi-tools"></i> PDF obra</a>
+      <form method="post" action="{{ url_for('presupuesto.eliminar', pid=pto.id) }}"
+            onsubmit="return confirm('¿Eliminar el presupuesto {{ pto.nro }}? Esta acción no se puede deshacer.')" style="display:inline">
+        <button type="submit" class="btn2-min" style="color:var(--rojo);border-color:var(--rojo)"><i class="bi bi-trash"></i> Eliminar</button>
+      </form>
     </div>
   </div>
   {% endfor %}

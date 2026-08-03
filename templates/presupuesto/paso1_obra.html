@@ -27,8 +27,12 @@
         </div>
       </div>
 
-      <div id="tour-obra">
-        <div class="grupo-tit">Obra</div>
+      <div class="grupo-tit">Obra</div>
+      {# Fix 02/08/2026 (bug reportado por Daniel, 3ra vuelta): "Datos de la
+         obra" era muy alto para el recorrido — se separó en 2 anclas
+         cortas (descripción+dirección / tipo+fecha+validez) para que el
+         popover no tape ningún campo. #}
+      <div id="tour-obra-desc">
         <div class="campo">
           <label>Descripción de la obra <span class="req">*</span></label>
           <input type="text" name="obra_descripcion" placeholder="Ej: Construcción de vivienda unifamiliar" required
@@ -38,6 +42,8 @@
           <label>Dirección</label>
           <input type="text" name="obra_direccion" placeholder="Calle, número, ciudad" value="{{ p.get('obra_direccion', '') }}">
         </div>
+      </div>
+      <div id="tour-obra-tipo">
         <div class="campo">
           <label>Tipo de obra</label>
           {% set tipo_actual = p.get('obra_tipo', 'Vivienda nueva') %}

@@ -39,38 +39,48 @@
       </div>
 
       <!-- Datos -->
-      <div class="bloque" id="tour-perfil-datos">
+      <div class="bloque">
         <div class="bloque-hd"><i class="bi bi-info-circle"></i> Datos de la empresa</div>
         <div class="bloque-cuerpo">
 
-          <div class="campo">
-            <label>Nombre de la empresa</label>
-            <input type="text" name="nombre"
-                   value="{{ perfil.get('nombre', '') }}" placeholder="Constructora Ejemplo S.A.">
-          </div>
-
-          <div class="campo">
-            <label>Slogan <span style="text-transform:none;font-weight:400">(opcional)</span></label>
-            <input type="text" name="slogan"
-                   value="{{ perfil.get('slogan', '') }}" placeholder="Calidad y confianza en cada obra">
-          </div>
-
-          <div class="campo">
-            <label>Nombre del contacto</label>
-            <input type="text" name="contacto"
-                   value="{{ perfil.get('contacto', '') }}" placeholder="Ing. Juan Perez">
-          </div>
-
-          <div class="duo">
+          {# Fix 02/08/2026 (bug reportado por Daniel, 3ra vuelta): el
+             bloque completo era muy alto para el recorrido guiado — el
+             popover seguía tapando campos sin importar cómo se lo
+             posicionara. Se separó en 2 anclas más cortas (nombre+slogan /
+             contacto+telefono+email) para que cada una entre en pantalla
+             junto al popover, sin superponerse. #}
+          <div id="tour-perfil-datos-1">
             <div class="campo">
-              <label>Teléfono</label>
-              <input type="text" name="telefono"
-                     value="{{ perfil.get('telefono', '') }}" placeholder="+54 11 1234-5678">
+              <label>Nombre de la empresa</label>
+              <input type="text" name="nombre"
+                     value="{{ perfil.get('nombre', '') }}" placeholder="Constructora Ejemplo S.A.">
             </div>
+
             <div class="campo">
-              <label>Email</label>
-              <input type="email" name="email"
-                     value="{{ perfil.get('email', '') }}" placeholder="contacto@empresa.com">
+              <label>Slogan <span style="text-transform:none;font-weight:400">(opcional)</span></label>
+              <input type="text" name="slogan"
+                     value="{{ perfil.get('slogan', '') }}" placeholder="Calidad y confianza en cada obra">
+            </div>
+          </div>
+
+          <div id="tour-perfil-datos-2">
+            <div class="campo">
+              <label>Nombre del contacto</label>
+              <input type="text" name="contacto"
+                     value="{{ perfil.get('contacto', '') }}" placeholder="Ing. Juan Perez">
+            </div>
+
+            <div class="duo">
+              <div class="campo">
+                <label>Teléfono</label>
+                <input type="text" name="telefono"
+                       value="{{ perfil.get('telefono', '') }}" placeholder="+54 11 1234-5678">
+              </div>
+              <div class="campo">
+                <label>Email</label>
+                <input type="email" name="email"
+                       value="{{ perfil.get('email', '') }}" placeholder="contacto@empresa.com">
+              </div>
             </div>
           </div>
 

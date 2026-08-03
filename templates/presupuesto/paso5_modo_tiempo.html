@@ -77,7 +77,11 @@
     </div>
   </div>
 
-  <div id="tour-paso5-cuadro">
+  {# Fix 02/08/2026 (bug reportado por Daniel, 3ra vuelta): el cuadro
+     completo (3 barras) era muy alto para el recorrido — se separó en 2
+     anclas (Costo Directo/Total base / GG+Total final+Ganancia real) para
+     que el popover no tape ninguna. #}
+  <div id="tour-paso5-barra1">
   <!-- ══ BARRA 1: Costo base ══ -->
   <div class="bloque" style="background:var(--tinta);color:#fff;border:none">
     <div class="trio" style="padding:14px;gap:0">
@@ -100,6 +104,8 @@
     </div>
   </div>
 
+  </div>
+  <div id="tour-paso5-barra23">
   <!-- ══ BARRA 2: GG + Imp + Total final ══ -->
   <div class="bloque" style="background:linear-gradient(135deg,#1d44aa,#0f1e3c);color:#fff;border:none">
     <div class="trio" style="padding:14px;gap:0">

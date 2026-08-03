@@ -85,8 +85,12 @@
       popover: { title: 'Tu logo', description: 'Así se ve tu logo en los PDF. Por ahora, sin logo cargado, usamos las iniciales de tu empresa — podés subir el tuyo cuando quieras, acá mismo.' }
     },
     {
-      stage: 'perfil', element: '#tour-perfil-datos', pageUrl: URL_PERFIL,
-      popover: { title: 'Datos de tu empresa', description: 'Acá completás el resto: podés poner un Slogan que te diferencie ("Calidad y confianza en cada obra", por ejemplo), tu nombre de contacto, teléfono y email — todo esto sale en tus PDFs. Esto es tu perfil real, no lo vamos a modificar en el recorrido.' },
+      stage: 'perfil', element: '#tour-perfil-datos-1', pageUrl: URL_PERFIL,
+      popover: { title: 'Nombre y slogan', description: 'El nombre de tu empresa y, si querés, un Slogan que te diferencie — "Calidad y confianza en cada obra", por ejemplo. Todo esto sale en tus PDFs.' }
+    },
+    {
+      stage: 'perfil', element: '#tour-perfil-datos-2', pageUrl: URL_PERFIL,
+      popover: { title: 'Contacto', description: 'Y tu nombre de contacto, teléfono y email. Esto es tu perfil real, no lo vamos a modificar en el recorrido.' },
       leaveAction: { type: 'navigate', url: URL_DASHBOARD }
     },
     // ── 2) Costo/m² (aha moment rápido) ────────────────────────────
@@ -136,8 +140,12 @@
       popover: { title: 'Ahora sí, el presupuesto', description: 'Ya completamos un cliente de ejemplo (ficticio) — así se ve. Vos vas a cargar acá los datos reales de tu cliente.' }
     },
     {
-      stage: 'paso1', element: '#tour-obra', pageUrl: URL_PASO1,
-      popover: { title: 'Datos de la obra', description: 'Descripción, dirección y tipo de obra — también de ejemplo. Nada de esto hace falta tocarlo ahora, seguimos con "Siguiente".' },
+      stage: 'paso1', element: '#tour-obra-desc', pageUrl: URL_PASO1,
+      popover: { title: 'Datos de la obra', description: 'Descripción y dirección — también de ejemplo. Nada de esto hace falta tocarlo ahora.' }
+    },
+    {
+      stage: 'paso1', element: '#tour-obra-tipo', pageUrl: URL_PASO1,
+      popover: { title: 'Tipo, fecha y validez', description: 'Y el tipo de obra, la fecha y los días de validez del presupuesto. Seguimos con "Siguiente".' },
       leaveAction: { type: 'submit', formId: 'formObra' }
     },
     // ── Paso 2: Cómputo ─────────────────────────────────────────────
@@ -177,8 +185,12 @@
       }
     },
     {
-      stage: 'paso5', element: '#tour-paso5-cuadro', pageUrl: URL_PASO5,
-      popover: { title: 'Costo Directo, Total Final y Ganancia Real', description: 'Con esos datos se arma este cuadro: el Costo Directo, el Total Final (lo que le cobrás al cliente) y — lo más importante — tu Ganancia Real. Ojo: si vos mismo trabajás como uno de los oficiales, a esa Ganancia Real hay que sumarle también lo que cobrás por tu propio trabajo.' },
+      stage: 'paso5', element: '#tour-paso5-barra1', pageUrl: URL_PASO5,
+      popover: { title: 'Costo Directo y Total base', description: 'Con esos datos se arma el Costo Directo (más subcontratos e indirectos) y el Total base.' }
+    },
+    {
+      stage: 'paso5', element: '#tour-paso5-barra23', pageUrl: URL_PASO5,
+      popover: { title: 'Total Final y Ganancia Real', description: 'Y acá, sumando GG/Beneficio e Impuestos: el Total Final (lo que le cobrás al cliente) y — lo más importante — tu Ganancia Real. Ojo: si vos mismo trabajás como uno de los oficiales, a esa Ganancia Real hay que sumarle también lo que cobrás por tu propio trabajo.' },
       leaveAction: { type: 'submit', formId: 'formModo' }
     },
     // ── Paso 6: Materiales ────────────────────────────────────────
@@ -204,7 +216,11 @@
     // ── Paso 8: Resumen y Guardar ─────────────────────────────────
     {
       stage: 'paso8', element: '#tour-p8-cliente-obra', pageUrl: URL_PASO8,
-      popover: { title: 'Resumen final', description: 'Arriba de todo, un resumen de cliente y obra — con los mismos datos de ejemplo que cargamos antes.' }
+      popover: { title: 'Resumen final', description: 'Arriba de todo, cliente y obra — con los mismos datos de ejemplo que cargamos antes.' }
+    },
+    {
+      stage: 'paso8', element: '#tour-p8-obra-datos', pageUrl: URL_PASO8,
+      popover: { title: 'Ubicación y equipo', description: 'Dirección, fecha y el equipo de trabajo que definiste en el paso 5.' }
     },
     {
       stage: 'paso8', element: '#tour-p8-totales', pageUrl: URL_PASO8,
@@ -290,23 +306,40 @@
   // El acordeón de rubros (paso 2) arranca todo cerrado — antes de iluminar
   // un ítem puntual adentro de un rubro, hay que abrir ese rubro (mismo
   // mecanismo que el dropdown de "Mi empresa": Bootstrap Collapse por JS).
-  function abrirRubro(rnum) {
+  // Fix 02/08/2026 (bug reportado por Daniel: el popover tapaba el ítem en
+  // vez de mostrarlo, en los dos pasos de Cómputo): antes esto era
+  // sincrónico y Driver.js iluminaba el ítem EN EL MISMO INSTANTE en que se
+  // pedía abrir el rubro — pero la animación del collapse de Bootstrap tarda
+  // ~350ms, así que Driver.js calculaba la posición del ítem ANTES de que
+  // terminara de desplegarse (con una altura/posición todavía "a mitad de
+  // camino"), y el popover quedaba mal ubicado. Ahora se espera el evento
+  // `shown.bs.collapse` (o como mucho 400ms) antes de recién ahí iluminar.
+  function abrirRubroYEsperar(rnum, callback) {
     var el = document.getElementById('rubro' + rnum);
-    if (!el) return;
-    if (!el.classList.contains('show')) {
-      if (window.bootstrap && window.bootstrap.Collapse) {
-        try { window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show(); return; } catch (e) {}
-      }
-      el.classList.add('show'); // fallback sin bootstrap.js
+    if (!el) { callback(); return; }
+    if (el.classList.contains('show')) { callback(); return; } // ya estaba abierto
+    var yaLlamado = false;
+    var terminar = function () {
+      if (yaLlamado) return;
+      yaLlamado = true;
+      callback();
+    };
+    el.addEventListener('shown.bs.collapse', terminar, { once: true });
+    setTimeout(terminar, 400); // red de seguridad si el evento no llega
+    if (window.bootstrap && window.bootstrap.Collapse) {
+      try { window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show(); return; } catch (e) {}
     }
+    el.classList.add('show'); // fallback sin bootstrap.js — no hay animación, terminar() ya
   }
 
   // Ajustes previos a iluminar un elemento puntual (el panel final del tour
   // arranca oculto — display:none — hasta que se llega a este paso; el link
   // "Mi empresa" arranca dentro de un dropdown cerrado; los ítems de
-  // Mampostería/Contrapisos arrancan dentro de un rubro colapsado).
-  function prepararElemento(step) {
-    if (!step) return;
+  // Mampostería/Contrapisos arrancan dentro de un rubro colapsado). Recibe
+  // un callback porque abrir un rubro es asíncrono (espera la animación).
+  function prepararElemento(step, callback) {
+    callback = callback || function () {};
+    if (!step) { callback(); return; }
     if (step.element === '#tour-fin-recorrido') {
       var panel = document.querySelector('#tour-fin-recorrido');
       if (panel) panel.style.display = '';
@@ -314,8 +347,9 @@
     if (step.element === '#tour-mi-empresa') {
       abrirMenuUsuario();
     }
-    if (step.element === '#rubro06 .fila.activa') abrirRubro('06'); // Mampostería
-    if (step.element === '#rubro07 .fila.activa') abrirRubro('07'); // Contrapisos
+    if (step.element === '#rubro06 .fila.activa') { abrirRubroYEsperar('06', callback); return; }
+    if (step.element === '#rubro07 .fila.activa') { abrirRubroYEsperar('07', callback); return; }
+    callback();
   }
 
   // Usada tanto por "Siguiente" como por la X (cerrar) — cerrar un popover
@@ -333,8 +367,7 @@
     // Mismo stage y sin acción especial de salida: solo avanzar en la
     // misma página (no hace falta guardar nada ni destruir la instancia).
     if (siguiente.stage === document.body.dataset.tourStage && !actual.leaveAction) {
-      prepararElemento(siguiente);
-      driverObj.moveNext();
+      prepararElemento(siguiente, function () { driverObj.moveNext(); });
       return;
     }
 
@@ -374,8 +407,7 @@
     var actual = STEPS[activeIndex];
 
     if (anterior.pageUrl === actual.pageUrl) {
-      prepararElemento(anterior);
-      driverObj.movePrevious();
+      prepararElemento(anterior, function () { driverObj.movePrevious(); });
       return;
     }
     if (!anterior.pageUrl) return; // caso límite sin URL conocida (ver stage) — no navega
@@ -457,10 +489,11 @@
     if (STEPS[indiceInicial].stage !== stage) return; // el paso pendiente es de otra página
 
     setTimeout(function () {
-      prepararElemento(STEPS[indiceInicial]);
-      if (!document.querySelector(STEPS[indiceInicial].element)) return; // defensivo
-      var driverObj = crearDriverTour();
-      driverObj.drive(indiceInicial);
+      prepararElemento(STEPS[indiceInicial], function () {
+        if (!document.querySelector(STEPS[indiceInicial].element)) return; // defensivo
+        var driverObj = crearDriverTour();
+        driverObj.drive(indiceInicial);
+      });
     }, 500);
   }
 

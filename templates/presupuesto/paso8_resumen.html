@@ -9,11 +9,21 @@
 <form method="post" id="formResumen">
 <input type="hidden" name="descripcion_trabajos" id="desc-hidden">
 
+{# Fix 02/08/2026 (bug reportado por Daniel, 3ra vuelta): "Cliente y obra"
+   (5 filas) era muy alto para el recorrido — se separó en 2 tarjetas
+   cortas (Cliente+Obra / Dirección+Fecha+Equipo) para que el popover no
+   tape ningún dato. #}
 <div class="bloque" id="tour-p8-cliente-obra">
   <div class="bloque-hd">Cliente y obra</div>
   <table class="tot">
     <tr><td class="lbl">Cliente</td><td class="txt">{{ p.get('cliente_nombre') }}</td></tr>
     <tr><td class="lbl">Obra</td><td class="txt">{{ p.get('obra_descripcion') }}</td></tr>
+  </table>
+</div>
+
+<div class="bloque" id="tour-p8-obra-datos">
+  <div class="bloque-hd">Ubicación y equipo</div>
+  <table class="tot">
     <tr><td class="lbl">Dirección</td><td class="txt">{{ p.get('obra_direccion') }}</td></tr>
     {% set fraw = p.get('fecha_presup','') %}
     <tr><td class="lbl">Fecha</td><td>{{ fraw[8:10] }}-{{ fraw[5:7] }}-{{ fraw[0:4] }}</td></tr>

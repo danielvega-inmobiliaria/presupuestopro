@@ -11,7 +11,34 @@ PresupuestoPRO (presupuestopro.com.ar) es una app web para calcular presupuestos
 
 ---
 
-_Última actualización: 02/08/2026 — 18:32 ART_
+_Última actualización: 02/08/2026 — 21:37 ART_
+
+### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 9) — Eliminar presupuesto + 4to intento de fix de popovers (esta vez dividiendo bloques) + race condition en paso 2 ⚠️ SIN COMMITEAR
+Daniel volvió a probar (cont. 8) y mandó capturas: los popovers de Perfil/Datos de la obra/paso 2/paso 5 SEGUÍAN tapando contenido pese a los 2 intentos anteriores (`side:'top'` en cont.7, `scrollIntoViewOptions` en cont.8). Y pidió una función nueva: poder eliminar un presupuesto ya guardado.
+
+**Diagnóstico del fix que no funcionaba:** el intento de cont. 8 usaba una opción de configuración de Driver.js (`scrollIntoViewOptions: {block:'start'}`) que, revisando de nuevo, probablemente **no existe en la API real de Driver.js v1** — sería una opción inventada que la librería ignora en silencio, lo que explica que el comportamiento no cambiara en absoluto entre las dos vueltas. Sin poder confirmar la API exacta sin acceso a la documentación ni a un navegador real, se abandonó el enfoque de "reposicionar el popover" y se pasó a uno más robusto y verificable: **acortar cada bloque iluminado** para que nunca sea más alto que lo que entra en una pantalla de celular junto al popover — así no importa el algoritmo de posicionamiento exacto de la librería.
+
+**Bloques divididos (cada uno pasó de 1 a 2 paradas del tour):**
+- Perfil → `#tour-perfil-datos-1` (nombre+slogan) / `#tour-perfil-datos-2` (contacto+teléfono+email).
+- Paso 1 (Obra) → `#tour-obra-desc` (descripción+dirección) / `#tour-obra-tipo` (tipo+fecha+validez).
+- Paso 5 (cuadro) → `#tour-paso5-barra1` (Costo Directo/Total base) / `#tour-paso5-barra23` (Total Final+Ganancia Real).
+- Paso 8 (Cliente y obra) → se separó la tabla en 2 tarjetas: "Cliente y obra" (Cliente+Obra) / "Ubicación y equipo" (Dirección+Fecha+Equipo) — esto también resuelve el reclamo repetido de "sigue trayendo vacío los datos del cliente" (no era un bug de datos — confirmado de nuevo en sesiones anteriores — era el popover tapando esa fila).
+
+El recorrido pasó de 32 a 36 paradas.
+
+**Bug aparte encontrado en paso 2 (Cómputo):** el popover también tapaba el ítem ahí, con una causa DISTINTA a las demás: `abrirRubro()` abre el acordeón (Bootstrap Collapse) pero la animación tarda ~350ms, y Driver.js iluminaba el ítem en el mismo instante en que se pedía abrirlo — calculando la posición ANTES de que terminara de desplegarse. Fix: `prepararElemento()` ahora es asíncrono (recibe un callback) y espera el evento `shown.bs.collapse` (con un timeout de 400ms de red de seguridad) antes de recién ahí iluminar.
+
+**Nueva función: Eliminar presupuesto.** Antes solo se podían borrar borradores (`eliminar_borrador`, restringido a `status='borrador'`). Se agregó `POST /presupuesto/<pid>/eliminar` (`routes/presupuesto.py::eliminar`) — WHERE con `status='completo'` a propósito (no se toca el guard de la ruta de borradores) + valida ownership (`user_id=?`). Botón con confirmación (mismo patrón visual que el resto de la app) agregado en `templates/dashboard.html` (lista de presupuestos completos) y en `templates/presupuesto/ver.html` (junto a Volver/Editar/PDFs).
+
+**Archivos tocados:** `static/js/tour.js` (36 pasos, `prepararElemento` async, `abrirRubroYEsperar`), `templates/perfil/perfil.html`, `templates/presupuesto/paso1_obra.html`, `templates/presupuesto/paso5_modo_tiempo.html`, `templates/presupuesto/paso8_resumen.html` (anclas divididas), `routes/presupuesto.py` (nueva ruta `eliminar`), `templates/dashboard.html`, `templates/presupuesto/ver.html` (botón Eliminar).
+
+**Verificado (sin navegador real):** `node --check` OK, balance `<div>` OK en los 6 archivos HTML tocados. Smoke test end-to-end confirmando las 8 anclas nuevas presentes en cada pantalla, y — importante — **se probó eliminar de verdad**: se creó un presupuesto vía el flujo completo, se llamó a `POST /presupuesto/<id>/eliminar`, y se confirmó con una consulta a la base que el registro ya no existe.
+
+**Pendiente de aclarar a Daniel:** sigo sin poder confirmar visualmente que la división en bloques más cortos resuelve el tapado — es la 3ra estrategia distinta que se prueba (side, scroll, ahora tamaño de bloque). Si en el próximo recorrido TODAVÍA tapa algo, lo más probable es que el problema no sea el tamaño del bloque sino algo más estructural del layout del popover en ese modelo de celular específico — en ese caso valdría la pena mandar la altura/ancho de pantalla o probar en otro dispositivo para descartar variables.
+
+**⚠️ Pendiente: SIN COMMITEAR** — se suma a la lista de archivos ya pendientes de cont. 4 a 8 (mismo commit).
+
+---
 
 ### 🔴 CIERRE DE SESIÓN 02/08/2026 (cont. 8) — Bug crítico de ids + Atrás cross-página + más fixes de UX ⚠️ SIN COMMITEAR
 Daniel volvió a probar (cont. 7) y mandó capturas reales de su celular. Encontró un bug importante y una tanda de ajustes de UX:
