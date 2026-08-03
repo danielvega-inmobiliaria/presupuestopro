@@ -371,20 +371,92 @@
   // y se fuerza side:'bottom'/align:'start' en cada paso (ver
   // crearDriverTour) para que Driver.js no tenga que "adivinar" un lado y
   // vuelva a caer en el fallback de superponer.
+  //
+  // Fix 02/08/2026 (6ta vuelta): CAUSA RAÍZ ENCONTRADA, con medición en vivo
+  // sobre el sitio real (no simulado). El HTML del sitio tiene
+  // `scroll-behavior: smooth` en `<html>` — no lo pusimos nosotros, es el
+  // Reboot de Bootstrap 5 (`@media (prefers-reduced-motion: no-preference)
+  // { :root { scroll-behavior: smooth } }`, activo salvo que el usuario
+  // tenga "reducir movimiento" activado). `behavior:'auto'` en scrollTo NO
+  // es "instantáneo": por spec, 'auto' significa "hacé lo que diga el CSS
+  // del elemento" — como el CSS dice 'smooth', TODOS los scrolls de este
+  // archivo (incluida `document.documentElement.scrollTop = x`, que
+  // también sigue esa regla) quedaban animados, no instantáneos. El
+  // `setTimeout(callback, 150)` de acá abajo asumía que a los 150ms el
+  // scroll ya había terminado — probado en vivo que el scroll TODAVÍA
+  // seguía animándose en ese momento (para distancias largas, la animación
+  // tarda más). Resultado: Driver.js calculaba y congelaba la posición del
+  // popover con el layout a MITAD de camino del scroll, y la página seguía
+  // moviéndose después — de ahí el desfasaje/superposición en los 6 puntos
+  // reportados, pese a los 5 intentos anteriores (ninguno tocaba esto,
+  // todos asumían que el scroll ya era instantáneo). Confirmado con prueba
+  // en vivo: `scrollTo({top, behavior:'auto'})` y hasta `scrollTop = x` NO
+  // movían la página en 250ms; solo `behavior:'instant'` (que por spec
+  // ignora el `scroll-behavior` del CSS y fuerza el salto real) funcionó.
+  // Fix: forzar `behavior:'instant'` acá.
+  //
+  // Segunda causa encontrada en la MISMA prueba en vivo (independiente de la
+  // del scroll): en Costo/m² (y probablemente en otras pantallas con su
+  // propio sub-header, como el acordeón de rubros en paso 2) hay un DIV
+  // `.sticky-top` propio de esa pantalla — con el título "Costo por M²",
+  // "Volver" y el texto "Seleccioná un ítem..." — que mide 95px de alto.
+  // `--nav-h` (fijado en base.html) solo mide `nav.navbar`, así que en esta
+  // pantalla puntual `navH` quedaba con el fallback de 56px en vez de los
+  // 95px reales — el ítem quedaba scrolleado a y:68, TAPADO por ese sticky
+  // propio de la pantalla (que ocupa hasta y:95). Fix: en vez de asumir que
+  // lo único pegado arriba es el navbar, se mide en vivo, en cada scroll,
+  // cuál es el borde inferior más bajo entre TODOS los elementos realmente
+  // pegados al techo de la pantalla en ese momento (navbar + cualquier
+  // sub-header propio de la pantalla actual) — así sirve para cualquier
+  // pantalla, sin tener que hardcodear una altura distinta por cada una.
+  function alturaStickyTope() {
+    var max = 0;
+    var els = document.querySelectorAll('body *');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      var r = el.getBoundingClientRect();
+      if (r.height <= 0) continue;
+      if (cs.position === 'fixed') {
+        // Un elemento fixed ya reporta su posición real relativa al viewport
+        // en cualquier momento — sirve mirar su rect tal cual.
+        if (r.top <= 5 && r.bottom > max) max = r.bottom;
+      } else if (cs.position === 'sticky') {
+        // OJO: un sticky recién cargado (scrollY:0, antes de scrollear más
+        // allá de su posición natural en el documento) todavía NO está
+        // "pegado" — su rect.top puede no ser 0 todavía (ver bug real
+        // encontrado en Costo/m²: a scrollY:0 el sticky-top propio de esa
+        // pantalla medía top:24, no top:0, porque recién se pega una vez
+        // que se scrollea más allá de esos 24px). Por eso NO hay que mirar
+        // el rect actual para decidir si cuenta, sino su `top` de CSS (a
+        // qué altura se pega cuando se activa) — si ese valor es ~0, este
+        // elemento SÍ va a tapar la parte de arriba de la pantalla en
+        // cuanto se scrollee, así que cuenta su alto igual, esté ya pegado
+        // o no en este momento.
+        var cssTop = parseFloat(cs.top);
+        if (!isNaN(cssTop) && cssTop <= 5) {
+          var borde = cssTop + r.height;
+          if (borde > max) max = borde;
+        }
+      }
+    }
+    return max;
+  }
   function scrollearYEsperar(selector, callback) {
     var el = document.querySelector(selector);
     if (!el) { callback(); return; }
-    // El navbar es sticky-top (ver base.html) — si scrolleamos el elemento
-    // justo al borde superior (y:0), queda tapado DETRÁS del navbar. Se
-    // descuenta su alto real (--nav-h, medido en base.html) + un margen.
-    var navH = 56;
-    try {
-      var v = getComputedStyle(document.documentElement).getPropertyValue('--nav-h');
-      if (v) navH = parseInt(v, 10) || 56;
-    } catch (e) {}
+    var navH = alturaStickyTope();
+    if (!navH) {
+      // Red de seguridad si por lo que sea no se detectó nada pegado arriba.
+      try {
+        var v = getComputedStyle(document.documentElement).getPropertyValue('--nav-h');
+        navH = (v && parseInt(v, 10)) || 56;
+      } catch (e) { navH = 56; }
+    }
     var destino = el.getBoundingClientRect().top + window.scrollY - navH - 12;
-    window.scrollTo({ top: Math.max(destino, 0), behavior: 'auto' });
-    setTimeout(callback, 150); // deja que el reflow/scroll se asiente
+    window.scrollTo({ top: Math.max(destino, 0), behavior: 'instant' });
+    setTimeout(callback, 150); // deja que el reflow se asiente (el scroll en sí ya es instantáneo)
   }
 
   function prepararElemento(step, callback) {
