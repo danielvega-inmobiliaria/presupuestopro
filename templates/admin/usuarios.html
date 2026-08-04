@@ -182,6 +182,17 @@
       <span class="unidad">Costo/m² {{ u.n_costo_m2 }}</span>
       <span class="unidad">Vence {{ u.subscription_expires or '∞' }}</span>
       <span class="unidad">Creado {{ u.created_at[:10] if u.created_at else '—' }}</span>
+      {# Fix 04/08/2026 (cont. 20, pedido de Daniel): estado del ÚLTIMO mail
+         mandado (bienvenida/recordatorio/seguimiento), sin salir de la App.
+         Se completa solo cuando Resend empiece a mandar los webhooks (ver
+         routes/webhooks_resend.py) -- hasta configurar eso en Resend, esta
+         etiqueta no aparece para nadie (mail_estado queda NULL). #}
+      {% if u.mail_estado %}
+      <span class="unidad" title="Mail: {{ etiquetas_mail.get(u.mail_estado, u.mail_estado) }} ({{ u.mail_estado_fecha[:10] if u.mail_estado_fecha else '' }})"
+            style="{% if u.mail_estado in ('bounced','complained','failed') %}background:var(--rojo);color:#fff{% elif u.mail_estado in ('opened','clicked') %}background:var(--verde-cl);color:#0A5334{% endif %}">
+        <i class="bi bi-envelope"></i> {{ etiquetas_mail.get(u.mail_estado, u.mail_estado) }}
+      </span>
+      {% endif %}
     </div>
 
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">

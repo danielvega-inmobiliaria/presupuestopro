@@ -45,6 +45,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from utils.email_tracking import ETIQUETAS_EVENTO
+
 APP_URL = 'https://web-production-0c9c1.up.railway.app/login'
 
 # 21/07/2026: los emails de retención salen de noreply@presupuestopro.com.ar.
@@ -63,11 +65,12 @@ WA_CTA = (f"\n\nPodés responder este mail directamente, o si preferís, "
 
 HEADERS_SEGMENTO = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Estado activación", "Creado", "Vence",
-                     "Mensaje WhatsApp sugerido", "Mensaje email sugerido", "Comentarios"]
+                     "Mensaje WhatsApp sugerido", "Mensaje email sugerido", "Comentarios",
+                     "Mail: estado", "Mail: fecha"]
 
 HEADERS_TODOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                   "Presup.", "Borr.", "Costo/m²", "Estado activación", "Segmento",
-                  "Creado", "Vence", "Comentarios"]
+                  "Creado", "Vence", "Comentarios", "Mail: estado", "Mail: fecha"]
 
 # Agregado 03/08/2026, pedido de Daniel: columna "Comentarios" para anotar,
 # llamada por llamada, la causa del uso escaso/nulo -- en TODAS las hojas
@@ -85,10 +88,12 @@ HEADERS_TODOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
 # (lee CUALQUIER hoja que tenga columnas Email + Comentarios, no una lista
 # fija de nombres de hoja).
 HEADERS_VENCIDOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
-                     "Presup.", "Borr.", "Costo/m²", "Tipo", "Venció el", "Comentarios"]
+                     "Presup.", "Borr.", "Costo/m²", "Tipo", "Venció el", "Comentarios",
+                     "Mail: estado", "Mail: fecha"]
 
 HEADERS_ABONADOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
-                     "Presup.", "Borr.", "Costo/m²", "Abonado desde", "Vence", "Comentarios"]
+                     "Presup.", "Borr.", "Costo/m²", "Abonado desde", "Vence", "Comentarios",
+                     "Mail: estado", "Mail: fecha"]
 
 HEADER_FONT = Font(name="Arial", bold=True, color="FFFFFF", size=10)
 HEADER_FILL = PatternFill("solid", fgColor="1F2937")
@@ -101,6 +106,20 @@ SEG_B = "B - 1 presup./borrador en total"
 SEG_C = "C - Validado, cero actividad"
 SEG_D = "D - Validado, solo usó Costo/m2"
 SEG_ACTIVO = "Activo (2+ presup./borr.) - no prioritario"
+
+
+def _mail_cols(u):
+    """[estado del último mail mandado, fecha] listo para pegar al final de
+    una fila -- agregado 04/08/2026 (cont. 20, pedido de Daniel: quiere ver
+    desde la App si los mails llegan/se abren, sin depender del dashboard de
+    Resend). Sale de users.mail_estado/mail_estado_fecha (subquery
+    SQL_MAIL_ESTADO en routes/admin.py -- ver utils/email_tracking.py). Si
+    todavía no llegó ningún webhook de Resend para ese email (no está
+    configurado en Resend, o recién se mandó y no hay respuesta todavía),
+    queda vacío -- no es un error, es "sin datos todavía"."""
+    estado = u['mail_estado'] if 'mail_estado' in u.keys() else None
+    fecha = u['mail_estado_fecha'] if 'mail_estado_fecha' in u.keys() else None
+    return [ETIQUETAS_EVENTO.get(estado, estado) if estado else '', (fecha or '')[:10]]
 
 
 def _segmento(u):
@@ -209,14 +228,14 @@ def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
             u['n_costo_m2'], estado, (u['created_at'] or '')[:10],
             u['subscription_expires'] or '∞', wa_msg, email_msg,
             u['comentario_seguimiento'] or '',
-        ]
+        ] + _mail_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 12, 12, 55, 55, 55]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 12, 12, 55, 55, 55, 16, 12]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -237,14 +256,14 @@ def _escribir_hoja_todos(ws, usuarios):
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], estado, _segmento(u), (u['created_at'] or '')[:10],
             u['subscription_expires'] or '∞', u['comentario_seguimiento'] or '',
-        ]
+        ] + _mail_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 32, 12, 12, 55]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 32, 12, 12, 55, 16, 12]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -269,14 +288,14 @@ def _escribir_hoja_vencidos(ws, usuarios):
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], tipo, u['subscription_expires'] or '',
             u['comentario_seguimiento'] or '',
-        ]
+        ] + _mail_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 26, 12, 55]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 26, 12, 55, 16, 12]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -300,14 +319,14 @@ def _escribir_hoja_abonados(ws, usuarios):
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], (u['abonado_desde'] or '')[:10], u['subscription_expires'] or '',
             u['comentario_seguimiento'] or '',
-        ]
+        ] + _mail_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 12, 12, 55]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 12, 12, 55, 16, 12]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -381,6 +400,11 @@ def generar_excel_usuarios_a_contactar(usuarios):
          "se guarda solo -- al tocar 'Exportar' de nuevo, elegí este mismo Excel cuando "
          "te lo pregunte y los comentarios se suman a la base antes de bajar el "
          "siguiente, que ya sale con todo precargado.", notas_font),
+        ("Columnas 'Mail: estado'/'Mail: fecha' (todas las hojas): estado del ÚLTIMO mail "
+         "que le mandó la app (Entregado/Abierto/Rebotado/etc.), según los webhooks de "
+         "Resend. Quedan vacías para todos hasta que se configure el webhook en Resend "
+         "(resend.com/webhooks → apuntar a /webhooks/resend) -- ver routes/webhooks_resend.py.",
+         notas_font),
         ("Hoja 'A - Sin validar email': cuentas con email_verificado=0.", notas_font),
         ("Hoja 'B - 1 presup o borrador': cuentas validadas con exactamente 1 "
          "presupuesto o borrador en total.", notas_font),

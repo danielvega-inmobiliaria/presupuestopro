@@ -24,6 +24,21 @@ def tour_completar():
     return jsonify({'ok': True})
 
 
+@bp.route('/instalar-app/visto', methods=['POST'])
+@login_required
+def instalar_visto():
+    """Marca que ya se le ofreció (una vez) el prompt automático de
+    "Instalar app" a este usuario -- pedido de Daniel 04/08/2026 (cont. 20).
+    Se llama apenas se INTENTA mostrarlo (ver templates/base.html), no
+    importa si terminó instalando o cancelando -- es un solo empujón, no
+    insiste. Mismo patrón que tour_completar() de acá arriba."""
+    db = get_db()
+    db.execute("UPDATE users SET instalar_prompt_visto=1 WHERE id=?", (g.user['id'],))
+    db.commit()
+    db.close()
+    return jsonify({'ok': True})
+
+
 @bp.route('/')
 def index():
     user = get_current_user()

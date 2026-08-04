@@ -42,7 +42,8 @@
   /></noscript>
   <meta name="facebook-domain-verification" content="39xkjaz4s6n6ou5436fpgnikh1wibt" />
 </head>
-<body data-tour-stage="{% block tour_stage %}{% endblock %}" data-tour-done="{{ '1' if user and user.tour_completado else '0' }}">
+<body data-tour-stage="{% block tour_stage %}{% endblock %}" data-tour-done="{{ '1' if user and user.tour_completado else '0' }}"
+      data-instalar-visto="{{ '1' if user and user.instalar_prompt_visto else '0' }}">
 
 {% if user %}
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow">
@@ -247,6 +248,45 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('appinstalled', function () {
     li.style.display = 'none';
   });
+
+  // Fix 04/08/2026 (cont. 20, pedido de Daniel): hasta ahora esto era 100%
+  // manual -- había que encontrar "Instalar app" en el menú de usuario, algo
+  // que casi nadie explora en su primera sesión. Ahora se ofrece SOLO en el
+  // Dashboard, UNA sola vez por usuario (instalar_prompt_visto, se marca
+  // apenas se intenta mostrar, importe o no el resultado), y solo DESPUÉS
+  // de que el tour de onboarding ya terminó (data-tour-done==='1') -- si
+  // se mostrara mientras el tour está arrancando (primera visita de un
+  // usuario nuevo), el overlay oscuro de Driver.js y este modal/prompt
+  // chocarían visualmente. Como el tour marca tour_completado=1 (backend)
+  // ANTES de redirigir a "/?tour_fin=1", ese mismo reload ya cae acá con
+  // tourDone='1' -- queda como un empujón natural justo después de
+  // terminar el recorrido. Para cuentas viejas que ya tenían el tour
+  // completado de antes, se ofrece en su próxima visita al Dashboard.
+  var esDashboard = document.body.dataset.tourStage === 'dashboard';
+  var tourTerminado = document.body.dataset.tourDone === '1';
+  var yaOfrecido = document.body.dataset.instalarVisto === '1';
+
+  if (esDashboard && tourTerminado && !yaOfrecido) {
+    setTimeout(function () {
+      // Se marca ya (fire-and-forget) para no insistir en la próxima visita,
+      // sea cual sea el resultado (instaló, canceló, o ni deferredPrompt ni
+      // li llegaron a mostrarse a tiempo).
+      fetch('/instalar-app/visto', { method: 'POST' }).catch(function () {});
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.finally(function () {
+          deferredPrompt = null;
+          li.style.display = 'none';
+        });
+      } else if (li.style.display === 'block') {
+        abrirModal();
+      }
+      // Si ninguna de las 2 está lista todavía (ni deferredPrompt ni el
+      // fallback de 2500ms disparó), no se reintenta -- ya quedó marcado
+      // como ofrecido, se prefiere no insistir a mostrarlo tarde y fuera de
+      // contexto en otra pantalla.
+    }, 3000);
+  }
 })();
 </script>
 <!-- Tour interactivo de onboarding — ver static/js/tour.js. Se carga en

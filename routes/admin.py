@@ -13,6 +13,7 @@ from utils.exportar_contactos import (
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
     _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida,
 )
+from utils.email_tracking import registrar_envio, ETIQUETAS_EVENTO, SQL_MAIL_ESTADO, SQL_MAIL_ESTADO_FECHA
 from database import get_db, recalcular_precio_mo_ars
 
 # Admin > Seguimiento (20/07/2026): nombres de plantilla EXACTOS que hay que
@@ -143,7 +144,9 @@ def usuarios():
                    (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
                       AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                    (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
-                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
+                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2,
+                   {SQL_MAIL_ESTADO}       AS mail_estado,
+                   {SQL_MAIL_ESTADO_FECHA} AS mail_estado_fecha
             FROM users u
             WHERE {' AND '.join(where)}
             ORDER BY u.created_at DESC""",
@@ -219,7 +222,8 @@ def usuarios():
     return render_template('admin/usuarios.html', users=users, user=g.user,
                             provincias=PROVINCIAS_AR, localidades_lista=localidades_lista, paises=PAISES,
                             f_ciudad=f_ciudad, f_provincia=f_provincia, f_pais=f_pais,
-                            contadores=contadores, total_usuarios=total_usuarios)
+                            contadores=contadores, total_usuarios=total_usuarios,
+                            etiquetas_mail=ETIQUETAS_EVENTO)
 
 
 def _usuarios_para_exportar(db):
@@ -227,13 +231,15 @@ def _usuarios_para_exportar(db):
     -- se separó acá el 03/08/2026 (2da vuelta) para no duplicarla entre las
     2 rutas."""
     return db.execute(
-        """SELECT u.*,
+        f"""SELECT u.*,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
                      AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2,
                   (SELECT MIN(fecha_inicio) FROM suscripciones s
-                     WHERE s.user_id=u.id AND s.estado='authorized')                                  AS abonado_desde
+                     WHERE s.user_id=u.id AND s.estado='authorized')                                  AS abonado_desde,
+                  {SQL_MAIL_ESTADO}       AS mail_estado,
+                  {SQL_MAIL_ESTADO_FECHA} AS mail_estado_fecha
            FROM users u
            WHERE u.is_admin=0
            ORDER BY u.created_at DESC"""
@@ -841,7 +847,7 @@ def seguimiento_email(uid):
         try:
             import resend
             resend.api_key = api_key
-            resend.Emails.send({
+            resp = resend.Emails.send({
                 "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
                 "to": [u['email']],
                 "subject": "PresupuestoPRO",
@@ -854,6 +860,10 @@ def seguimiento_email(uid):
                 # 24/07/2026) reenvía a presupuestopro.app@gmail.com.
                 "reply_to": ["contacto@presupuestopro.com.ar"],
             })
+            # Fix 04/08/2026 (cont. 20, tracking de mails): ver
+            # utils/email_tracking.py -- guarda el id de Resend para cruzarlo
+            # con los eventos reales (delivered/opened/...) del webhook.
+            registrar_envio(resp.get('id', ''), u['email'], f'seguimiento_{tipo}')
             ok = True
         except Exception as e:
             print(f"[seguimiento_email] error enviando a {u['email']}: {e}")

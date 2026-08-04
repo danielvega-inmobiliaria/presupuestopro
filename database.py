@@ -2605,6 +2605,55 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3d: users.comentario_seguimiento/comentario_actualizado agregados")
 
+        # ── 3e. Onboarding/retención automática (cont. 20, 04/08/2026) ────
+        # Pedido de Daniel: atacar por qué casi no se usa la prueba gratis de
+        # 14 días. 2 flags nuevas en users:
+        #   instalar_prompt_visto: para no insistir más de 1 vez con el
+        #     cartel de "Instalar app" que ahora se muestra solo (ver
+        #     templates/base.html + routes/dashboard.py::instalar_visto).
+        #   recordatorio_inactividad_enviado: para no mandar 2 veces el mail
+        #     automático de "seguís sin usarla" (ver utils/recordatorios.py,
+        #     protege contra duplicados entre los 2 workers de gunicorn).
+        ya_3e = db.execute("SELECT valor FROM config WHERE clave='3e_done'").fetchone()
+        if not ya_3e:
+            cols_users_3e = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            for col, tipo in [('instalar_prompt_visto', 'INTEGER DEFAULT 0'),
+                               ('recordatorio_inactividad_enviado', 'INTEGER DEFAULT 0')]:
+                if col not in cols_users_3e:
+                    db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo}")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3e_done','2026-08-04')")
+            db.commit()
+            print("[migrate_db] 3e: users.instalar_prompt_visto/recordatorio_inactividad_enviado agregados")
+
+        # ── 3f. Tracking de mails (entregado/abierto/rebotado) ────────────
+        # Pedido de Daniel 04/08/2026 (cont. 20): quiere ver desde la propia
+        # App (no desde el dashboard de Resend) si los mails automáticos
+        # (bienvenida, recordatorio, seguimiento manual) llegan y se abren,
+        # y poder exportarlo en el Excel. Cada evento que manda Resend por
+        # webhook (ver routes/webhooks_resend.py) se guarda acá tal cual --
+        # 1 fila por evento, no se pisa nada, así queda el historial
+        # completo. `estado_email()` en utils/email_tracking.py lee el
+        # último evento por email para mostrar/exportar un solo estado.
+        ya_3f = db.execute("SELECT valor FROM config WHERE clave='3f_done'").fetchone()
+        if not ya_3f:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS email_eventos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    resend_id TEXT DEFAULT '',
+                    email TEXT NOT NULL,
+                    tipo TEXT DEFAULT '',
+                    evento TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.execute("CREATE INDEX IF NOT EXISTS idx_email_eventos_email ON email_eventos(email)")
+            db.execute("CREATE INDEX IF NOT EXISTS idx_email_eventos_resend_id ON email_eventos(resend_id)")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3f_done','2026-08-04')")
+            db.commit()
+            print("[migrate_db] 3f: tabla email_eventos agregada (tracking de mails)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

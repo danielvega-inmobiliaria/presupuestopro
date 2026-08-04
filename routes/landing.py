@@ -27,6 +27,7 @@ from database import get_db
 from utils.auth import login_user, login_required
 from utils.trial import TRIAL_MAX_DIAS, TRIAL_MAX_PRESUPUESTOS
 from utils.normalizacion import PROVINCIAS_AR, clave_normalizada, telefono_normalizado
+from utils.email_tracking import registrar_envio
 from utils.verificacion import (
     crear_codigo, enviar_codigo_email, enviar_codigo_whatsapp,
     validar_codigo, verificacion_activa, get_verificacion_status,
@@ -265,6 +266,17 @@ def registro():
     # Fix 08/07/2026: se agrega ?nuevo_registro=1 para que dashboard.html
     # dispare fbq('track','CompleteRegistration') una sola vez (Meta Pixel,
     # campaña de lanzamiento) — ver templates/dashboard.html bloque scripts.
+    #
+    # Fix 04/08/2026 (cont. 20, pedido de Daniel): ese flash de bienvenida
+    # solo lo ve el usuario SI vuelve a entrar -- el problema real es que
+    # antes NINGÚN mail automático le llegaba al propio usuario en el
+    # registro (_notificar_registro de acá abajo es solo para Daniel). Si
+    # alguien probaba la app y cerraba la pestaña sin instalarla ni
+    # guardarla, no le quedaba ningún gancho para volver a entrar durante
+    # los 14 días de prueba (sesión de 30 días persistente, pero solo sirve
+    # si vuelven a escribir la URL). Este mail SÍ llega al usuario, con el
+    # link directo y el tip de instalar el acceso directo.
+    _enviar_bienvenida_usuario(nombre, email)
     if verificacion_activa():
         return redirect(url_for('landing.validar_cuenta'))
     return redirect(url_for('dashboard.index', nuevo_registro=1))
@@ -312,6 +324,47 @@ def validar_cuenta():
 
     return render_template('validar_cuenta.html', user=g.user, metodo=status['metodo'],
                             error=error, ok_reenvio=ok_reenvio)
+
+
+def _enviar_bienvenida_usuario(nombre, email):
+    """Mail de bienvenida AL USUARIO (no al admin -- eso ya lo hace
+    _notificar_registro de acá abajo). Agregado 04/08/2026, cont. 20 -- ver
+    comentario en registro() para el porqué. Si falla o no hay
+    RESEND_API_KEY, no corta el registro (mismo criterio que
+    _notificar_registro: nunca bloquear el alta por un problema de mail)."""
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        print(f"[registro] Sin RESEND_API_KEY — no se pudo mandar bienvenida a {email}")
+        return
+    if not email:
+        return
+    app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
+    nombre_txt = nombre or ''
+    try:
+        resend.api_key = api_key
+        resp = resend.Emails.send({
+            "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
+            "to": [email],
+            "reply_to": ["contacto@presupuestopro.com.ar"],
+            "subject": "¡Bienvenido a PresupuestoPRO! Guardá este link para volver",
+            "text": (
+                f"Hola {nombre_txt}!\n\n"
+                f"Ya podés armar presupuestos de obra en minutos con PresupuestoPRO. "
+                f"Probalo gratis!!.\n\n"
+                f"Entrá acá cuando quieras: {app_url}/login\n\n"
+                f"Tip: una vez adentro, desde el menú de arriba a la derecha tocá "
+                f"\"Instalar app\" para dejar un ícono en la pantalla de inicio de tu "
+                f"celular o compu -- así volvés en un toque, sin tener que buscar este mail.\n\n"
+                f"Cualquier duda, respondé este mail o escribinos por WhatsApp: "
+                f"https://wa.me/5493417542009"
+            ),
+        })
+        # Fix 04/08/2026 (cont. 20, tracking de mails): se guarda el id que
+        # devuelve Resend para poder cruzarlo con los eventos reales del
+        # webhook (delivered/opened/...) — ver utils/email_tracking.py.
+        registrar_envio(resp.get('id', ''), email, 'bienvenida')
+    except Exception as e:
+        print(f"[registro] Error mandando bienvenida a {email}: {e}")
 
 
 def _notificar_registro(nombre, apellido, telefono, email, ciudad, provincia):

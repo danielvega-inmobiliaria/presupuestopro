@@ -13,7 +13,83 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 03/08/2026 — 22:26 ART_
+_Última actualización: 03/08/2026 — 23:10 ART_
+
+### ✅ CONFIRMADO: cont. 18 y 19 COMMITEADOS Y PUSHEADOS
+`git status`/`git log` sobre el repo real confirman `main` sincronizado con `origin/main` y los últimos 4 commits son justo los de hoy: `8899091` (fallback cliente tour), `3637ac3`/`ebe3543`/`a52f7ef` (Excel Usuarios, las 3 vueltas). Daniel confirmó "ya está todo deployado" — no hace falta re-pushear nada de cont. 18/19. Todo lo marcado como "⚠️ SIN COMMITEAR" en esas 2 entradas (y sus addendums) ya está en producción.
+
+---
+
+### 🔵 PENDIENTE PARA MAÑANA (cont. 20) — Onboarding/retención automática: por qué casi no se usa la prueba gratis de 14 días
+Tema nuevo (distinto de cont. 18/19 de este mismo chat) — surgió charlando sobre el uso bajo/nulo en la prueba gratis. Se investigó (sin tocar código) cómo vuelve un usuario a entrar hoy y se confirmaron 3 huecos:
+
+1. **Sesión sí persiste** (30 días automático, `utils/auth.py::login_user`, sin "recordarme") — si vuelven a escribir la URL en el mismo navegador entran derecho al Dashboard. El problema es que no hay ningún gancho que los empuje a volver a escribirla.
+2. **No queda ícono en el celular por default** — instalar es 100% manual, escondido en el menú de usuario ("Instalar app"), nadie lo explora en la primera sesión (ver cont. de este mismo chat, mensaje anterior).
+3. **No existe NINGÚN recordatorio automático** durante los 14 días de prueba. Las campañas de Admin > Seguimiento (segmentos A/B/C/D, trial por vencer, suscripción vencida) son 100% manuales — Daniel tiene que entrar y clickear "Enviar" uno por uno. No hay cron/scheduler en el proyecto (confirmado, no existe infraestructura de tareas programadas).
+
+**Daniel pidió atacar las 3 mañana.** Plan acordado (sin arrancar código todavía):
+1. Mail de bienvenida automático al registrarse, con el link directo a la app (hoy NO se manda ningún mail al usuario en el registro — `_notificar_registro()` en `routes/landing.py` es solo una notificación interna para Daniel, no le llega nada al usuario salvo el código de validación si está activa).
+2. Mostrar el cartel de "Instalar app" automáticamente en el primer login (hoy `templates/manual.html` tiene el modal armado pero solo se dispara si el usuario entra al menú y lo clickea).
+3. Recordatorio automático a los 2-3 días de inactividad dentro de la prueba — necesita agregar infraestructura de tareas programadas (no existe ninguna en el proyecto hoy; para Railway probablemente un cron job o un endpoint disparado externamente, a definir mañana).
+
+**Nada de esto se tocó todavía** — es 100% plan, cero código. Para retomar mañana alcanza con pegar: "Leé PROYECTO.md y seguí con cont. 20 (onboarding automático)".
+
+---
+
+### 🟡 CIERRE (04/08/2026, mismo día, misma cont. 20) — Los 3 items implementados ⚠️ SIN COMMITEAR
+Daniel dijo "vamos, atacá todo" — se implementaron los 3 puntos del plan de arriba.
+
+**1) Mail de bienvenida automático (`routes/landing.py`):** nueva función `_enviar_bienvenida_usuario(nombre, email)`, llamada justo después de `login_user(user_id)` en `registro()`. Antes NINGÚN mail le llegaba al usuario en el alta (`_notificar_registro` ya existente es solo aviso interno para Daniel). El mail nuevo trae el link directo (`APP_BASE_URL/login`), recuerda el límite de la prueba (3 presupuestos o 14 días) y el tip de "Instalar app" desde el menú. Mismo patrón de `resend` que ya usa el resto del proyecto (`from: noreply@presupuestopro.com.ar`, `reply_to: contacto@presupuestopro.com.ar`), no bloquea el registro si falla (mismo criterio que el aviso a Daniel).
+
+**2) "Instalar app" se ofrece solo, una vez, después del tour (`templates/base.html`, `routes/dashboard.py`, `database.py`):** 2 columnas nuevas en `users` (`instalar_prompt_visto`, `recordatorio_inactividad_enviado` — migración `3e_done`). Nueva ruta `POST /instalar-app/visto` (mismo patrón que `tour_completar()`). En `base.html`, el IIFE que ya armaba el botón manual de instalar ahora también se auto-dispara -- pero SOLO en el Dashboard, SOLO si `data-tour-done==='1'` (el tour de onboarding ya terminó) y SOLO si `instalar_prompt_visto` todavía es 0. La condición de "tour ya terminado" es clave: evita que el modal/prompt choque visualmente con el overlay oscuro de Driver.js en la primera visita de un usuario nuevo (ahí el tour arranca solo) -- como el tour marca `tour_completado=1` en el backend ANTES de redirigir a `/?tour_fin=1`, ese mismo reload ya cae con `tourDone='1'` y el prompt de instalar aparece ahí, como un cierre natural. Cuentas viejas que ya tenían el tour completado de antes lo reciben en su próxima visita al Dashboard. Se marca como "ofrecido" apenas se intenta (fire-and-forget), sin importar si terminó instalando o cancelando -- un solo empujón, no insiste.
+
+**3) Recordatorio automático a los 2-4 días sin actividad (`utils/recordatorios.py` nuevo, `app.py`, `requirements.txt`):** job que corre cada 60 min (APScheduler, agregado a requirements.txt) y manda un mail a cuentas de prueba (`es_trial=1`) creadas hace 2 a 4 días que siguen con CERO actividad (0 presupuestos, 0 borradores, 0 costo/m² -- mismo criterio que el Segmento C de `utils/exportar_contactos.py`, pero disparado por tiempo en vez de manual). Con los 2 workers de gunicorn (`Procfile`) el job corre en cada proceso por separado -- la protección contra mandar el mail 2 veces es un UPDATE atómico (`WHERE recordatorio_inactividad_enviado=0`): el worker que gana la carrera marca la fila y manda, el que pierde no matchea nada y no manda. `_iniciar_scheduler()` en `app.py` tiene guard para no duplicarse con el reloader de Werkzeug en local (`WERKZEUG_RUN_MAIN`), no afecta a producción (gunicorn, sin reloader).
+
+**Archivos tocados:** `routes/landing.py`, `database.py` (migración 3e), `routes/dashboard.py` (ruta `instalar_visto`), `templates/base.html` (auto-trigger), `utils/recordatorios.py` (nuevo), `app.py` (`_iniciar_scheduler`), `requirements.txt` (+APScheduler==3.10.4).
+
+**Verificado (funcional, no solo sintaxis):**
+- Migración 3e corrida contra una DB real (`init_db()`+`migrate_db()` completo) -- confirmó agregar las 2 columnas sin romper nada de las ~30 migraciones anteriores.
+- `create_app()` real levantado con `DEBUG=False` (como producción) -- arrancó sin errores, scheduler incluido, y las 4 rutas nuevas de esta sesión (`/instalar-app/visto`, `/admin/usuarios/exportar`, `/admin/usuarios/exportar-contactar`, `/admin/usuarios/importar-comentarios`) quedaron registradas.
+- `enviar_recordatorios_inactividad()` real probado con 5 usuarios de prueba (candidato válido / muy reciente / muy viejo / con actividad / no-trial) -- detectó exactamente al único que corresponde. Se corrió DOS VECES seguidas simulando 2 workers en la misma ventana: la 1ra mandó 1 mail, la 2da mandó 0 (bloqueada por el UPDATE atómico) -- exactamente el comportamiento anti-duplicado buscado.
+- `_enviar_bienvenida_usuario()` probado con `resend.Emails.send` mockeado -- confirma destinatario, asunto y que el link queda bien armado.
+- Los 5 bloques `<script>` de `base.html` (incluido el nuevo) pasaron `node --check` sin errores de sintaxis. `ast.parse` OK en los 4 `.py` tocados/nuevos.
+
+**Pendiente de aclarar a Daniel:**
+- El mail de bienvenida y el recordatorio de inactividad arrancan a mandarse DE VERDAD apenas se deploye (no quedan atrás de ningún flag) -- vale la pena que revise el texto de los 2 mails antes de pushear, por si quiere ajustar el tono.
+- El scheduler corre dentro del mismo proceso de gunicorn (sin infraestructura nueva en Railway) -- si el servicio se reinicia/duerme por inactividad en algún momento, el job se reinicia con él (no pierde nada, la ventana de 2-4 días sigue vigente hasta que corra de nuevo).
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+**Addendum (mismo día, 3ra vuelta) — Textos de los 2 mails ajustados por Daniel + tracking de mails (entregado/abierto) integrado a la App:**
+
+Daniel pidió ver los textos, los ajustó ("Probalo gratis!!" en vez de la mención a 3 presup./14 días en el de bienvenida; se agregó "Probá la App, te resuelve un presupuesto en minutos" en el de recordatorio) -- ya quedaron así en el código. Después preguntó si se puede saber si los mails llegan/se abren, y pidió que el control esté DESDE LA APP (no el dashboard externo de Resend) y que también se pueda exportar en el Excel.
+
+**Se armó el tracking completo, en 2 mitades:**
+1. **Tabla nueva `email_eventos`** (migración `3f_done`) -- 1 fila por evento, sin pisar nada (historial completo).
+2. **`POST /webhooks/resend`** (`routes/webhooks_resend.py`, nuevo blueprint registrado en `app.py`) recibe los eventos reales de Resend (delivered/opened/clicked/bounced/etc.). Firma verificada a mano con HMAC-SHA256 (esquema Svix: `svix-id`/`svix-timestamp`/`svix-signature`) SIN agregar la librería `svix` como dependencia nueva -- ver `utils/email_tracking.py::verificar_firma()`. Si `RESEND_WEBHOOK_SECRET` no está configurado, acepta igual sin verificar (mismo criterio pragmático que otros secretos opcionales del proyecto) pero deja un print de aviso.
+3. Los 3 envíos que ya existen (bienvenida en `landing.py`, recordatorio en `recordatorios.py`, seguimiento manual en `admin.py::seguimiento_email`) ahora capturan el `id` que devuelve Resend y lo guardan como evento `'sent'` propio (`registrar_envio()`), para poder cruzarlo después con los eventos reales del webhook por ese mismo id.
+4. **Se muestra en 2 lugares:** vivo en la tarjeta de cada usuario en Admin > Usuarios (badge "Mail: Entregado/Abierto/Rebotado...", en rojo si rebotó/spam, en verde si se abrió) y en el Excel (columnas "Mail: estado"/"Mail: fecha" agregadas a LAS 4 hojas -- Todos los usuarios, Vencidos, Abonados, A/B/C/D -- mismo criterio que "Comentarios"). El estado mostrado es el del ÚLTIMO evento (no un "mejor histórico") -- si se manda un mail nuevo, vuelve a "Enviado" hasta el próximo webhook real, que es justo lo que se quiere ver ("¿el último mail que le mandé llegó?").
+
+**Importante -- esto queda VACÍO hasta que Daniel configure el webhook en Resend (no se puede hacer desde acá):**
+1. Entrar a resend.com/webhooks → "Add Webhook".
+2. Endpoint: `https://<dominio real>/webhooks/resend`.
+3. Eventos a tildar: `email.sent`, `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`, `email.complained`, `email.delivery_delayed`.
+4. Copiar el "Signing secret" (`whsec_...`) y cargarlo en Railway como variable de entorno `RESEND_WEBHOOK_SECRET`.
+Sin ese paso el resto de la app funciona igual (no rompe nada), simplemente la columna "Mail: estado" queda vacía para todos.
+
+**Archivos tocados (además de los ya listados arriba):** `database.py` (migración 3f), `utils/email_tracking.py` (nuevo), `routes/webhooks_resend.py` (nuevo), `app.py` (blueprint nuevo), `routes/landing.py`, `utils/recordatorios.py`, `routes/admin.py` (captura de `resend_id` en los 3 envíos + subquery `mail_estado`/`mail_estado_fecha` en `usuarios()` y `_usuarios_para_exportar()`), `templates/admin/usuarios.html` (badge), `utils/exportar_contactos.py` (columnas nuevas en las 4 hojas).
+
+**Verificado (extremo a extremo, con un `create_app()` real, no mocks parciales):**
+- Firma HMAC verificada a mano: firma válida → acepta; payload alterado / secret incorrecto / sin secret → rechaza; firma con rotación (2 firmas en el header) → acepta si matchea cualquiera de las dos. 5 casos, los 5 dieron el resultado esperado.
+- Bug real encontrado y corregido en la verificación: `ORDER BY created_at` solo (resolución de 1 segundo en SQLite) hacía que 2 eventos del mismo mail llegados en el mismo segundo (ej. delivered + opened) empataran y el más nuevo NO siempre ganara. Fix: desempate por `id DESC` (autoincrement, orden real de inserción garantizado). Confirmado con un test que manda 'delivered' y 'opened' y verifica que el estado final es 'opened', no 'sent' ni 'delivered'.
+- Flujo completo con el `test_client()` real de Flask: usuario nuevo en DB → `registrar_envio()` (evento 'sent') → 2 webhooks reales firmados y posteados a `/webhooks/resend` (delivered, opened) → confirmado en la query real de `_usuarios_para_exportar()` que `mail_estado='opened'` → confirmado en el Excel generado que la celda dice "Abierto". Un webhook con firma inválida devolvió 400 correctamente.
+- Las 4 hojas del Excel (Todos, Vencidos, Abonados, A-D) traen las columnas "Mail: estado"/"Mail: fecha" sin romper ninguna de las verificaciones anteriores de esta sesión. `ast.parse` OK en los 9 `.py` tocados/nuevos, Jinja2 OK en `base.html` y `usuarios.html`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
+
+_Actualización anterior: 03/08/2026 — 22:26 ART_
 
 ### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 19) — Excel de Usuarios: hojas "Vencidos" y "Abonados" + comentarios de seguimiento persistentes ⚠️ SIN COMMITEAR
 Tema nuevo dentro del mismo chat que cont. 18 (no relacionado con el bug del tour) — Daniel pidió sumar al Excel que ya se exporta desde Admin > Usuarios (botón "Exportar", `utils/exportar_contactos.py`) 2 hojas nuevas: "Vencidos" y "Abonados". Va a llamar a esos usuarios para entender la causa del uso escaso/nulo y anotar los comentarios de cada llamada, y pidió que cada vez que vuelva a exportar, el Excel anterior guardado se evalúe y los comentarios se trasladen al nuevo.
