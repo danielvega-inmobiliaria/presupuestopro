@@ -13,7 +13,29 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 03/08/2026 — 18:31 ART_
+_Última actualización: 03/08/2026 — 22:26 ART_
+
+### 🟡 CIERRE DE SESIÓN 03/08/2026 (cont. 19) — Excel de Usuarios: hojas "Vencidos" y "Abonados" + comentarios de seguimiento persistentes ⚠️ SIN COMMITEAR
+Tema nuevo dentro del mismo chat que cont. 18 (no relacionado con el bug del tour) — Daniel pidió sumar al Excel que ya se exporta desde Admin > Usuarios (botón "Exportar", `utils/exportar_contactos.py`) 2 hojas nuevas: "Vencidos" y "Abonados". Va a llamar a esos usuarios para entender la causa del uso escaso/nulo y anotar los comentarios de cada llamada, y pidió que cada vez que vuelva a exportar, el Excel anterior guardado se evalúe y los comentarios se trasladen al nuevo.
+
+**Criterio de cada hoja (reutiliza reglas que YA usa el resto de la app, no se inventó nada nuevo):**
+- **"Vencidos"**: `subscription_expires < hoy` — mismo criterio que el contador "Vencidos" del dashboard de Admin. Columna "Tipo" distingue "Prueba gratis (no convirtió)" de "Suscripción paga (no renovó)" (son motivos de llamada distintos).
+- **"Abonados"**: `es_trial=0 AND active=1 AND subscription_expires >= hoy` — mismo criterio "sub_activa" que ya usan `routes/pagos.py::planes()`/`dashboard()`. Son los que están pagando los $12.500/mes ahora mismo. Incluye columna "Abonado desde" (`MIN(fecha_inicio)` de `suscripciones` con `estado='authorized'`).
+
+**Comentarios persistentes — cómo funciona (importante, es un flujo en 2 pasos, no automático):** el servidor (Railway) no tiene forma de leer el Excel que Daniel edita en su propia computadora, así que:
+1. Nuevas columnas `users.comentario_seguimiento` / `comentario_actualizado` (migración `3d_done` en `database.py`).
+2. Nuevo botón **"Importar comentarios"** al lado de "Exportar" (`templates/admin/usuarios.html`) → nueva ruta `POST /admin/usuarios/importar-comentarios` (`routes/admin.py::usuarios_importar_comentarios`): Daniel sube el Excel YA ANOTADO (el mismo que bajó, con la columna "Comentarios" de "Vencidos"/"Abonados" completada a mano después de las llamadas) → se lee por nombre de columna (Email/Comentarios, no por posición) y se guarda en la base, matcheando por email. Solo pisa si el texto cambió.
+3. A partir de ahí, CUALQUIER "Exportar" nuevo ya sale con esos comentarios precargados en la columna (lee `users.comentario_seguimiento`).
+
+En criollo: Daniel exporta → llama y anota en el Excel bajado → sube ESE mismo archivo con "Importar comentarios" → los próximos Excel que exporte ya traen anotado lo que fue cargando. No hay forma de que sea 100% automático sin ese paso de subida, porque el server no ve los archivos de su compu.
+
+**Archivos tocados:** `database.py` (migración 3d), `utils/exportar_contactos.py` (hojas nuevas + notas), `routes/admin.py` (columna `abonado_desde` en el SELECT + ruta `usuarios_importar_comentarios`), `templates/admin/usuarios.html` (botón "Importar comentarios").
+
+**Verificado (extremo a extremo, no solo sintaxis):** se armó una base sqlite en memoria con 4 usuarios (trial vencido, pago vencido, abonado activo, trial activo sin vencer) y se corrió el pipeline real completo: 1) generar el Excel y confirmar que "Vencidos" trae los 2 vencidos (con el "Tipo" correcto cada uno) y "Abonados" trae solo el abonado (con "Abonado desde" correcto) — el trial activo sin vencer no aparece en ninguna de las 2, correcto; 2) simular a Daniel escribiendo un comentario en la celda de "Comentarios" de "Vencidos" y guardando ese Excel; 3) correr la misma lógica de `usuarios_importar_comentarios` sobre ese archivo → confirma 1 comentario actualizado en la base; 4) volver a generar el Excel y confirmar que el comentario aparece precargado en la columna. Los 4 pasos dieron el resultado esperado. `ast.parse` OK en los 3 `.py` tocados, Jinja2 parseó bien `usuarios.html`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
+---
 
 ### ✅ CONFIRMADO: cont. 13 a 17 COMMITEADOS Y PUSHEADOS
 `git status` sobre el repo real confirma `main` sincronizado 1:1 con `origin/main` (0 commits de diferencia en ningún sentido) y el último commit es `9b4b298` ("PDF preview: barra fija... + aviso WhatsApp Constructor"). Es decir: **todo lo marcado como "⚠️ SIN COMMITEAR" en las entradas cont. 13 a 17 de abajo ya está commiteado y en producción** (Daniel corrió esos git blocks en algún momento de la sesión sin que quedara confirmado en el chat). No hace falta re-pushear nada de esa lista.

@@ -69,6 +69,19 @@ HEADERS_TODOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                   "Presup.", "Borr.", "Costo/m²", "Estado activación", "Segmento",
                   "Creado", "Vence"]
 
+# Agregado 03/08/2026, pedido de Daniel: hojas "Vencidos" y "Abonados", cada
+# una con columna "Comentarios" para anotar, llamada por llamada, la causa
+# del uso escaso/nulo. Ver generar_excel_usuarios_a_contactar() para el
+# criterio exacto de cada hoja (mismo que ya usa el resto de la app --
+# subscription_expires/es_trial/active -- en routes/pagos.py y el dashboard
+# de Admin) y routes/admin.py::usuarios_importar_comentarios() para cómo
+# vuelven los comentarios anotados a la base para la próxima exportación.
+HEADERS_VENCIDOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
+                     "Presup.", "Borr.", "Costo/m²", "Tipo", "Venció el", "Comentarios"]
+
+HEADERS_ABONADOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
+                     "Presup.", "Borr.", "Costo/m²", "Abonado desde", "Vence", "Comentarios"]
+
 HEADER_FONT = Font(name="Arial", bold=True, color="FFFFFF", size=10)
 HEADER_FILL = PatternFill("solid", fgColor="1F2937")
 BODY_FONT = Font(name="Arial", size=10)
@@ -228,6 +241,69 @@ def _escribir_hoja_todos(ws, usuarios):
     ws.freeze_panes = "A2"
 
 
+def _escribir_hoja_vencidos(ws, usuarios):
+    """Cuentas con subscription_expires < hoy -- tanto prueba gratis vencida
+    sin convertir como suscripción paga que no se renovó (columna "Tipo"
+    distingue las dos, porque el motivo de la llamada es distinto en cada
+    caso)."""
+    for c, h in enumerate(HEADERS_VENCIDOS, start=1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = BORDER
+
+    for r, u in enumerate(usuarios, start=2):
+        tipo = 'Prueba gratis (no convirtió)' if u['es_trial'] else 'Suscripción paga (no renovó)'
+        row = [
+            u['nombre'] or '—', u['email'], u['telefono'] or '', u['ciudad'] or '',
+            u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
+            u['n_costo_m2'], tipo, u['subscription_expires'] or '',
+            u['comentario_seguimiento'] or '',
+        ]
+        for c, val in enumerate(row, start=1):
+            cell = ws.cell(row=r, column=c, value=val)
+            cell.font = BODY_FONT
+            cell.border = BORDER
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 26, 12, 55]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
+
+
+def _escribir_hoja_abonados(ws, usuarios):
+    """Cuentas pagas y activas ahora mismo (mismo criterio 'sub_activa' que
+    ya usan routes/pagos.py::planes()/dashboard() -- es_trial=0, active=1,
+    subscription_expires >= hoy). Son los que SÍ están pagando los $12.500 --
+    el segmento que le interesa llamar a Daniel para entender el uso bajo."""
+    for c, h in enumerate(HEADERS_ABONADOS, start=1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = BORDER
+
+    for r, u in enumerate(usuarios, start=2):
+        row = [
+            u['nombre'] or '—', u['email'], u['telefono'] or '', u['ciudad'] or '',
+            u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
+            u['n_costo_m2'], (u['abonado_desde'] or '')[:10], u['subscription_expires'] or '',
+            u['comentario_seguimiento'] or '',
+        ]
+        for c, val in enumerate(row, start=1):
+            cell = ws.cell(row=r, column=c, value=val)
+            cell.font = BODY_FONT
+            cell.border = BORDER
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 12, 12, 55]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = "A2"
+
+
 def generar_excel_usuarios_a_contactar(usuarios):
     """usuarios: lista de sqlite3.Row con al menos email_verificado,
     n_presupuestos, n_borradores, n_costo_m2, nombre, email, telefono,
@@ -241,10 +317,26 @@ def generar_excel_usuarios_a_contactar(usuarios):
     segmento_c = [u for u in usuarios if _segmento(u) == SEG_C]
     segmento_d = [u for u in usuarios if _segmento(u) == SEG_D]
 
+    # 03/08/2026: mismo criterio que ya usa el resto de la app (dashboard de
+    # Admin y routes/pagos.py::planes()/dashboard()) -- no se inventa una
+    # regla nueva acá.
+    hoy_str = date.today().isoformat()
+    vencidos = [u for u in usuarios
+                if u['subscription_expires'] and u['subscription_expires'] < hoy_str]
+    abonados = [u for u in usuarios
+                if not u['es_trial'] and u['active']
+                and u['subscription_expires'] and u['subscription_expires'] >= hoy_str]
+
     wb = Workbook()
     ws_todos = wb.active
     ws_todos.title = "Todos los usuarios"
     _escribir_hoja_todos(ws_todos, usuarios)
+
+    ws_vencidos = wb.create_sheet("Vencidos")
+    _escribir_hoja_vencidos(ws_vencidos, vencidos)
+
+    ws_abonados = wb.create_sheet("Abonados")
+    _escribir_hoja_abonados(ws_abonados, abonados)
 
     ws_a = wb.create_sheet("A - Sin validar email")
     _escribir_hoja_segmento(ws_a, segmento_a, _mensaje_activacion)
@@ -269,6 +361,16 @@ def generar_excel_usuarios_a_contactar(usuarios):
         ("", notas_font),
         ("Hoja 'Todos los usuarios': listado completo, con columna 'Segmento' para ver "
          "de un vistazo en qué grupo cae cada uno (ninguno queda afuera).", notas_font),
+        ("Hoja 'Vencidos': prueba gratis o suscripción paga que venció y no se renovó "
+         "(columna 'Tipo' distingue cuál de las dos).", notas_font),
+        ("Hoja 'Abonados': cuentas pagas y activas ahora mismo -- las que sí están "
+         "pagando la suscripción.", notas_font),
+        ("'Vencidos' y 'Abonados' traen una columna 'Comentarios' para anotar, llamada "
+         "por llamada, la causa del uso escaso o nulo. Lo que escribas ahí NO se guarda "
+         "solo -- cuando termines de anotar, subí este mismo Excel con el botón "
+         "'Importar comentarios' (al lado de 'Exportar', en Admin > Usuarios). Recién "
+         "ahí queda guardado en la base, y el PRÓXIMO Excel que exportes ya sale con "
+         "esos comentarios precargados.", notas_font),
         ("Hoja 'A - Sin validar email': cuentas con email_verificado=0.", notas_font),
         ("Hoja 'B - 1 presup o borrador': cuentas validadas con exactamente 1 "
          "presupuesto o borrador en total.", notas_font),

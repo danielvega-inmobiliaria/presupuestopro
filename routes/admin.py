@@ -4,6 +4,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g, send_file
 from werkzeug.security import generate_password_hash
+from openpyxl import load_workbook
 from utils.auth import admin_required
 from utils.calculations import PAISES
 from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado
@@ -237,7 +238,9 @@ def usuarios_exportar_contactar():
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
                      AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='borrador')  AS n_borradores,
-                  (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2
+                  (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2,
+                  (SELECT MIN(fecha_inicio) FROM suscripciones s
+                     WHERE s.user_id=u.id AND s.estado='authorized')                                  AS abonado_desde
            FROM users u
            WHERE u.is_admin=0
            ORDER BY u.created_at DESC"""
@@ -248,6 +251,82 @@ def usuarios_exportar_contactar():
     return send_file(buf,
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                       as_attachment=True, download_name=download_name)
+
+
+@bp.route('/usuarios/importar-comentarios', methods=['POST'])
+@admin_required
+def usuarios_importar_comentarios():
+    """Pedido de Daniel 03/08/2026, 2da parte del pedido de las hojas
+    "Vencidos"/"Abonados" (ver utils/exportar_contactos.py): esas 2 hojas
+    traen una columna "Comentarios" para anotar, llamada por llamada, la
+    causa del uso escaso o nulo. El servidor (Railway) no tiene forma de leer
+    el Excel que Daniel edita en su propia compu, así que el traslado de
+    comentarios funciona en 2 pasos:
+      1) Acá se sube el Excel YA EDITADO (con los comentarios anotados) --
+         se leen las hojas "Vencidos" y "Abonados" por nombre de columna
+         (Email / Comentarios, no por posición fija, para no romper si se
+         reordenan) y se guardan en users.comentario_seguimiento, matcheando
+         por email.
+      2) De ahí en más, CUALQUIER export nuevo (usuarios_exportar_contactar)
+         ya sale con esos comentarios precargados, porque lee el mismo campo
+         de la base (ver _escribir_hoja_vencidos/_escribir_hoja_abonados).
+    Solo pisa un comentario si el texto cambió (no reescribe innecesariamente
+    lo que ya estaba igual)."""
+    archivo = request.files.get('excel')
+    if not archivo or not archivo.filename:
+        flash('Elegí primero el Excel que ya tenés con los comentarios anotados.', 'error')
+        return redirect(url_for('admin.usuarios'))
+    if not archivo.filename.lower().endswith('.xlsx'):
+        flash('Tiene que ser un .xlsx -- el mismo que bajaste con "Exportar".', 'error')
+        return redirect(url_for('admin.usuarios'))
+
+    try:
+        wb_in = load_workbook(archivo, data_only=True)
+    except Exception:
+        flash('No se pudo leer ese archivo -- ¿es el Excel exportado desde acá?', 'error')
+        return redirect(url_for('admin.usuarios'))
+
+    db = get_db()
+    hoy_str = date.today().isoformat()
+    actualizados = 0
+    for nombre_hoja in ('Vencidos', 'Abonados'):
+        if nombre_hoja not in wb_in.sheetnames:
+            continue
+        ws = wb_in[nombre_hoja]
+        headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        if 'Email' not in headers or 'Comentarios' not in headers:
+            continue
+        col_email = headers.index('Email')
+        col_comentario = headers.index('Comentarios')
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if col_email >= len(row):
+                continue
+            email = (row[col_email] or '').strip().lower()
+            comentario = (row[col_comentario] or '').strip() if col_comentario < len(row) and row[col_comentario] else ''
+            if not email or not comentario:
+                continue
+            actual = db.execute(
+                "SELECT comentario_seguimiento FROM users WHERE lower(email)=?", (email,)
+            ).fetchone()
+            if actual is None:
+                continue
+            if (actual['comentario_seguimiento'] or '') != comentario:
+                db.execute(
+                    "UPDATE users SET comentario_seguimiento=?, comentario_actualizado=? WHERE lower(email)=?",
+                    (comentario, hoy_str, email)
+                )
+                actualizados += 1
+    db.commit()
+    db.close()
+
+    if actualizados:
+        flash(f'{actualizados} comentario(s) guardado(s). El próximo Excel que exportes ya '
+              f'va a salir con estos comentarios cargados.', 'success')
+    else:
+        flash('No se encontró ningún comentario nuevo para trasladar en las hojas '
+              '"Vencidos"/"Abonados" de ese archivo.', 'success')
+    return redirect(url_for('admin.usuarios'))
 
 
 def _usuarios_seguimiento():

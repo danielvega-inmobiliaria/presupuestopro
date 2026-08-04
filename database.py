@@ -2584,6 +2584,27 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3c: users.tour_completado agregado (tour interactivo de onboarding)")
 
+        # ── 3d. Comentarios de seguimiento (hojas "Vencidos"/"Abonados") ──
+        # Pedido de Daniel 03/08/2026: el Excel de Admin > Usuarios suma 2
+        # hojas nuevas (Vencidos / Abonados, ver utils/exportar_contactos.py)
+        # con una columna "Comentarios" para anotar, llamado por llamado, por
+        # qué cada usuario usa poco o nada la app. El comentario se guarda acá
+        # (no solo en el Excel) para que sobreviva y se traslade solo a la
+        # próxima exportación — ver routes/admin.py::usuarios_importar_comentarios
+        # (donde se sube el Excel ya anotado) y usuarios_exportar_contactar
+        # (que ya lo trae precargado en la columna del Excel nuevo).
+        ya_3d = db.execute("SELECT valor FROM config WHERE clave='3d_done'").fetchone()
+        if not ya_3d:
+            cols_users_3d = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            for col, tipo in [('comentario_seguimiento', "TEXT DEFAULT ''"),
+                               ('comentario_actualizado', "TEXT DEFAULT ''")]:
+                if col not in cols_users_3d:
+                    db.execute(f"ALTER TABLE users ADD COLUMN {col} {tipo}")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3d_done','2026-08-03')")
+            db.commit()
+            print("[migrate_db] 3d: users.comentario_seguimiento/comentario_actualizado agregados")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

@@ -13,9 +13,26 @@
        usuarios a contactar (sin validar email / con 1 solo presupuesto o
        borrador), con mensajes de WhatsApp y email ya sugeridos por fila.
        Antes esto se armaba a mano con capturas de pantalla de esta tabla. #}
-    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn2 btn2-min" title="Descarga un Excel con los usuarios sin validar email y los que hicieron solo 1 presupuesto/borrador, con mensajes sugeridos">
+    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn2 btn2-min" title="Descarga un Excel con Vencidos, Abonados, segmentos A-D y el listado completo, con mensajes sugeridos">
       <i class="bi bi-file-earmark-excel"></i> Exportar
     </a>
+    {# Fix 03/08/2026, pedido de Daniel: las hojas "Vencidos"/"Abonados" del
+       Excel (ver utils/exportar_contactos.py) tienen una columna
+       "Comentarios" para anotar la causa del uso escaso/nulo llamada por
+       llamada. El servidor no tiene forma de leer el Excel que Daniel edita
+       en su compu -- este botón sube ESE mismo archivo (ya con lo anotado)
+       para guardar los comentarios en la base (admin.usuarios_importar_comentarios).
+       De ahí en más, el próximo "Exportar" ya sale con esos comentarios
+       precargados. #}
+    <form action="{{ url_for('admin.usuarios_importar_comentarios') }}" method="post" enctype="multipart/form-data"
+          style="display:flex;align-items:center;gap:4px" id="formImportarComentarios">
+      <input type="file" name="excel" accept=".xlsx" id="inputImportarComentarios" style="display:none"
+             onchange="document.getElementById('formImportarComentarios').requestSubmit()">
+      <button type="button" class="btn2 btn2-min" title="Subí el Excel exportado con los comentarios ya anotados en 'Vencidos'/'Abonados' para guardarlos en la base"
+              onclick="document.getElementById('inputImportarComentarios').click()">
+        <i class="bi bi-upload"></i> Importar comentarios
+      </button>
+    </form>
     <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn2 btn2-1">
       <i class="bi bi-person-plus"></i> Nuevo usuario
     </a>
