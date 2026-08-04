@@ -35,6 +35,16 @@ En criollo: Daniel exporta → llama y anota en el Excel bajado → sube ESE mis
 
 **⚠️ Pendiente: SIN COMMITEAR.**
 
+**Addendum (mismo día, 2da vuelta) — Daniel pidió unificar "Importar comentarios" + "Exportar" en un solo click:** preguntó si se podía armar una orden interna que, al clickear "Exportar", busque solo el último Excel exportado, lo suba, sume los comentarios y recién ahí baje el nuevo -- todo automático. **No es técnicamente posible que el servidor "busque solo" un archivo en la compu de Daniel** (ninguna web puede leer el disco local sin que el usuario elija el archivo a propósito -- restricción de seguridad de cualquier navegador, no algo de esta implementación). Se armó la versión más cercana respetando esa restricción: el botón "Exportar" ahora es uno solo -- al clickear pregunta (confirm) si hay un Excel anterior con comentarios; si Daniel elige el archivo, se suman los comentarios y AHÍ MISMO se descarga el Excel nuevo ya actualizado (una sola respuesta, una sola descarga); si cancela, exporta directo sin tocar nada. Se sacaron los 2 botones separados de antes.
+
+**Cambios técnicos:** se extrajeron `_usuarios_para_exportar(db)` y `_importar_comentarios_xlsx(db, archivo)` en `routes/admin.py` (evita duplicar la query y la lógica de import entre rutas) y se agregó `POST /admin/usuarios/exportar` (combinado). `usuarios_exportar_contactar` (GET, sin archivo) sigue existiendo para el caso "cancelar". `usuarios_importar_comentarios` (solo guardar, sin exportar) también se dejó viva por si hace falta más adelante, pero ya no tiene botón visible en la UI (se unificó todo en "Exportar").
+
+**Archivos tocados (además de los ya listados arriba):** `routes/admin.py`, `templates/admin/usuarios.html`.
+
+**Verificado:** se importaron `_usuarios_para_exportar`/`_importar_comentarios_xlsx` REALES desde `routes.admin` (no una copia paralela) contra una base sqlite en memoria — export inicial → comentario agregado a mano en la celda → import vía el helper real (1 actualizado) → re-export vía el mismo helper → el comentario aparece precargado. `ast.parse` OK, Jinja2 parseó bien `usuarios.html`.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
 ---
 
 ### ✅ CONFIRMADO: cont. 13 a 17 COMMITEADOS Y PUSHEADOS

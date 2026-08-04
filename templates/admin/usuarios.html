@@ -12,27 +12,44 @@
     {# Fix 15/07/2026, pedido de Daniel: exportar en un click el Excel de
        usuarios a contactar (sin validar email / con 1 solo presupuesto o
        borrador), con mensajes de WhatsApp y email ya sugeridos por fila.
-       Antes esto se armaba a mano con capturas de pantalla de esta tabla. #}
-    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn2 btn2-min" title="Descarga un Excel con Vencidos, Abonados, segmentos A-D y el listado completo, con mensajes sugeridos">
+       Antes esto se armaba a mano con capturas de pantalla de esta tabla.
+
+       Fix 03/08/2026 (2da vuelta, pedido de Daniel): antes esto eran 2
+       pasos sueltos ("Importar comentarios" y después "Exportar"). Ahora un
+       solo botón "Exportar" hace las 2 cosas: al click pregunta (confirm)
+       si hay un Excel anterior con comentarios para sumar -- si elegís el
+       archivo, se suma y ENSEGUIDA se baja el Excel nuevo ya actualizado
+       (routes/admin.py::usuarios_exportar); si cancelás el picker, exporta
+       directo sin tocar nada (usuarios_exportar_contactar, GET, sin
+       archivo). No hay forma de que el propio navegador "busque solo" el
+       archivo en la compu de Daniel -- ninguna web puede leer el disco sin
+       que el usuario elija el archivo, así que el picker es inevitable;
+       esto es lo más cercano a 1 solo click respetando esa restricción. #}
+    <form action="{{ url_for('admin.usuarios_exportar') }}" method="post" enctype="multipart/form-data"
+          style="display:inline" id="formExportar">
+      <input type="file" name="excel" accept=".xlsx" id="inputExportar" style="display:none">
+    </form>
+    <a href="#" class="btn2 btn2-min" onclick="ppExportarUsuarios(); return false;"
+       title="Descarga el Excel con Vencidos, Abonados, segmentos A-D y el listado completo. Te pregunta si querés sumar antes los comentarios de un Excel anterior.">
       <i class="bi bi-file-earmark-excel"></i> Exportar
     </a>
-    {# Fix 03/08/2026, pedido de Daniel: las hojas "Vencidos"/"Abonados" del
-       Excel (ver utils/exportar_contactos.py) tienen una columna
-       "Comentarios" para anotar la causa del uso escaso/nulo llamada por
-       llamada. El servidor no tiene forma de leer el Excel que Daniel edita
-       en su compu -- este botón sube ESE mismo archivo (ya con lo anotado)
-       para guardar los comentarios en la base (admin.usuarios_importar_comentarios).
-       De ahí en más, el próximo "Exportar" ya sale con esos comentarios
-       precargados. #}
-    <form action="{{ url_for('admin.usuarios_importar_comentarios') }}" method="post" enctype="multipart/form-data"
-          style="display:flex;align-items:center;gap:4px" id="formImportarComentarios">
-      <input type="file" name="excel" accept=".xlsx" id="inputImportarComentarios" style="display:none"
-             onchange="document.getElementById('formImportarComentarios').requestSubmit()">
-      <button type="button" class="btn2 btn2-min" title="Subí el Excel exportado con los comentarios ya anotados en 'Vencidos'/'Abonados' para guardarlos en la base"
-              onclick="document.getElementById('inputImportarComentarios').click()">
-        <i class="bi bi-upload"></i> Importar comentarios
-      </button>
-    </form>
+    <script>
+      function ppExportarUsuarios() {
+        var conComentarios = confirm(
+          '¿Tenés un Excel anterior con comentarios ya anotados en "Vencidos"/"Abonados"?\n\n' +
+          'Aceptar = elegís ese archivo, se suman los comentarios y se baja el Excel nuevo ya actualizado.\n' +
+          'Cancelar = exportar directo, sin sumar nada nuevo.'
+        );
+        if (conComentarios) {
+          document.getElementById('inputExportar').click();
+        } else {
+          window.location = "{{ url_for('admin.usuarios_exportar_contactar') }}";
+        }
+      }
+      document.getElementById('inputExportar').addEventListener('change', function () {
+        if (this.files.length) document.getElementById('formExportar').requestSubmit();
+      });
+    </script>
     <a href="{{ url_for('admin.usuario_nuevo') }}" class="btn2 btn2-1">
       <i class="bi bi-person-plus"></i> Nuevo usuario
     </a>

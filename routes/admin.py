@@ -222,18 +222,11 @@ def usuarios():
                             contadores=contadores, total_usuarios=total_usuarios)
 
 
-@bp.route('/usuarios/exportar-contactar')
-@admin_required
-def usuarios_exportar_contactar():
-    """Pedido de Daniel 15/07/2026: antes esta lista se armaba a mano
-    (capturas de pantalla de esta misma tabla + transcripción manual a un
-    Excel — lento y con riesgo de error en teléfonos/contadores). Este botón
-    arma el mismo Excel en un click, leyendo directo de la base. Ver
-    utils/exportar_contactos.py para la lógica de segmentación exacta
-    (incluye Segmento C — validado sin ninguna actividad — agregado el mismo
-    día a pedido de Daniel, por eso también se trae n_costo_m2 acá)."""
-    db = get_db()
-    usuarios = db.execute(
+def _usuarios_para_exportar(db):
+    """Query compartida por usuarios_exportar_contactar() y usuarios_exportar()
+    -- se separó acá el 03/08/2026 (2da vuelta) para no duplicarla entre las
+    2 rutas."""
+    return db.execute(
         """SELECT u.*,
                   (SELECT COUNT(*) FROM presupuestos p WHERE p.user_id=u.id AND p.status='completo'
                      AND (p.es_demo IS NULL OR p.es_demo=0))                                          AS n_presupuestos,
@@ -245,48 +238,25 @@ def usuarios_exportar_contactar():
            WHERE u.is_admin=0
            ORDER BY u.created_at DESC"""
     ).fetchall()
-    db.close()
-
-    buf, download_name = generar_excel_usuarios_a_contactar(usuarios)
-    return send_file(buf,
-                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                      as_attachment=True, download_name=download_name)
 
 
-@bp.route('/usuarios/importar-comentarios', methods=['POST'])
-@admin_required
-def usuarios_importar_comentarios():
-    """Pedido de Daniel 03/08/2026, 2da parte del pedido de las hojas
-    "Vencidos"/"Abonados" (ver utils/exportar_contactos.py): esas 2 hojas
-    traen una columna "Comentarios" para anotar, llamada por llamada, la
-    causa del uso escaso o nulo. El servidor (Railway) no tiene forma de leer
-    el Excel que Daniel edita en su propia compu, así que el traslado de
-    comentarios funciona en 2 pasos:
-      1) Acá se sube el Excel YA EDITADO (con los comentarios anotados) --
-         se leen las hojas "Vencidos" y "Abonados" por nombre de columna
-         (Email / Comentarios, no por posición fija, para no romper si se
-         reordenan) y se guardan en users.comentario_seguimiento, matcheando
-         por email.
-      2) De ahí en más, CUALQUIER export nuevo (usuarios_exportar_contactar)
-         ya sale con esos comentarios precargados, porque lee el mismo campo
-         de la base (ver _escribir_hoja_vencidos/_escribir_hoja_abonados).
-    Solo pisa un comentario si el texto cambió (no reescribe innecesariamente
-    lo que ya estaba igual)."""
-    archivo = request.files.get('excel')
-    if not archivo or not archivo.filename:
-        flash('Elegí primero el Excel que ya tenés con los comentarios anotados.', 'error')
-        return redirect(url_for('admin.usuarios'))
+def _importar_comentarios_xlsx(db, archivo):
+    """Lee las hojas "Vencidos"/"Abonados" de `archivo` (un .xlsx ya anotado
+    por Daniel) por nombre de columna (Email/Comentarios, no por posición
+    fija, para no romper si se reordenan) y guarda lo que encuentra en
+    users.comentario_seguimiento, matcheando por email. Solo pisa un
+    comentario si el texto cambió. Usada tanto por usuarios_importar_comentarios
+    (standalone) como por usuarios_exportar() (combinado en 1 solo click,
+    pedido de Daniel 03/08/2026 2da vuelta). Devuelve (ok, error_o_None,
+    cantidad_actualizados) -- NO cierra `db` ni hace commit final del export,
+    eso lo maneja quien la llama."""
     if not archivo.filename.lower().endswith('.xlsx'):
-        flash('Tiene que ser un .xlsx -- el mismo que bajaste con "Exportar".', 'error')
-        return redirect(url_for('admin.usuarios'))
-
+        return False, 'Tiene que ser un .xlsx -- el mismo que bajaste con "Exportar".', 0
     try:
         wb_in = load_workbook(archivo, data_only=True)
     except Exception:
-        flash('No se pudo leer ese archivo -- ¿es el Excel exportado desde acá?', 'error')
-        return redirect(url_for('admin.usuarios'))
+        return False, 'No se pudo leer ese archivo -- ¿es el Excel exportado desde acá?', 0
 
-    db = get_db()
     hoy_str = date.today().isoformat()
     actualizados = 0
     for nombre_hoja in ('Vencidos', 'Abonados'):
@@ -318,7 +288,88 @@ def usuarios_importar_comentarios():
                 )
                 actualizados += 1
     db.commit()
+    return True, None, actualizados
+
+
+@bp.route('/usuarios/exportar-contactar')
+@admin_required
+def usuarios_exportar_contactar():
+    """Pedido de Daniel 15/07/2026: antes esta lista se armaba a mano
+    (capturas de pantalla de esta misma tabla + transcripción manual a un
+    Excel — lento y con riesgo de error en teléfonos/contadores). Este botón
+    arma el mismo Excel en un click, leyendo directo de la base. Ver
+    utils/exportar_contactos.py para la lógica de segmentación exacta
+    (incluye Segmento C — validado sin ninguna actividad — agregado el mismo
+    día a pedido de Daniel, por eso también se trae n_costo_m2 acá).
+
+    Export "directo" (sin merge de comentarios) -- lo usa el botón "Exportar"
+    cuando Daniel cancela el picker de archivo (ver usuarios_exportar() más
+    abajo, que es el combinado)."""
+    db = get_db()
+    usuarios = _usuarios_para_exportar(db)
     db.close()
+
+    buf, download_name = generar_excel_usuarios_a_contactar(usuarios)
+    return send_file(buf,
+                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      as_attachment=True, download_name=download_name)
+
+
+@bp.route('/usuarios/exportar', methods=['POST'])
+@admin_required
+def usuarios_exportar():
+    """Pedido de Daniel 03/08/2026 (2da vuelta): en vez de 2 pasos separados
+    ("Importar comentarios" y después "Exportar"), un solo click. El botón
+    "Exportar" de la tabla ahora pregunta (confirm de JS, ver usuarios.html)
+    si Daniel tiene un Excel anterior con comentarios para sumar:
+      - Si elige un archivo: esta ruta primero llama a
+        _importar_comentarios_xlsx() (mismos comentarios guardados en la
+        base) y RECIÉN DESPUÉS genera y devuelve el Excel nuevo -- ya con
+        esos comentarios adentro -- todo en una sola respuesta/descarga.
+      - Si cancela el picker: el JS del template ni siquiera pega acá, va
+        directo a usuarios_exportar_contactar() (GET, sin archivo).
+    No hay forma de que el servidor "busque solo" el Excel anterior en la
+    compu de Daniel -- ningún navegador permite leer archivos locales sin
+    que el usuario los elija (restricción de seguridad, no una limitación
+    de esta implementación). Este flujo es lo más cercano a "un solo click"
+    que se puede lograr respetando esa restricción."""
+    archivo = request.files.get('excel')
+    db = get_db()
+    if archivo and archivo.filename:
+        ok, error, actualizados = _importar_comentarios_xlsx(db, archivo)
+        if not ok:
+            db.close()
+            flash(error, 'error')
+            return redirect(url_for('admin.usuarios'))
+
+    usuarios = _usuarios_para_exportar(db)
+    db.close()
+
+    buf, download_name = generar_excel_usuarios_a_contactar(usuarios)
+    return send_file(buf,
+                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      as_attachment=True, download_name=download_name)
+
+
+@bp.route('/usuarios/importar-comentarios', methods=['POST'])
+@admin_required
+def usuarios_importar_comentarios():
+    """Guarda comentarios de un Excel anterior SIN exportar uno nuevo al
+    toque (por si Daniel solo quiere ir bancando el progreso de las llamadas
+    sin necesitar un Excel fresco en ese momento). El flujo de 1 solo click
+    (importar + exportar juntos) es usuarios_exportar() arriba -- ver ese
+    docstring para el detalle completo de por qué existe la subida manual."""
+    archivo = request.files.get('excel')
+    if not archivo or not archivo.filename:
+        flash('Elegí primero el Excel que ya tenés con los comentarios anotados.', 'error')
+        return redirect(url_for('admin.usuarios'))
+
+    db = get_db()
+    ok, error, actualizados = _importar_comentarios_xlsx(db, archivo)
+    db.close()
+    if not ok:
+        flash(error, 'error')
+        return redirect(url_for('admin.usuarios'))
 
     if actualizados:
         flash(f'{actualizados} comentario(s) guardado(s). El próximo Excel que exportes ya '
