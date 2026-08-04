@@ -241,15 +241,20 @@ def _usuarios_para_exportar(db):
 
 
 def _importar_comentarios_xlsx(db, archivo):
-    """Lee las hojas "Vencidos"/"Abonados" de `archivo` (un .xlsx ya anotado
-    por Daniel) por nombre de columna (Email/Comentarios, no por posición
-    fija, para no romper si se reordenan) y guarda lo que encuentra en
-    users.comentario_seguimiento, matcheando por email. Solo pisa un
-    comentario si el texto cambió. Usada tanto por usuarios_importar_comentarios
-    (standalone) como por usuarios_exportar() (combinado en 1 solo click,
-    pedido de Daniel 03/08/2026 2da vuelta). Devuelve (ok, error_o_None,
-    cantidad_actualizados) -- NO cierra `db` ni hace commit final del export,
-    eso lo maneja quien la llama."""
+    """Lee TODAS las hojas de `archivo` (un .xlsx ya anotado por Daniel) que
+    tengan columnas "Email" y "Comentarios" -- no una lista fija de nombres
+    de hoja, así funciona sea cual sea la hoja desde donde Daniel contactó
+    (Vencidos, Abonados, Todos los usuarios, A/B/C/D -- todas las tienen
+    desde 03/08/2026 2da vuelta, pedido de Daniel: quiere que el comentario
+    se mantenga sin importar desde qué hoja/segmento contactó a cada uno).
+    Detecta las columnas por nombre de encabezado, no por posición fija, para
+    no romper si alguna hoja las reordena. Guarda en users.comentario_seguimiento,
+    matcheando por email (case-insensitive). Solo pisa un comentario si el
+    texto cambió. La hoja "Leer primero" se salta sola (no tiene esos
+    encabezados). Usada tanto por usuarios_importar_comentarios (standalone)
+    como por usuarios_exportar() (combinado en 1 solo click). Devuelve (ok,
+    error_o_None, cantidad_actualizados) -- NO cierra `db`, eso lo maneja
+    quien la llama."""
     if not archivo.filename.lower().endswith('.xlsx'):
         return False, 'Tiene que ser un .xlsx -- el mismo que bajaste con "Exportar".', 0
     try:
@@ -259,11 +264,12 @@ def _importar_comentarios_xlsx(db, archivo):
 
     hoy_str = date.today().isoformat()
     actualizados = 0
-    for nombre_hoja in ('Vencidos', 'Abonados'):
-        if nombre_hoja not in wb_in.sheetnames:
-            continue
+    for nombre_hoja in wb_in.sheetnames:
         ws = wb_in[nombre_hoja]
-        headers = [c.value for c in next(ws.iter_rows(min_row=1, max_row=1))]
+        primera_fila = next(ws.iter_rows(min_row=1, max_row=1), None)
+        if primera_fila is None:
+            continue
+        headers = [c.value for c in primera_fila]
         if 'Email' not in headers or 'Comentarios' not in headers:
             continue
         col_email = headers.index('Email')
@@ -375,8 +381,7 @@ def usuarios_importar_comentarios():
         flash(f'{actualizados} comentario(s) guardado(s). El próximo Excel que exportes ya '
               f'va a salir con estos comentarios cargados.', 'success')
     else:
-        flash('No se encontró ningún comentario nuevo para trasladar en las hojas '
-              '"Vencidos"/"Abonados" de ese archivo.', 'success')
+        flash('No se encontró ningún comentario nuevo para trasladar en ese archivo.', 'success')
     return redirect(url_for('admin.usuarios'))
 
 

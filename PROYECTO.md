@@ -45,6 +45,14 @@ En criollo: Daniel exporta → llama y anota en el Excel bajado → sube ESE mis
 
 **⚠️ Pendiente: SIN COMMITEAR.**
 
+**Addendum (mismo día, 3ra vuelta) — Daniel pidió extender la columna "Comentarios" a TODAS las hojas:** aclaró que también contacta gente desde "Todos los usuarios" y los segmentos A/B/C/D, no solo desde Vencidos/Abonados, y quiere que el comentario se mantenga sin importar desde qué hoja contactó a cada uno. Se agregó "Comentarios" a `HEADERS_TODOS` y `HEADERS_SEGMENTO` (además de los ya existentes en Vencidos/Abonados) en `utils/exportar_contactos.py` -- sigue siendo UN solo campo por usuario (`users.comentario_seguimiento`), simplemente ahora se muestra en cualquier hoja donde ese usuario aparezca. `_importar_comentarios_xlsx()` en `routes/admin.py` ya no busca solo en hojas llamadas "Vencidos"/"Abonados" -- ahora recorre TODAS las hojas del Excel subido y procesa cualquiera que tenga columnas "Email" + "Comentarios" (detectadas por nombre de encabezado, no por posición), así que no importa desde cuál Daniel anotó.
+
+**Archivos tocados:** `utils/exportar_contactos.py`, `routes/admin.py`, `templates/admin/usuarios.html` (texto del confirm, ya no menciona hojas puntuales).
+
+**Verificado:** se creó un usuario que cae en Segmento B (1 presupuesto) y NO en Vencidos/Abonados -- se confirmó que "Comentarios" aparece vacía en "Todos los usuarios" y en "B - 1 presup o borrador" en el 1er export; se anotó el comentario a mano en la hoja de Segmento B (no en Vencidos/Abonados); se corrió `_importar_comentarios_xlsx()` real (1 actualizado); se volvió a exportar y el comentario apareció en AMBAS hojas ("Todos los usuarios" y "B") en el 2do export. `ast.parse`/Jinja2 OK.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+
 ---
 
 ### ✅ CONFIRMADO: cont. 13 a 17 COMMITEADOS Y PUSHEADOS

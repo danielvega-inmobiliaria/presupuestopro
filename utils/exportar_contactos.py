@@ -63,19 +63,27 @@ WA_CTA = (f"\n\nPodés responder este mail directamente, o si preferís, "
 
 HEADERS_SEGMENTO = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Estado activación", "Creado", "Vence",
-                     "Mensaje WhatsApp sugerido", "Mensaje email sugerido"]
+                     "Mensaje WhatsApp sugerido", "Mensaje email sugerido", "Comentarios"]
 
 HEADERS_TODOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                   "Presup.", "Borr.", "Costo/m²", "Estado activación", "Segmento",
-                  "Creado", "Vence"]
+                  "Creado", "Vence", "Comentarios"]
 
-# Agregado 03/08/2026, pedido de Daniel: hojas "Vencidos" y "Abonados", cada
-# una con columna "Comentarios" para anotar, llamada por llamada, la causa
-# del uso escaso/nulo. Ver generar_excel_usuarios_a_contactar() para el
-# criterio exacto de cada hoja (mismo que ya usa el resto de la app --
+# Agregado 03/08/2026, pedido de Daniel: columna "Comentarios" para anotar,
+# llamada por llamada, la causa del uso escaso/nulo -- en TODAS las hojas
+# (no solo Vencidos/Abonados, que fue la 1ra versión: Daniel aclaró que
+# también contacta gente de "Todos los usuarios" y de los segmentos A/B/C/D,
+# y quiere que el comentario se mantenga igual sea cual sea la hoja/segmento
+# desde donde contactó). Se guarda siempre en el mismo campo de la base
+# (users.comentario_seguimiento) -- no hay una columna por hoja, es UN
+# comentario por usuario que se muestra en cualquier hoja donde ese usuario
+# aparezca. Ver generar_excel_usuarios_a_contactar() para el criterio exacto
+# de Vencidos/Abonados (mismo que ya usa el resto de la app --
 # subscription_expires/es_trial/active -- en routes/pagos.py y el dashboard
-# de Admin) y routes/admin.py::usuarios_importar_comentarios() para cómo
-# vuelven los comentarios anotados a la base para la próxima exportación.
+# de Admin) y routes/admin.py::_importar_comentarios_xlsx() para cómo
+# vuelven los comentarios anotados a la base para la próxima exportación
+# (lee CUALQUIER hoja que tenga columnas Email + Comentarios, no una lista
+# fija de nombres de hoja).
 HEADERS_VENCIDOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Tipo", "Venció el", "Comentarios"]
 
@@ -200,6 +208,7 @@ def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], estado, (u['created_at'] or '')[:10],
             u['subscription_expires'] or '∞', wa_msg, email_msg,
+            u['comentario_seguimiento'] or '',
         ]
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
@@ -207,7 +216,7 @@ def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 12, 12, 55, 55]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 12, 12, 55, 55, 55]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -227,7 +236,7 @@ def _escribir_hoja_todos(ws, usuarios):
             u['nombre'] or '—', u['email'], u['telefono'] or '', u['ciudad'] or '',
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], estado, _segmento(u), (u['created_at'] or '')[:10],
-            u['subscription_expires'] or '∞',
+            u['subscription_expires'] or '∞', u['comentario_seguimiento'] or '',
         ]
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
@@ -235,7 +244,7 @@ def _escribir_hoja_todos(ws, usuarios):
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 32, 12, 12]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 32, 12, 12, 55]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -365,12 +374,13 @@ def generar_excel_usuarios_a_contactar(usuarios):
          "(columna 'Tipo' distingue cuál de las dos).", notas_font),
         ("Hoja 'Abonados': cuentas pagas y activas ahora mismo -- las que sí están "
          "pagando la suscripción.", notas_font),
-        ("'Vencidos' y 'Abonados' traen una columna 'Comentarios' para anotar, llamada "
-         "por llamada, la causa del uso escaso o nulo. Lo que escribas ahí NO se guarda "
-         "solo -- cuando termines de anotar, subí este mismo Excel con el botón "
-         "'Importar comentarios' (al lado de 'Exportar', en Admin > Usuarios). Recién "
-         "ahí queda guardado en la base, y el PRÓXIMO Excel que exportes ya sale con "
-         "esos comentarios precargados.", notas_font),
+("TODAS las hojas (incluidas 'Todos los usuarios' y los segmentos A/B/C/D) "
+         "traen una columna 'Comentarios' para anotar, llamada por llamada, la causa "
+         "del uso escaso o nulo -- da igual desde qué hoja contactaste a cada uno, es "
+         "el mismo comentario en cualquier lado donde aparezca. Lo que escribas ahí NO "
+         "se guarda solo -- al tocar 'Exportar' de nuevo, elegí este mismo Excel cuando "
+         "te lo pregunte y los comentarios se suman a la base antes de bajar el "
+         "siguiente, que ya sale con todo precargado.", notas_font),
         ("Hoja 'A - Sin validar email': cuentas con email_verificado=0.", notas_font),
         ("Hoja 'B - 1 presup o borrador': cuentas validadas con exactamente 1 "
          "presupuesto o borrador en total.", notas_font),
