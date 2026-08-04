@@ -65,6 +65,20 @@
       <i class="bi bi-compass"></i> Recorrido virtual
     </button>
     <a id="tour-costo-m2" href="{{ url_for('costo_m2.index') }}" class="btn2 btn2-2">Costo/m²</a>
+    {# Fix 04/08/2026 (cont. 20): botón "Instalar app" acá, igual de visible
+       que "Recorrido virtual" -- pedido de Daniel para no depender de que el
+       usuario encuentre la explicación en el menú. Gateado server-side por
+       instalar_prompt_visto: una vez usado (click en cualquiera de los 2
+       botones -- este o el del menú -- ver /instalar-app/visto en
+       dashboard.py y la lógica JS en base.html) directamente no se vuelve a
+       renderizar, ni en este ni en próximos loads. Arranca oculto
+       (style="display:none") -- lo muestra base.html vía JS solo si
+       corresponde (no está ya instalada como PWA). #}
+    {% if user and not user.instalar_prompt_visto %}
+    <button type="button" id="btn-instalar-app-dash" class="btn2 btn2-min" style="display:none" title="Agregar el ícono de PresupuestoPRO a tu pantalla de inicio">
+      <i class="bi bi-download"></i> Instalar app
+    </button>
+    {% endif %}
   </div>
 
   {# ─── BORRADORES ────────────────────────────────────────────────────────── #}

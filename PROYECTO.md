@@ -13,7 +13,33 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 03/08/2026 — 23:10 ART_
+_Última actualización: 04/08/2026 — 09:22 ART_
+
+### ✅ CONFIRMADO: cont. 20 (1er bloque — bienvenida/instalar-auto/recordatorio/tracking de mails) COMMITEADO Y PUSHEADO
+`git log`/`git rev-list --left-right --count origin/main...HEAD` confirman `main` sincronizado 1:1 con `origin/main` (0/0) y el commit `3984d65` ("cont.20: fallback cliente tour, Excel Usuarios (Vencidos/Abonados/comentarios), onboarding automatico y tracking de mails") ya en `origin/main`. Todo lo marcado como "⚠️ SIN COMMITEAR" en las entradas de cont. 13 a 20-1er-bloque de abajo ya está en producción.
+
+### 🟡 CIERRE 04/08/2026 (mismo día, cont. 20 — 2do bloque) — Docs de instalación corregidas con celular real + botón "Instalar app" visible en el Dashboard ⚠️ SIN COMMITEAR
+
+**1) Correcciones de instalación iOS/Android, confirmadas por Daniel con capturas de su propio celular** (la explicación anterior tenía pasos genéricos/incorrectos):
+- **iPhone/Safari:** el ícono de compartir está ARRIBA al lado de la URL (no abajo); "Agregar a pantalla de inicio" está escondido detrás del símbolo "V" ("Ver más"), aparece en el segundo bloque de acciones después de "Imprimir" — no en la primera pantalla del panel de compartir (esa muestra contactos de AirDrop/Mensajes/Mail).
+- **Android/Chrome:** el ítem real del menú dice **"Instalar y crear..."** (con ícono de pantalla con flechita), no "Instalar app" — se dejó como texto principal, con las otras variantes ("Instalar app"/"Agregar a pantalla de inicio") como aclaración por si cambia con la versión de Chrome.
+- Corregido en 2 lugares que tenían que quedar idénticos: el modal de `templates/base.html` (`#pasos-ios`/`#pasos-android`) y `templates/manual.html` (Punto 10, mismo contenido duplicado a mano por ser 2 templates separados).
+
+**2) Botón "Instalar app" visible en el Dashboard (reemplaza el auto-popup a los 3s del 1er bloque):** pedido de Daniel — en vez de que instalar dependa de encontrar la explicación escondida en el menú de usuario, un botón a la vista, igual de prominente que "Recorrido virtual", que desaparezca solo una vez usado.
+- `templates/dashboard.html`: nuevo botón `#btn-instalar-app-dash` en la misma fila que "+ Nuevo presupuesto"/"Recorrido virtual"/"Costo/m²", gateado **server-side** con `{% if user and not user.instalar_prompt_visto %}` — una vez usado, directamente deja de renderizarse (no es solo ocultar con CSS).
+- `templates/base.html`: se sacó el auto-popup a los 3s del 1er bloque (aparecer solo, sin que el usuario lo pida, era más sorpresivo que útil) y se unificó toda la lógica de mostrar/ocultar/click entre el `<li>` del menú y el botón nuevo del Dashboard (mismos eventos `beforeinstallprompt`/`appinstalled`, mismo fallback de 2.5s, mismo `abrirModal()`). Se agregó un chequeo de `data-instalar-visto==='1'` que faltaba en el bloque viejo — sin él, el `<li>` del menú (que siempre está en el DOM, a diferencia del botón del Dashboard que ahora no se renderiza) iba a seguir ofreciéndose en sesiones futuras aunque el usuario ya lo hubiera usado.
+- La ruta `POST /instalar-app/visto` (`routes/dashboard.py`, del 1er bloque) no cambió — la usan los 2 botones por igual.
+
+**Archivos tocados:** `templates/base.html`, `templates/dashboard.html`, `templates/manual.html`.
+
+**Verificado (funcional, no solo sintaxis):**
+- `node --check` OK sobre el bloque `<script>` completo de instalación en `base.html`.
+- Jinja2 parseó bien `base.html` y `dashboard.html`.
+- Flujo real con `create_app()` + `test_client()` + `login_user()` real (no simulado): usuario nuevo con `instalar_prompt_visto=0` → el HTML de `/` (Dashboard) trae `id="btn-instalar-app-dash"` → `POST /instalar-app/visto` → nuevo `GET /` confirma que el botón YA NO está en el HTML (gate server-side funcionando) y que `data-instalar-visto="1"` en el `<body>`.
+
+**⚠️ Pendiente: SIN COMMITEAR** (junto con lo ya commiteado en `3984d65`, este 2do bloque de cont. 20 queda aparte, listo para su propio commit).
+
+---
 
 ### ✅ CONFIRMADO: cont. 18 y 19 COMMITEADOS Y PUSHEADOS
 `git status`/`git log` sobre el repo real confirman `main` sincronizado con `origin/main` y los últimos 4 commits son justo los de hoy: `8899091` (fallback cliente tour), `3637ac3`/`ebe3543`/`a52f7ef` (Excel Usuarios, las 3 vueltas). Daniel confirmó "ya está todo deployado" — no hace falta re-pushear nada de cont. 18/19. Todo lo marcado como "⚠️ SIN COMMITEAR" en esas 2 entradas (y sus addendums) ya está en producción.
