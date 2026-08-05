@@ -200,11 +200,16 @@ def _mensaje_prueba_por_vencer(nombre):
 
 def _mensaje_suscripcion_vencida(nombre):
     """Agregado 20/07/2026, pedido de Daniel — trigger por ciclo de vida
-    (suscripción paga que no se renovó), no por uso."""
+    (suscripción paga que no se renovó), no por uso.
+    Actualizado 05/08/2026: texto espejado de la plantilla `retencion_suscripcion_vencida`
+    reformulada y aprobada por Meta el 04/08/2026 (enfoque de valor + link directo a planes,
+    en vez del enfoque de soporte/"¿tuviste una dificultad?" original)."""
     nombre = nombre or ''
-    wa = (f"Hola {nombre}! Notamos que tu suscripción a PresupuestoPRO venció y no "
-          f"se renovó. ¿Tuviste algún problema con el pago o alguna duda? Contanos "
-          f"— si querés reactivarla, te ayudamos.")
+    wa = (f"Hola {nombre}! Con PresupuestoPRO armás el presupuesto completo de tu obra "
+          f"—materiales, mano de obra y costo por m²— en minutos, con precios siempre "
+          f"actualizados contra corralones reales, así nunca te quedás corto. Reactivá tu "
+          f"suscripción y seguí ahorrando tiempo en cada obra: "
+          f"https://presupuestopro.com.ar/pagos/planes")
     email = (f"Hola {nombre}, notamos que tu suscripción a PresupuestoPRO venció. Si "
              f"tuviste algún problema con el pago o decidiste no continuar, nos "
              f"ayuda mucho que nos cuentes por qué. Y si querés reactivarla, avisanos." + WA_CTA)
