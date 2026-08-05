@@ -20,11 +20,20 @@ from database import get_db, recalcular_precio_mo_ars
 # dar de alta en Meta Business Manager para que esto funcione — ver
 # conversación del proyecto para el texto completo de cada una.
 TEMPLATES_WHATSAPP = {
-    'A': 'retencion_activar_cuenta',
+    # 05/08/2026: 'A' y 'trial' apuntan a plantillas NUEVAS en categoría
+    # Marketing (retencion_activar_cuenta_promo / retencion_prueba_por_vencer_promo)
+    # -- las viejas Utility (retencion_activar_cuenta / retencion_prueba_por_vencer)
+    # quedaron sin usar acá porque Meta no deja editar una plantilla activa
+    # cambiándole la categoría (error real: "Category update is only allowed
+    # when updating from old Categories to new ones"). NO DEPLOYAR este cambio
+    # hasta que las 2 plantillas nuevas estén APROBADAS en Meta -- si se manda
+    # con el nombre nuevo antes de que exista/apruebe, el envío falla con
+    # el mismo error 132001 que ya se vio el 21/07.
+    'A': 'retencion_activar_cuenta_promo',
     'B': 'retencion_primer_presupuesto',
     'C': 'retencion_sin_uso',
     'D': 'retencion_solo_costo_m2',
-    'trial': 'retencion_prueba_por_vencer',
+    'trial': 'retencion_prueba_por_vencer_promo',
     'vencido': 'retencion_suscripcion_vencida',
 }
 
