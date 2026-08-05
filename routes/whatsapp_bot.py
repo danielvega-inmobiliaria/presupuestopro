@@ -589,6 +589,30 @@ def recibir_mensaje():
             _actualizar_sesion(telefono)
             return '', 200
 
+        # Bug detectado 05/08/2026 (UNIFICACION): imágenes, PDFs u otros tipos
+        # que no sean texto/interactivo (ej. comprobante de pago) hacían que
+        # `texto` quedara vacío y la función cortara acá sin guardar nada ni
+        # avisar a nadie — el mensaje se perdía en silencio, invisible en
+        # Admin. Ahora se guarda para revisión manual y se avisa al usuario.
+        if tipo != 'text':
+            detalle = msg.get(tipo) or {}
+            caption = detalle.get('caption', '') if isinstance(detalle, dict) else ''
+            filename = detalle.get('filename', '') if isinstance(detalle, dict) else ''
+            partes = [f"[Mensaje tipo {tipo} recibido, no se procesa automáticamente]"]
+            if filename:
+                partes.append(f"archivo: {filename}")
+            if caption:
+                partes.append(f"caption: {caption}")
+            _guardar_consulta_sin_responder(telefono, ' '.join(partes))
+            enviar_mensaje_whatsapp(
+                telefono,
+                "Recibimos tu imagen/archivo. Todavía no puedo leerlo automáticamente, "
+                "pero lo anoté para que el equipo lo revise. Si podés, contanos también "
+                "por texto de qué se trata (ej. \"comprobante de pago\").",
+            )
+            _actualizar_sesion(telefono)
+            return '', 200
+
         texto = (msg.get('text') or {}).get('body', '')
         if not texto:
             return '', 200
