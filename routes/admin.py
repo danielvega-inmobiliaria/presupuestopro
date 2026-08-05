@@ -214,8 +214,19 @@ def usuarios():
     # Fix 12/07/2026: antes ordenaba por uso (veces_usada DESC) -> las
     # sugerencias del filtro de Localidad aparecían desordenadas. Pedido de
     # Daniel: alfabético, para elegir más fácil desde el celular.
-    localidades_lista = [r['nombre_display'] for r in db.execute(
-        "SELECT nombre_display FROM localidades WHERE merged_en='' ORDER BY nombre_display COLLATE NOCASE ASC"
+    # Fix 05/08/2026 (bug reportado por Daniel): esta lista salía de la tabla
+    # `localidades`, que solo se mantiene sincronizada cuando la ciudad se
+    # carga por registro (`_guardar_localidad`) o se toca desde Admin >
+    # Localidades (renombrar/fusionar). `usuario_editar` (editar un usuario a
+    # mano desde Admin > Usuarios) actualiza `users.ciudad` directo, sin tocar
+    # `localidades` — así quedó el caso de Claudio: se corrigió su ciudad de
+    # "T" a "Tostado", pero el filtro seguía ofreciendo "T" porque esa fila
+    # vieja nunca se actualizó ni se borró de `localidades`. Se cambia la
+    # fuente del filtro a `users.ciudad` en vivo (DISTINCT) — así siempre
+    # coincide con lo que realmente tiene cargado cada usuario, sin importar
+    # por dónde se haya editado, y no depende de mantener 2 tablas en sync.
+    localidades_lista = [r['ciudad'] for r in db.execute(
+        "SELECT DISTINCT ciudad FROM users WHERE is_admin=0 AND ciudad != '' ORDER BY ciudad COLLATE NOCASE ASC"
     ).fetchall()]
     db.close()
 

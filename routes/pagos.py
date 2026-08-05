@@ -116,7 +116,25 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
 
 
 def _activar_suscripcion(db, user_id, payment_id, meses=1):
-    """Activa o renueva la suscripcion del usuario por N meses."""
+    """Activa o renueva la suscripcion del usuario por N meses.
+
+    Fix 05/08/2026 (bug reportado por Daniel: pagó 1 mes y le quedó vencimiento
+    a 2 meses). Causa: un mismo pago aprobado dispara ESTA función 2 veces —
+    una vez desde /retorno (cuando MP redirige al navegador del usuario con
+    status=approved) y otra vez desde /webhook (notificación server-to-server
+    de MP), sin ninguna verificación de que ya se había procesado. Cada
+    llamada suma 30*meses días sobre el vencimiento actual (`base = max(...)`
+    ya toma el valor recién actualizado por la primera llamada), así que 1
+    pago aprobado terminaba sumando 60 días en vez de 30. Fix: si ya existe
+    una fila en `suscripciones` con este mismo `payment_id`, no se vuelve a
+    sumar (idempotente por pago) — solo una renovación real (pago nuevo, con
+    payment_id distinto el mes que viene) vuelve a extender la fecha."""
+    ya_procesado = db.execute(
+        "SELECT 1 FROM suscripciones WHERE mp_preapproval_id=?", (str(payment_id),)
+    ).fetchone()
+    if ya_procesado:
+        logger.info(f"[MP] payment_id {payment_id} ya procesado antes, no se vuelve a sumar vencimiento (usuario {user_id}).")
+        return
     hoy = date.today()
     user = db.execute("SELECT email, nombre, subscription_expires FROM users WHERE id=?", (user_id,)).fetchone()
     if user and user['subscription_expires']:

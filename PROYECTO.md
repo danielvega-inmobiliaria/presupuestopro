@@ -13,7 +13,35 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 04/08/2026 — 09:22 ART_
+_Última actualización: 05/08/2026 — 15:16 ART_
+
+### 🟡 CIERRE 05/08/2026 (cont. 21) — 2 bugs de Admin > Usuarios reportados por Daniel, corregidos ⚠️ SIN COMMITEAR
+
+**1) Filtro de Localidad no reflejaba la corrección manual de un usuario (caso Claudio/Tostado).**
+- **Causa:** el filtro de Localidad en Admin > Usuarios se armaba desde la tabla `localidades` (autocompletado), que solo se mantiene sincronizada cuando la ciudad se carga por registro (`_guardar_localidad`) o se toca desde Admin > Localidades (renombrar/fusionar). `usuario_editar` (editar un usuario a mano) actualiza `users.ciudad` directo, sin tocar `localidades` — la fila vieja "T" nunca se actualizó ni se borró, por eso el filtro la seguía ofreciendo aunque Claudio ya tenía "Tostado" cargado.
+- **Fix:** `routes/admin.py::usuarios()` — la lista del filtro ahora sale de `SELECT DISTINCT ciudad FROM users` (en vivo), no de la tabla `localidades`. Así siempre coincide con lo que cada usuario tiene cargado de verdad, sin importar por dónde se editó, y no depende de mantener 2 tablas sincronizadas (no puede volver a desincronizarse).
+- **Verificado:** simulación con sqlite real (no mockeada) — usuario con `ciudad='T'` → filtro ofrece `['T']` → se edita a `'Tostado'` (mismo UPDATE que usa `usuario_editar`) → filtro pasa a `['Tostado']`, sin `'T'`.
+
+**2) Vencimiento de suscripción se duplicaba (pagó 1 mes, quedó vencimiento a 2 meses).**
+- **Causa:** `_activar_suscripcion()` se dispara 2 veces para el mismo pago aprobado — una desde `/pagos/retorno` (cuando MP redirige al navegador del usuario) y otra desde `/pagos/webhook` (notificación server-to-server de MP) — sin ninguna verificación de que ya se había procesado. Cada llamada suma `30*meses` días sobre el vencimiento actual, y la 2da llamada toma como base el vencimiento que ya había dejado la 1ra (`base = max(vencimiento_actual, hoy)`), así que 1 pago real terminaba sumando 60 días en vez de 30. Coincide exacto con lo reportado por Daniel: pagó el 05/08, esperaba ~04/09, le quedó 04/10 (60 días).
+- **Fix:** `routes/pagos.py::_activar_suscripcion()` — al inicio, si ya existe una fila en `suscripciones` con ese mismo `payment_id` (`mp_preapproval_id`), no se vuelve a sumar (idempotente por pago). Una renovación real el mes que viene tiene `payment_id` distinto, así que sí extiende de nuevo con normalidad.
+- **Verificado:** simulación con sqlite real — mismo `payment_id` llamado 2 veces (simulando retorno+webhook) → 2da llamada se saltea, vencimiento queda en +30 días (no +60); `payment_id` nuevo al mes siguiente → sí extiende otros 30 días.
+- **Pendiente manual (no lo puedo hacer desde acá, no tengo acceso a la base de producción):** la propia suscripción de Daniel ya quedó mal cargada en la base real (vencimiento a 2 meses en vez de 1) — falta corregir ese registro a mano en la base de producción si corresponde.
+
+**Archivos tocados:** `routes/admin.py`, `routes/pagos.py`.
+
+**Verificado (funcional, no solo sintaxis):** `ast.parse` OK en los 2 archivos. Lógica de ambos fixes simulada con sqlite real (in-memory), no solo revisada a ojo — ver detalle arriba en cada bug.
+
+**⚠️ Pendiente: SIN COMMITEAR.**
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/admin.py routes/pagos.py PROYECTO.md
+git commit -m "cont.21: fix filtro Localidad desincronizado + fix doble suma de vencimiento en pagos (webhook+retorno)"
+git push
+```
+
+---
 
 ### ✅ CONFIRMADO: cont. 20 (1er bloque — bienvenida/instalar-auto/recordatorio/tracking de mails) COMMITEADO Y PUSHEADO
 `git log`/`git rev-list --left-right --count origin/main...HEAD` confirman `main` sincronizado 1:1 con `origin/main` (0/0) y el commit `3984d65` ("cont.20: fallback cliente tour, Excel Usuarios (Vencidos/Abonados/comentarios), onboarding automatico y tracking de mails") ya en `origin/main`. Todo lo marcado como "⚠️ SIN COMMITEAR" en las entradas de cont. 13 a 20-1er-bloque de abajo ya está en producción.
