@@ -13,9 +13,36 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 05/08/2026 — 15:16 ART_
+_Última actualización: 05/08/2026 — 16:42 ART_
 
-### 🟡 CIERRE 05/08/2026 (cont. 21) — 2 bugs de Admin > Usuarios reportados por Daniel, corregidos ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 05/08/2026 (cont. 21 — 2do bloque) — Validación de teléfono (no aceptar un email pegado ahí) ⚠️ SIN COMMITEAR
+
+Daniel detectó en Admin > Usuarios un usuario (Cristian) con el mismo email pegado en el campo Teléfono/WhatsApp (se veía duplicado: mismo texto en el ícono de mail y en el de WhatsApp).
+
+- **Causa:** el campo teléfono nunca tuvo validación de formato, en ningún punto de carga — solo se chequeaba que no viniera vacío (registro público) o directamente no se chequeaba nada (Admin > Usuarios nuevo/editar, Mi Empresa).
+- **Fix:** nueva función `utils/normalizacion.py::telefono_valido()` — rechaza texto con letras o "@", y exige entre 8 y 15 dígitos (no valida un formato de país específico a propósito, pensando en la expansión regional del HUB). Aplicada en los 3 puntos donde se carga/edita un teléfono:
+  - `routes/landing.py::registro()` — obligatorio, si no es válido no deja registrarse (mismo patrón que los demás campos obligatorios).
+  - `routes/admin.py::usuario_nuevo()` / `usuario_editar()` — opcional pero si viene cargado tiene que ser válido, si no flash de error y vuelve al formulario.
+  - `routes/perfil.py::guardar()` (teléfono de "Mi Empresa", el que sale impreso en los PDFs) — mismo criterio opcional.
+- **Verificado:** `ast.parse` OK en los 4 archivos. `telefono_valido()` probado con 9 casos reales (el email del bug reportado, formatos AR típicos con +54/espacios/guiones/paréntesis, texto corto, nombre, mezcla letras+números) — los 9 dieron el resultado esperado.
+- **Pendiente manual (no lo puedo hacer desde acá, no tengo acceso a la base de producción):** el registro de Cristian ya quedó cargado mal en la base real — hay que corregirlo a mano desde Admin > Usuarios > Editar con su teléfono real. Con el fix ya puesto, si se intenta guardar de nuevo con el email pegado ahí, el sistema ahora sí lo va a rechazar.
+
+**Archivos tocados:** `utils/normalizacion.py`, `routes/landing.py`, `routes/admin.py`, `routes/perfil.py`.
+
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add utils/normalizacion.py routes/landing.py routes/admin.py routes/perfil.py PROYECTO.md
+git commit -m "cont.21 (2do bloque): validar formato de telefono en registro, Admin > Usuarios y Mi Empresa (evita pegar un email ahi)"
+git push
+```
+
+---
+
+### ✅ CONFIRMADO: cont. 21 (1er bloque) COMMITEADO Y PUSHEADO
+Commit `82f4582` ("cont.21: fix filtro Localidad desincronizado + fix doble suma de vencimiento en pagos") ya en `origin/main`, confirmado por Daniel. Los 2 bugs de Admin > Usuarios (filtro Localidad y vencimiento duplicado) están en producción.
+
+---
 
 **1) Filtro de Localidad no reflejaba la corrección manual de un usuario (caso Claudio/Tostado).**
 - **Causa:** el filtro de Localidad en Admin > Usuarios se armaba desde la tabla `localidades` (autocompletado), que solo se mantiene sincronizada cuando la ciudad se carga por registro (`_guardar_localidad`) o se toca desde Admin > Localidades (renombrar/fusionar). `usuario_editar` (editar un usuario a mano) actualiza `users.ciudad` directo, sin tocar `localidades` — la fila vieja "T" nunca se actualizó ni se borró, por eso el filtro la seguía ofreciendo aunque Claudio ya tenía "Tostado" cargado.

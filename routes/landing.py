@@ -26,7 +26,7 @@ from flask import Blueprint, g, redirect, render_template, request, url_for
 from database import get_db
 from utils.auth import login_user, login_required
 from utils.trial import TRIAL_MAX_DIAS, TRIAL_MAX_PRESUPUESTOS
-from utils.normalizacion import PROVINCIAS_AR, clave_normalizada, telefono_normalizado
+from utils.normalizacion import PROVINCIAS_AR, clave_normalizada, telefono_normalizado, telefono_valido
 from utils.email_tracking import registrar_envio
 from utils.verificacion import (
     crear_codigo, enviar_codigo_email, enviar_codigo_whatsapp,
@@ -147,6 +147,8 @@ def registro():
         return _error("Completá los campos obligatorios.")
     if not telefono:
         return _error("Completá tu teléfono / WhatsApp.")
+    if not telefono_valido(telefono):
+        return _error("Ingresá un teléfono válido (solo números, sin letras ni email).")
     if not ciudad:
         return _error("Completá tu ciudad.")
     if not provincia:

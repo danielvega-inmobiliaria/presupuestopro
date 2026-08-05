@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash
 from openpyxl import load_workbook
 from utils.auth import admin_required
 from utils.calculations import PAISES
-from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado
+from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado, telefono_valido
 from utils.exportar_contactos import (
     generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D,
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
@@ -978,6 +978,11 @@ def usuario_nuevo():
         password  = request.form.get('password', '')
         pais      = request.form.get('pais', 'AR')
         vence     = request.form.get('subscription_expires', '')
+        # Fix 05/08/2026: Daniel detectó un usuario con el email pegado en el
+        # campo Teléfono/WhatsApp — no había ninguna validación de formato acá.
+        if telefono and not telefono_valido(telefono):
+            flash('El teléfono no es válido (solo números, sin letras ni email).', 'error')
+            return redirect(url_for('admin.usuario_nuevo'))
         db = get_db()
         try:
             db.execute(
@@ -1011,6 +1016,12 @@ def usuario_editar(uid):
         active    = 1 if request.form.get('active') else 0
         vence     = request.form.get('subscription_expires', '')
         new_pw    = request.form.get('password', '').strip()
+        # Fix 05/08/2026: mismo chequeo que en usuario_nuevo (ver docstring de
+        # telefono_valido) — evita guardar un email u otro texto en el campo.
+        if telefono and not telefono_valido(telefono):
+            db.close()
+            flash('El teléfono no es válido (solo números, sin letras ni email).', 'error')
+            return redirect(url_for('admin.usuario_editar', uid=uid))
         if new_pw:
             db.execute(
                 "UPDATE users SET nombre=?, telefono=?, ciudad=?, provincia=?, pais=?, active=?, subscription_expires=?, password_hash=? WHERE id=?",

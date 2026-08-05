@@ -108,3 +108,23 @@ def telefono_normalizado(telefono):
         return ''
     solo_digitos = re.sub(r'\D', '', telefono)
     return solo_digitos[-10:] if len(solo_digitos) >= 8 else solo_digitos
+
+
+def telefono_valido(telefono):
+    """Valida que el texto ingresado sea un teléfono plausible. Fix 05/08/2026
+    — Daniel detectó en Admin > Usuarios un usuario que había puesto su email
+    en el campo Teléfono/WhatsApp (se ve duplicado: mismo texto en el ícono de
+    mail y en el de WhatsApp). Causa: nunca hubo validación de formato en ese
+    campo, en ningún punto de carga — solo se chequeaba que no viniera vacío.
+
+    No es una validación estricta de un formato de país en particular (la app
+    apunta a expansión regional, no solo AR — ver PRESUPUESTOPRO_HUB.md) —
+    solo descarta texto que claramente NO es un teléfono: letras, "@", o una
+    cantidad de dígitos fuera de cualquier rango plausible de teléfono real
+    (8 a 15 dígitos, tope de la norma E.164)."""
+    if not telefono:
+        return False
+    if '@' in telefono or re.search(r'[a-zA-Z]', telefono):
+        return False
+    solo_digitos = re.sub(r'\D', '', telefono)
+    return 8 <= len(solo_digitos) <= 15

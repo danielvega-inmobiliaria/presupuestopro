@@ -2,6 +2,7 @@ import base64
 from flask import Blueprint, render_template, request, redirect, url_for, flash, g
 from werkzeug.security import check_password_hash, generate_password_hash
 from utils.auth import login_required
+from utils.normalizacion import telefono_valido
 from database import get_db
 
 bp = Blueprint('perfil', __name__, url_prefix='/perfil')
@@ -36,6 +37,13 @@ def guardar():
     telefono = request.form.get('telefono', '').strip()
     email    = request.form.get('email', '').strip()
     slogan   = request.form.get('slogan', '').strip()
+
+    # Fix 05/08/2026: mismo chequeo que en registro/Admin (ver docstring de
+    # telefono_valido) — este teléfono es el que se imprime en los PDFs de
+    # presupuesto, así que tampoco tiene que aceptar un email pegado ahí.
+    if telefono and not telefono_valido(telefono):
+        flash('El teléfono no es válido (solo números, sin letras ni email).', 'error')
+        return redirect(url_for('perfil.ver'))
 
     logo_data     = None
     logo_filename = None
