@@ -10,9 +10,9 @@ from utils.auth import admin_required
 from utils.calculations import PAISES
 from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado, telefono_valido
 from utils.exportar_contactos import (
-    generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D,
+    generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D, SEG_ACTIVO,
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
-    _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida,
+    _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida, _mensaje_checkin_activo,
 )
 from utils.email_tracking import registrar_envio, ETIQUETAS_EVENTO, SQL_MAIL_ESTADO, SQL_MAIL_ESTADO_FECHA
 from database import get_db, recalcular_precio_mo_ars
@@ -36,6 +36,13 @@ TEMPLATES_WHATSAPP = {
     'D': 'retencion_solo_costo_m2',
     'trial': 'retencion_prueba_por_vencer_promo',
     'vencido': 'retencion_suscripcion_vencida',
+    # 06/08/2026: plantilla NUEVA para la categoría "ESTUVO USANDO" (usuarios
+    # con 2+ presupuestos/borradores) -- FALTA CREARLA Y QUE LA APRUEBEN EN
+    # META antes de que el botón de WhatsApp funcione para este grupo (mismo
+    # requisito que el resto, ver aviso en la pantalla de Seguimiento). Hasta
+    # entonces el envío por WhatsApp para 'activo' va a dar error visible
+    # (no falla en silencio) -- el email sí funciona ya (usa Resend, no Meta).
+    'activo': 'retencion_checkin_usuario_activo',
 }
 
 MENSAJES_EMAIL = {
@@ -45,6 +52,7 @@ MENSAJES_EMAIL = {
     'D': _mensaje_solo_costo_m2,
     'trial': _mensaje_prueba_por_vencer,
     'vencido': _mensaje_suscripcion_vencida,
+    'activo': _mensaje_checkin_activo,
 }
 
 TIPO_LABEL = {
@@ -54,7 +62,72 @@ TIPO_LABEL = {
     'D': 'Solo Costo/m²',
     'trial': 'Prueba por vencer',
     'vencido': 'Suscripción vencida',
+    'activo': 'Check-in (usuario activo)',
 }
+
+# ── Seguimiento > Retención de usuarios (rediseño 06/08/2026, pedido de
+# Daniel) ────────────────────────────────────────────────────────────────
+# 5 categorías SIN superposición -- cada usuario cae en UNA sola. Reemplaza
+# la lista plana de antes (todos los "tipos" aplicables mezclados). Orden de
+# prioridad (lo más urgente primero): un usuario con suscripción vencida cae
+# en VENCIDOS aunque también tenga uso previo; uno con prueba por vencer cae
+# en POR_VENCER aunque nunca haya validado el email, etc. Confirmado con
+# Daniel: VENCIDOS junta prueba gratis vencida + suscripción paga vencida
+# (mismo criterio que ya usa el Excel/dashboard); POR_VENCER es SOLO prueba
+# gratis por terminar (hoy no hay noción de "pago que vence pronto", ver
+# nota en _categoria()).
+CATEGORIAS_SEGUIMIENTO = ['vencidos', 'por_vencer', 'sin_validar', 'nunca_probo', 'estuvo_usando']
+
+CATEGORIA_LABEL = {
+    'sin_validar':   'Sin validar',
+    'nunca_probo':   'Nunca probó',
+    'estuvo_usando': 'Estuvo usando',
+    'por_vencer':    'Por vencer',
+    'vencidos':      'Vencidos',
+}
+
+CATEGORIA_DESC = {
+    'sin_validar':   'No activaron la cuenta por mail todavía.',
+    'nunca_probo':   'Validaron la cuenta pero nunca hicieron un presupuesto ni usaron Costo/m².',
+    'estuvo_usando': 'Ya usaron la app (1+ presupuesto, borrador o Costo/m²) y no están por vencer ni vencidos.',
+    'por_vencer':    'Prueba gratis por terminar (3 días o menos, o último presupuesto disponible).',
+    'vencidos':      'Prueba gratis vencida sin convertir, o suscripción paga que no se renovó.',
+}
+
+
+def _categoria(fila):
+    """Devuelve UNA de las 5 categorías de CATEGORIAS_SEGUIMIENTO para esta
+    fila (ya con 'segmento'/'trial_por_vencer'/'suscripcion_vencida'
+    calculados por _usuarios_seguimiento())."""
+    if fila['suscripcion_vencida']:
+        return 'vencidos'
+    if fila['trial_por_vencer']:
+        return 'por_vencer'
+    if fila['segmento'] == SEG_A:
+        return 'sin_validar'
+    if fila['segmento'] == SEG_C:
+        return 'nunca_probo'
+    return 'estuvo_usando'  # SEG_B, SEG_D o SEG_ACTIVO
+
+
+def _tipo_mensaje(fila, categoria):
+    """Tipo de mensaje (clave de TEMPLATES_WHATSAPP/MENSAJES_EMAIL/TIPO_LABEL)
+    a usar para ESTA fila dentro de su categoría. Para 'estuvo_usando' varía
+    según el segmento real (B/D/activo) porque cada uno tiene un mensaje
+    distinto ya armado -- las otras 4 categorías son 1 a 1 con un tipo fijo."""
+    if categoria == 'sin_validar':
+        return 'A'
+    if categoria == 'nunca_probo':
+        return 'C'
+    if categoria == 'por_vencer':
+        return 'trial'
+    if categoria == 'vencidos':
+        return 'vencido'
+    if fila['segmento'] == SEG_B:
+        return 'B'
+    if fila['segmento'] == SEG_D:
+        return 'D'
+    return 'activo'
 
 SEG_A_CODE = {SEG_A: 'A', SEG_B: 'B', SEG_C: 'C', SEG_D: 'D'}
 
@@ -116,9 +189,9 @@ def dashboard():
     # segmento sale de utils.exportar_contactos._segmento — misma lógica
     # que usa esa pantalla, sin duplicar la regla acá.
     stats['seguimiento_pendientes'] = len([f for f in _usuarios_seguimiento() if f['tipos']])
-    proximos = db.execute(
-        "SELECT * FROM users WHERE subscription_expires >= date('now') AND is_admin=0 ORDER BY subscription_expires LIMIT 5"
-    ).fetchall()
+    # "Próximos vencimientos" sacado 06/08/2026, pedido de Daniel -- esa info
+    # ahora vive en Seguimiento (POR VENCER/VENCIDOS), con acciones en vez de
+    # ser solo una lista para mirar.
     # Fix 06/08/2026, pedido de Daniel: cuadro "Actividad de usuarios" --
     # conectados ahora (ventana de 5 min, ver utils/auth.py::get_current_user)
     # + gráfico de usuarios conectados por día (actividad_diaria, últimos 30
@@ -132,7 +205,7 @@ def dashboard():
     ).fetchall()
     chart_dias = [{'fecha': r['fecha'], 'cantidad': r['c']} for r in reversed(dias_rows)]
     db.close()
-    return render_template('admin/dashboard.html', stats=stats, proximos=proximos,
+    return render_template('admin/dashboard.html', stats=stats,
                             chart_dias=chart_dias, user=g.user)
 
 
@@ -518,23 +591,16 @@ _FLASH_BLOCK = """
 @bp.route('/seguimiento')
 @admin_required
 def seguimiento():
-    """Pedido de Daniel 20/07/2026: en vez de bajar la planilla, poder ver a
-    todos los usuarios con su segmento y mandarles el WhatsApp (plantilla
-    aprobada por Meta) o el email ya redactado, directo desde acá. Por
-    default solo muestra a quien tiene algo para hacer (algún tipo en
-    'tipos'); ?todos=1 muestra la lista completa igual que Admin > Usuarios.
-
-    Fix 21/07/2026 (pedido de Daniel): esta vista antes NO mostraba el
-    resultado de un envío -- flash() no se ve en nada si el template no lo
-    imprime, y esta pantalla al ser render_template_string standalone (no
-    extiende base.html) no traía ese bloque. Se agregó _FLASH_BLOCK acá y en
-    whatsapp_inbox por el mismo motivo. También se agregó Creado/Vence por
-    fila, y un link "Ver" a admin.seguimiento_detalle para poder repasar
-    toda la actividad del usuario y editar el mensaje antes de mandarlo."""
-    mostrar_todos = request.args.get('todos') == '1'
+    """Rediseño 06/08/2026, pedido de Daniel: reemplaza la lista plana de
+    antes (todos los usuarios accionables mezclados, con ?todos=1 para ver
+    el resto) por un landing con las 5 categorías de retención SIN
+    superposición (CATEGORIAS_SEGUIMIENTO/_categoria(), ver arriba) y su
+    cantidad -- entrando a cada una se ve la lista real con botones
+    "Mail a todos"/"WhatsApp a todos" (ver seguimiento_categoria)."""
     filas = _usuarios_seguimiento()
-    if not mostrar_todos:
-        filas = [f for f in filas if f['tipos']]
+    conteos = {c: 0 for c in CATEGORIAS_SEGUIMIENTO}
+    for f in filas:
+        conteos[_categoria(f)] += 1
 
     return render_template_string("""
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
@@ -542,29 +608,83 @@ def seguimiento():
 <title>Seguimiento - Admin</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-<style>
-  .badge-seg { font-size: .72rem; }
-</style>
+</head><body class="bg-light">
+<div class="container-fluid py-4" style="max-width:900px">
+  <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-2">Volver</a>
+  <h4 class="fw-bold mb-1">Seguimiento — Retención de usuarios</h4>
+  <p class="text-muted small mb-3">{{ total }} usuario{{ 's' if total != 1 else '' }} en total. Elegí una categoría para ver la lista y contactarlos.</p>
+  """ + _FLASH_BLOCK + """
+  <div class="row g-3">
+    {% for cat in categorias %}
+    <div class="col-6 col-md-4">
+      <a href="{{ url_for('admin.seguimiento_categoria', categoria=cat) }}" class="text-decoration-none">
+        <div class="card shadow-sm h-100 {{ 'border-danger' if cat=='vencidos' else ('border-warning' if cat=='por_vencer' else '') }}">
+          <div class="card-body text-center py-4">
+            <div class="display-6 fw-bold {{ 'text-danger' if cat=='vencidos' else ('text-warning' if cat=='por_vencer' else 'text-dark') }}">{{ conteos[cat] }}</div>
+            <div class="fw-semibold text-uppercase small mt-2">{{ cat_label[cat] }}</div>
+            <div class="text-muted small mt-1">{{ cat_desc[cat] }}</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+</div></body></html>
+""", categorias=CATEGORIAS_SEGUIMIENTO, conteos=conteos, cat_label=CATEGORIA_LABEL,
+    cat_desc=CATEGORIA_DESC, total=len(filas), user=g.user)
+
+
+@bp.route('/seguimiento/categoria/<categoria>')
+@admin_required
+def seguimiento_categoria(categoria):
+    """Lista de una sola categoría (ver _categoria()), con los botones
+    "Mail a todos"/"WhatsApp a todos" (1 click, sin revisar mensaje por
+    mensaje -- confirmado por Daniel 06/08/2026) arriba de todo, y debajo la
+    lista con los datos de cada uno (igual que Admin > Usuarios) para poder
+    llamarlos, más las acciones individuales por si hace falta reenviar a
+    uno solo o editar el texto antes de mandarlo (Ver → seguimiento_detalle)."""
+    if categoria not in CATEGORIAS_SEGUIMIENTO:
+        flash('Categoría no reconocida.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    filas = [f for f in _usuarios_seguimiento() if _categoria(f) == categoria]
+    for f in filas:
+        f['tipo_msg'] = _tipo_mensaje(f, categoria)
+
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ cat_label[categoria] }} - Seguimiento - Admin</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>.badge-seg { font-size: .72rem; }</style>
 </head><body class="bg-light">
 <div class="container-fluid py-4" style="max-width:1100px">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <a href="/admin/" class="btn btn-outline-secondary btn-sm mb-2">Volver</a>
-      <h4 class="fw-bold mb-0">Seguimiento de usuarios</h4>
-    </div>
-    <a href="{{ url_for('admin.seguimiento', todos=0 if mostrar_todos else 1) }}" class="btn btn-outline-primary btn-sm">
-      {% if mostrar_todos %}Ver solo accionables{% else %}Ver todos los usuarios{% endif %}
-    </a>
-  </div>
+  <a href="{{ url_for('admin.seguimiento') }}" class="btn btn-outline-secondary btn-sm mb-2">← Volver a categorías</a>
+  <h4 class="fw-bold mb-1">{{ cat_label[categoria] }} <span class="text-muted fs-6">({{ filas|length }})</span></h4>
+  <p class="text-muted small mb-3">{{ cat_desc[categoria] }}</p>
   """ + _FLASH_BLOCK + """
   <div class="alert alert-warning small">
-    <i class="bi bi-exclamation-triangle"></i> El botón de WhatsApp solo funciona una vez que la
-    plantilla correspondiente esté <strong>aprobada en Meta Business Manager</strong> con el nombre
-    exacto. Hasta entonces va a devolver error acá arriba (ahora sí se ve el error). Mientras tanto
-    usá el email, o entrá a "Ver" para mandar el WhatsApp a mano con el texto ya cargado.
+    <i class="bi bi-exclamation-triangle"></i> El WhatsApp (individual o "a todos") solo funciona una
+    vez que la plantilla correspondiente esté <strong>aprobada en Meta Business Manager</strong>. Hasta
+    entonces va a dar error acá arriba (se ve el detalle). Mientras tanto usá el email, o "Ver" para
+    mandar el WhatsApp a mano.
   </div>
-  <p class="text-muted small">{{ filas|length }} usuario{{ 's' if filas|length != 1 else '' }}
-    {% if not mostrar_todos %}con algo para hacer{% endif %}</p>
+
+  <div class="d-flex gap-2 mb-3">
+    <form method="POST" action="{{ url_for('admin.seguimiento_categoria_email_todos', categoria=categoria) }}"
+          onsubmit="return confirm('¿Mandar el email a los {{ filas|length }} usuarios de esta lista?');">
+      <button type="submit" class="btn btn-outline-primary btn-sm" {{ 'disabled' if not filas }}>
+        <i class="bi bi-envelope"></i> Mail a todos ({{ filas|length }})
+      </button>
+    </form>
+    <form method="POST" action="{{ url_for('admin.seguimiento_categoria_whatsapp_todos', categoria=categoria) }}"
+          onsubmit="return confirm('¿Mandar el WhatsApp a los {{ filas|length }} usuarios de esta lista?');">
+      <button type="submit" class="btn btn-success btn-sm" {{ 'disabled' if not filas }}>
+        <i class="bi bi-whatsapp"></i> WhatsApp a todos ({{ filas|length }})
+      </button>
+    </form>
+  </div>
 
   {% for f in filas %}
   <div class="card mb-2 shadow-sm">
@@ -574,16 +694,12 @@ def seguimiento():
           <div class="fw-semibold">{{ f.nombre or '—' }}</div>
           <div class="small text-muted">{{ f.email }}</div>
           {% if f.telefono %}<div class="small text-success"><i class="bi bi-whatsapp"></i> {{ f.telefono }}</div>{% endif %}
-          <div class="small text-muted">Registrado: {{ (f.created_at or '')[:10] }} · Vence: {{ f.subscription_expires or '∞' }}</div>
+          <div class="small text-muted">{{ f.ciudad or '' }}{{ ', ' if f.ciudad and f.provincia }}{{ f.provincia or '' }}</div>
         </div>
-        <div class="col-md-3">
-          <span class="badge bg-secondary badge-seg">{{ f.segmento }}</span>
-          {% if f.trial_por_vencer %}
-          <span class="badge bg-warning text-dark badge-seg">Prueba: {{ f.dias_restantes }}d / {{ f.presup_restantes }} presup. restantes</span>
-          {% endif %}
-          {% if f.suscripcion_vencida %}
-          <span class="badge bg-danger badge-seg">Suscripción vencida ({{ f.subscription_expires }})</span>
-          {% endif %}
+        <div class="col-md-3 small text-muted">
+          Registrado: {{ (f.created_at or '')[:10] }}<br>Vence: {{ f.subscription_expires or '∞' }}
+          {% if f.trial_por_vencer %}<br><span class="badge bg-warning text-dark badge-seg">{{ f.dias_restantes }}d / {{ f.presup_restantes }} presup. restantes</span>{% endif %}
+          {% if f.suscripcion_vencida %}<br><span class="badge bg-danger badge-seg">Vencida ({{ f.subscription_expires }})</span>{% endif %}
         </div>
         <div class="col-md-2 small text-muted">
           {% if f.ultimo_contacto %}
@@ -593,23 +709,21 @@ def seguimiento():
           {% else %}Sin contactar todavía{% endif %}
         </div>
         <div class="col-md-3">
-          {% for tipo in f.tipos %}
-          <div class="d-flex gap-1 mb-1 align-items-center">
-            <span class="small text-muted" style="min-width:110px">{{ tipo_label[tipo] }}:</span>
+          <div class="d-flex gap-1 align-items-center">
+            <span class="small text-muted" style="min-width:110px">{{ tipo_label[f.tipo_msg] }}:</span>
             <form method="POST" action="{{ url_for('admin.seguimiento_whatsapp', uid=f.id) }}">
-              <input type="hidden" name="tipo" value="{{ tipo }}">
+              <input type="hidden" name="tipo" value="{{ f.tipo_msg }}">
               <button type="submit" class="btn btn-sm btn-success" {{ 'disabled title=Sin teléfono' if not f.telefono }}>
                 <i class="bi bi-whatsapp"></i>
               </button>
             </form>
             <form method="POST" action="{{ url_for('admin.seguimiento_email', uid=f.id) }}">
-              <input type="hidden" name="tipo" value="{{ tipo }}">
+              <input type="hidden" name="tipo" value="{{ f.tipo_msg }}">
               <button type="submit" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-envelope"></i>
               </button>
             </form>
           </div>
-          {% endfor %}
         </div>
         <div class="col-md-1 text-end">
           <a href="{{ url_for('admin.seguimiento_detalle', uid=f.id) }}" class="btn btn-sm btn-outline-secondary">Ver</a>
@@ -618,10 +732,64 @@ def seguimiento():
     </div>
   </div>
   {% else %}
-  <p class="text-muted text-center py-4">No hay usuarios {{ 'registrados' if mostrar_todos else 'con algo pendiente para hacer' }}.</p>
+  <p class="text-muted text-center py-4">No hay usuarios en esta categoría.</p>
   {% endfor %}
 </div></body></html>
-""", filas=filas, mostrar_todos=mostrar_todos, tipo_label=TIPO_LABEL, user=g.user)
+""", filas=filas, categoria=categoria, cat_label=CATEGORIA_LABEL, cat_desc=CATEGORIA_DESC,
+    tipo_label=TIPO_LABEL, user=g.user)
+
+
+@bp.route('/seguimiento/categoria/<categoria>/email-a-todos', methods=['POST'])
+@admin_required
+def seguimiento_categoria_email_todos(categoria):
+    """"Mail a todos" -- 1 click, manda el mail de retención correspondiente
+    a CADA usuario de la categoría de una sola vez (confirmado por Daniel
+    06/08/2026: sin revisar mensaje por mensaje). Dentro de "ESTUVO USANDO"
+    cada usuario recibe el mensaje que le corresponde según su uso real (1
+    presup./borrador, solo Costo/m², o check-in si ya tiene 2+) -- no es un
+    único texto genérico para toda la categoría."""
+    if categoria not in CATEGORIAS_SEGUIMIENTO:
+        flash('Categoría no reconocida.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    db = get_db()
+    filas = [f for f in _usuarios_seguimiento() if _categoria(f) == categoria]
+    enviados = errores = 0
+    for f in filas:
+        ok, _ = _enviar_email_seguimiento(db, f, _tipo_mensaje(f, categoria))
+        enviados += 1 if ok else 0
+        errores += 0 if ok else 1
+    db.commit()
+    db.close()
+    flash(f'Mail a todos ({CATEGORIA_LABEL[categoria]}): {enviados} enviados, {errores} con error.',
+          'success' if errores == 0 else 'error')
+    return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
+
+
+@bp.route('/seguimiento/categoria/<categoria>/whatsapp-a-todos', methods=['POST'])
+@admin_required
+def seguimiento_categoria_whatsapp_todos(categoria):
+    """"WhatsApp a todos" -- mismo criterio que el mail (1 click, sin
+    revisar uno por uno). Los que no tengan teléfono cargado o cuya
+    plantilla no esté aprobada en Meta cuentan como error (se ve el detalle
+    en el Historial de cada usuario, Seguimiento > Ver) -- no cortan el
+    envío al resto de la lista."""
+    if categoria not in CATEGORIAS_SEGUIMIENTO:
+        flash('Categoría no reconocida.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+
+    db = get_db()
+    filas = [f for f in _usuarios_seguimiento() if _categoria(f) == categoria]
+    enviados = errores = 0
+    for f in filas:
+        ok, detalle, plantilla = _enviar_whatsapp_seguimiento(db, f, _tipo_mensaje(f, categoria))
+        enviados += 1 if ok else 0
+        errores += 0 if ok else 1
+    db.commit()
+    db.close()
+    flash(f'WhatsApp a todos ({CATEGORIA_LABEL[categoria]}): {enviados} enviados, {errores} con error '
+          f'(sin teléfono o plantilla no aprobada en Meta).', 'success' if errores == 0 else 'error')
+    return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
 
 
 @bp.route('/seguimiento/<int:uid>')
@@ -814,15 +982,40 @@ function abrirWhatsapp(tel, mensaje) {
 """, f=fila, tipos=tipos, mensajes=mensajes, tipo_label=TIPO_LABEL, eventos=eventos, user=g.user)
 
 
+def _enviar_whatsapp_seguimiento(db, u, tipo):
+    """Manda 1 WhatsApp de retención (plantilla de Meta) a un usuario y
+    guarda el resultado en retencion_contactos. Devuelve (ok, detalle,
+    plantilla). NO hace commit ni close -- lo maneja quien llama, para poder
+    loopear varios usuarios en una sola transacción (ver
+    seguimiento_categoria_whatsapp_todos). Extraído 06/08/2026 del handler
+    de 1 solo usuario (seguimiento_whatsapp) para reusar en el envío masivo
+    "WhatsApp a todos" del rediseño de Seguimiento."""
+    plantilla = TEMPLATES_WHATSAPP.get(tipo)
+    if not plantilla:
+        return False, 'Tipo de mensaje no reconocido.', None
+    if not u['telefono']:
+        return False, 'Sin teléfono cargado.', plantilla
+
+    from routes.whatsapp_bot import enviar_plantilla_whatsapp
+    ok, detalle = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros={'nombre': u['nombre'] or ''})
+    # Fix 24/07/2026: se guarda el texto real (no solo el nombre de la
+    # plantilla) para que el Historial (Seguimiento > Ver) muestre lo mismo
+    # que se mandó, igual que el email.
+    generador = MENSAJES_EMAIL.get(tipo)
+    wa_texto, _ = generador(u['nombre']) if generador else ('', '')
+    mensaje_guardado = wa_texto if ok else f"{plantilla} — ERROR: {detalle}"
+    db.execute(
+        "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
+        (u['id'], 'whatsapp', tipo, mensaje_guardado, 'ok' if ok else 'error')
+    )
+    return ok, detalle, plantilla
+
+
 @bp.route('/seguimiento/<int:uid>/whatsapp', methods=['POST'])
 @admin_required
 def seguimiento_whatsapp(uid):
     tipo = request.form.get('tipo', '')
-    plantilla = TEMPLATES_WHATSAPP.get(tipo)
     volver = request.form.get('volver') or url_for('admin.seguimiento')
-    if not plantilla:
-        flash('Tipo de mensaje no reconocido.', 'error')
-        return redirect(volver)
 
     db = get_db()
     u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
@@ -830,67 +1023,34 @@ def seguimiento_whatsapp(uid):
         db.close()
         flash('Usuario no encontrado.', 'error')
         return redirect(volver)
-    if not u['telefono']:
-        db.close()
-        flash(f'{u["email"]} no tiene teléfono cargado.', 'error')
-        return redirect(volver)
 
-    from routes.whatsapp_bot import enviar_plantilla_whatsapp
-    ok, detalle = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros={'nombre': u['nombre'] or ''})
-    # Fix 21/07/2026: antes solo se guardaba 'ok'/'error' sin el motivo real
-    # de Meta, y el flash mostraba un mensaje genérico adivinando la causa.
-    # Ahora el detalle real (código + mensaje de la Graph API) queda en el
-    # campo 'mensaje' del historial (visible en Seguimiento > Ver) y en el
-    # flash de esta pantalla — 'resultado' se deja intacto ('ok'/'error')
-    # porque los badges de la lista comparan ese valor exacto.
-    # Fix 24/07/2026: lo de arriba solo guardaba el NOMBRE de la plantilla
-    # (ej. "retencion_sin_uso"), no el texto real mandado -- a diferencia del
-    # email, que sí guarda el cuerpo completo. Ahora se arma el mismo texto
-    # que ya usa el botón "Abrir en WhatsApp (manual)" (MENSAJES_EMAIL[tipo]
-    # devuelve (texto_whatsapp, texto_email)) para que el Historial muestre
-    # el mensaje real, igual que el email.
-    generador = MENSAJES_EMAIL.get(tipo)
-    wa_texto, _ = generador(u['nombre']) if generador else ('', '')
-    mensaje_guardado = wa_texto if ok else f"{plantilla} — ERROR: {detalle}"
-    db.execute(
-        "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
-        (uid, 'whatsapp', tipo, mensaje_guardado, 'ok' if ok else 'error')
-    )
+    ok, detalle, plantilla = _enviar_whatsapp_seguimiento(db, u, tipo)
     db.commit()
     db.close()
     if ok:
         flash(f'WhatsApp ({plantilla}) enviado a {u["nombre"] or u["email"]}.', 'success')
+    elif not plantilla:
+        flash(detalle, 'error')
     else:
         flash(f'No se pudo enviar "{plantilla}": {detalle}. Mientras tanto usá "Abrir en WhatsApp '
               f'(manual)" desde el detalle del usuario.', 'error')
     return redirect(request.referrer or url_for('admin.seguimiento'))
 
 
-@bp.route('/seguimiento/<int:uid>/email', methods=['POST'])
-@admin_required
-def seguimiento_email(uid):
-    """Fix 21/07/2026, pedido de Daniel: antes esto SIEMPRE regeneraba el
-    texto fijo de la plantilla interna, ignorando cualquier edición. Ahora,
-    si el form manda 'mensaje' (viene del textarea editable de
-    seguimiento_detalle), se usa ESE texto tal cual; si no viene (por
-    ejemplo el botón rápido de la lista, que no tiene textarea), se genera
-    el texto por default como antes."""
-    tipo = request.form.get('tipo', '')
+def _enviar_email_seguimiento(db, u, tipo, mensaje_override=None):
+    """Manda 1 email de retención (Resend) a un usuario y guarda el
+    resultado en retencion_contactos. Devuelve (ok, cuerpo_email). NO hace
+    commit ni close -- lo maneja quien llama. Extraído 06/08/2026 del handler
+    de 1 solo usuario (seguimiento_email) para reusar en el envío masivo
+    "Mail a todos" del rediseño de Seguimiento (que nunca manda
+    mensaje_override -- eso es solo para el textarea editable de
+    seguimiento_detalle)."""
     generador = MENSAJES_EMAIL.get(tipo)
     if not generador:
-        flash('Tipo de mensaje no reconocido.', 'error')
-        return redirect(request.referrer or url_for('admin.seguimiento'))
+        return False, None
 
-    db = get_db()
-    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-    if not u:
-        db.close()
-        flash('Usuario no encontrado.', 'error')
-        return redirect(request.referrer or url_for('admin.seguimiento'))
-
-    mensaje_editado = (request.form.get('mensaje') or '').strip()
-    if mensaje_editado:
-        cuerpo_email = mensaje_editado
+    if mensaje_override:
+        cuerpo_email = mensaje_override
     else:
         _, cuerpo_email = generador(u['nombre'])
 
@@ -905,17 +1065,8 @@ def seguimiento_email(uid):
                 "to": [u['email']],
                 "subject": "PresupuestoPRO",
                 "text": cuerpo_email,
-                # Fix 24/07/2026, pedido de Daniel: antes no tenía reply_to,
-                # así que si el usuario contestaba el mail, la respuesta se
-                # perdía (iba a noreply@, que nadie lee). Ahora va a
-                # contacto@presupuestopro.com.ar, que Cloudflare Email
-                # Routing (ya armado y activo, confirmado por Daniel
-                # 24/07/2026) reenvía a presupuestopro.app@gmail.com.
                 "reply_to": ["contacto@presupuestopro.com.ar"],
             })
-            # Fix 04/08/2026 (cont. 20, tracking de mails): ver
-            # utils/email_tracking.py -- guarda el id de Resend para cruzarlo
-            # con los eventos reales (delivered/opened/...) del webhook.
             registrar_envio(resp.get('id', ''), u['email'], f'seguimiento_{tipo}')
             ok = True
         except Exception as e:
@@ -923,8 +1074,34 @@ def seguimiento_email(uid):
 
     db.execute(
         "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
-        (uid, 'email', tipo, cuerpo_email[:500], 'ok' if ok else 'error')
+        (u['id'], 'email', tipo, cuerpo_email[:500], 'ok' if ok else 'error')
     )
+    return ok, cuerpo_email
+
+
+@bp.route('/seguimiento/<int:uid>/email', methods=['POST'])
+@admin_required
+def seguimiento_email(uid):
+    """Fix 21/07/2026, pedido de Daniel: antes esto SIEMPRE regeneraba el
+    texto fijo de la plantilla interna, ignorando cualquier edición. Ahora,
+    si el form manda 'mensaje' (viene del textarea editable de
+    seguimiento_detalle), se usa ESE texto tal cual; si no viene (por
+    ejemplo el botón rápido de la lista, que no tiene textarea), se genera
+    el texto por default como antes."""
+    tipo = request.form.get('tipo', '')
+    if tipo not in MENSAJES_EMAIL:
+        flash('Tipo de mensaje no reconocido.', 'error')
+        return redirect(request.referrer or url_for('admin.seguimiento'))
+
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        db.close()
+        flash('Usuario no encontrado.', 'error')
+        return redirect(request.referrer or url_for('admin.seguimiento'))
+
+    mensaje_editado = (request.form.get('mensaje') or '').strip()
+    ok, _ = _enviar_email_seguimiento(db, u, tipo, mensaje_override=mensaje_editado or None)
     db.commit()
     db.close()
     if ok:

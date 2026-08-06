@@ -244,6 +244,23 @@ def _mensaje_suscripcion_vencida(nombre):
     return wa, email
 
 
+def _mensaje_checkin_activo(nombre):
+    """Agregado 06/08/2026, pedido de Daniel: mensaje para la categoría
+    "ESTUVO USANDO" del nuevo Seguimiento (routes/admin.py) cuando el usuario
+    ya tiene 2+ presupuestos/borradores -- antes este grupo (SEG_ACTIVO) no
+    tenía ningún mensaje de retención armado porque no participaba de
+    ninguna campaña. Es un check-in genérico, no de reactivación (ya está
+    usando la app)."""
+    nombre = nombre or ''
+    wa = (f"Hola {nombre}! Somos de PresupuestoPRO. Vimos que ya armaste varios "
+          f"presupuestos con la app -- ¿cómo te está yendo? Si tenés alguna consulta "
+          f"o idea para mejorarla, nos encantaría escucharte.")
+    email = (f"Hola {nombre}, ya armaste varios presupuestos con PresupuestoPRO. "
+             f"¿Cómo te está yendo? Si tenés alguna consulta, sugerencia o encontraste "
+             f"algo que se pueda mejorar, contanos -- nos ayuda un montón." + WA_CTA)
+    return wa, email
+
+
 def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
     for c, h in enumerate(HEADERS_SEGMENTO, start=1):
         cell = ws.cell(row=1, column=c, value=h)

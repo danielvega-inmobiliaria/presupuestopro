@@ -41,10 +41,10 @@
       <div class="t"><b><i class="bi bi-whatsapp"></i> WhatsApp</b><span>Consultas sin responder</span></div>
       <span class="pend {{ '' if stats.whatsapp_pendientes else 'q' }}">{{ stats.whatsapp_pendientes or 0 }}</span>
     </a>
-    <a class="adm-fila" href="{{ url_for('admin.leads') }}">
-      <div class="t"><b>Inscriptos</b><span>Ver y contactar</span></div>
-      <span class="pend {{ '' if stats.leads_nuevos else 'q' }}">{{ stats.leads_nuevos or 0 }}</span>
-    </a>
+    {# "Inscriptos" (leads de la landing) sacado del menú 06/08/2026, pedido
+       de Daniel: eran de prueba, ya no aporta nada como acceso directo. La
+       ruta admin.leads sigue andando (no se borró el código) por si hace
+       falta volver a mostrarla -- ver PROYECTO.md. #}
     <a class="adm-fila" href="{{ url_for('admin.social_inbox') }}">
       <div class="t"><b><i class="bi bi-instagram"></i> Messenger / Instagram</b><span>Consultas sin responder</span></div>
       <span class="pend {{ '' if stats.redes_pendientes else 'q' }}">{{ stats.redes_pendientes or 0 }}</span>
@@ -67,22 +67,18 @@
     </a>
   </div>
 
-  <div class="bloque">
-    <div class="bloque-hd">Próximos vencimientos</div>
-    {% for u in proximos %}
-    <div class="adm-fila">
-      <div class="t"><b>{{ u.nombre or u.email }}</b><span>{{ u.email }}</span></div>
-      <span class="num" style="font-size:12px;font-weight:600;color:var(--rojo)">{{ u.subscription_expires }}</span>
-    </div>
-    {% else %}
-    <div class="adm-fila"><div class="t" style="text-align:center;color:var(--gris)">Sin vencimientos próximos</div></div>
-    {% endfor %}
-  </div>
+  {# "Próximos vencimientos" sacado 06/08/2026, pedido de Daniel -- esa info
+     ahora vive dentro de Seguimiento > POR VENCER / VENCIDOS, con acciones
+     (mail/WhatsApp a todos) en vez de ser solo una lista para mirar. #}
 
   <div class="bloque">
     <div class="bloque-hd">Gestión</div>
     <a class="adm-fila" href="{{ url_for('admin.usuarios') }}"><div class="t"><b>Gestionar usuarios</b></div><i class="bi bi-chevron-right chev"></i></a>
-    <a class="adm-fila" href="{{ url_for('admin.usuario_nuevo') }}"><div class="t"><b>Nuevo usuario</b></div><i class="bi bi-chevron-right chev"></i></a>
+    {# "Nuevo usuario" sacado del menú 06/08/2026, pedido de Daniel: el alta
+       ahora es siempre por la web (registro propio), no hace falta cargar
+       usuarios a mano. Ruta admin.usuario_nuevo sigue andando por si hace
+       falta en algún caso puntual (ej. ayudar a un cliente que no puede
+       registrarse solo). #}
     <a class="adm-fila" href="{{ url_for('admin.localidades') }}"><div class="t"><b>Localidades</b><span>Fusionar duplicados</span></div><i class="bi bi-chevron-right chev"></i></a>
     <a class="adm-fila" href="{{ url_for('admin.precios') }}"><div class="t"><b>Precios de materiales</b></div><i class="bi bi-chevron-right chev"></i></a>
     <a class="adm-fila" href="{{ url_for('admin.tipos_cambio') }}"><div class="t"><b>Tipos de cambio</b></div><i class="bi bi-chevron-right chev"></i></a>

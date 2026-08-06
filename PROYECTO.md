@@ -13,7 +13,34 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 06/08/2026 — 16:44 ART_
+_Última actualización: 06/08/2026 — 17:49 ART_
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 5to bloque) — Limpieza de menú (Inscriptos/Nuevo usuario) + rediseño completo de Seguimiento (5 categorías + envío masivo) ⚠️ SIN COMMITEAR
+
+Pedido de Daniel a partir de 5 capturas del celular: (1) sacar "Inscriptos" y "Nuevo usuario" del menú -- eran de prueba / ya no hacen falta porque el alta es siempre por la web. (2) En el dashboard, sacar "Próximos vencimientos". (3) Rediseñar "Seguimiento" (antes una lista plana de todos los usuarios accionables) como landing con 5 categorías con cantidad -- SIN VALIDAR / NUNCA PROBÓ / ESTUVO USANDO / POR VENCER / VENCIDOS -- y al entrar a cada una, botones "Mail a todos"/"WhatsApp a todos" + la lista con los datos para llamar.
+
+**3 decisiones confirmadas por Daniel antes de tocar código:**
+- Inscriptos/Nuevo usuario: **ocultar del menú, no borrar el código** (rutas `admin.leads`/`admin.usuario_nuevo` siguen andando si hace falta volver a usarlas). Descubrí en el camino que la landing SIGUE teniendo un modal de inscripción activo (`routes/dashboard.py::inscripcion()`, tabla `leads`) -- no lo toqué, solo la pantalla de Admin que lo mostraba, para no arriesgar romper algo público sin que me lo pidiera.
+- "Mail a todos" / "WhatsApp a todos": **1 click, manda a toda la categoría de una** (sin revisar mensaje por mensaje).
+- VENCIDOS = prueba gratis vencida + suscripción paga vencida juntas (mismo criterio que ya usa el Excel); POR VENCER = solo prueba gratis por terminar.
+
+**1) Menú:**
+- `templates/admin/dashboard.html`: sacados los links "Inscriptos" (bloque "Requiere respuesta") y "Nuevo usuario" (bloque "Gestión"), y todo el bloque "Próximos vencimientos" (esa info ahora vive en Seguimiento > POR VENCER/VENCIDOS, con acciones).
+- `templates/admin/usuarios.html`: sacado el botón "Nuevo usuario" de la barra superior.
+- `routes/admin.py::dashboard()`: sacada la query `proximos` (ya no se usa).
+
+**2) Seguimiento -- rediseño completo (`routes/admin.py`):**
+- `_categoria(fila)`: parte cada usuario en UNA de las 5 categorías, por prioridad (vencido > por vencer > sin validar > nunca probó > estuvo usando) -- sin superposición.
+- `_tipo_mensaje(fila, categoria)`: dentro de "ESTUVO USANDO" no hay un solo mensaje para todos -- cada uno recibe el que ya existía según su uso real (1 presup./borrador, solo Costo/m², o el check-in NUEVO para 2+ presupuestos -- `_mensaje_checkin_activo()` en `utils/exportar_contactos.py`, no existía ningún mensaje para ese grupo antes).
+- `admin.seguimiento` pasa de lista plana a landing con las 5 tarjetas + cantidad. `admin.seguimiento_categoria/<categoria>` es la lista real de esa categoría (mismo look que antes: datos, teléfono, badges, último contacto, acciones individuales, "Ver").
+- **Envío masivo nuevo:** se extrajeron `_enviar_whatsapp_seguimiento()`/`_enviar_email_seguimiento()` del código que antes vivía pegado adentro de las rutas de 1 solo usuario (`seguimiento_whatsapp`/`seguimiento_email`, que se refactorizaron para llamar a estos mismos helpers -- mismo comportamiento de antes, sin duplicar lógica). Rutas nuevas `seguimiento_categoria_email_todos`/`seguimiento_categoria_whatsapp_todos`: loopean la categoría completa, mandan el mensaje que corresponde a cada uno, cuentan enviados/errores (uno con error -- sin teléfono, plantilla de Meta no aprobada, etc. -- no corta el envío al resto) y muestran el resumen.
+- **⚠️ Pendiente de Daniel, mismo requisito que ya existía:** la plantilla de WhatsApp nueva para "check-in usuario activo" (`retencion_checkin_usuario_activo`, categoría ESTUVO USANDO cuando el usuario ya tiene 2+ presupuestos) hay que darla de alta y que la apruebe Meta Business Manager -- hasta entonces el WhatsApp para ese subgrupo va a dar error visible (el email sí funciona ya). Las otras 4 categorías reusan plantillas que ya existían.
+
+**Verificado (funcional, no solo sintaxis) — con la app real:** `ast.parse` OK. Test funcional con `test_client()` real: 1 usuario de prueba por categoría (sin validar / nunca probó / 2+ presupuestos abonado activo / prueba con 1 día restante / suscripción vencida) → landing muestra las 5 tarjetas → cada `/admin/seguimiento/categoria/<cat>` muestra exactamente el usuario esperado y ningún otro, con los botones "Mail a todos"/"WhatsApp a todos" visibles → el envío masivo de email corrió sin romper nada (sin `RESEND_API_KEY` en el entorno de prueba, contó error correctamente, sin cortar el flujo). Confirmado también que `/admin/leads` y `/admin/usuarios/nuevo` siguen respondiendo 200 (ocultos del menú, no borrados) y que ninguna de las 2 pantallas modificadas (dashboard, usuarios) muestra ya los links sacados.
+
+**Archivos tocados:** `routes/admin.py` (menú, `dashboard()`, todo el bloque de Seguimiento), `templates/admin/dashboard.html`, `templates/admin/usuarios.html`, `utils/exportar_contactos.py` (`_mensaje_checkin_activo` nueva, `SEG_ACTIVO` ahora importado en admin.py).
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 4to bloque) — Cuadro "Actividad de usuarios" en el dashboard + 2 columnas nuevas en hoja Abonados del export ⚠️ SIN COMMITEAR
 
