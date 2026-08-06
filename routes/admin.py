@@ -3,7 +3,7 @@ import math
 import os
 import urllib.request
 from datetime import date, datetime, timedelta
-from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g, send_file
+from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, g, send_file, current_app
 from werkzeug.security import generate_password_hash
 from openpyxl import load_workbook
 from utils.auth import admin_required
@@ -119,8 +119,35 @@ def dashboard():
     proximos = db.execute(
         "SELECT * FROM users WHERE subscription_expires >= date('now') AND is_admin=0 ORDER BY subscription_expires LIMIT 5"
     ).fetchall()
+    # Fix 06/08/2026, pedido de Daniel: cuadro "Actividad de usuarios" --
+    # conectados ahora (ventana de 5 min, ver utils/auth.py::get_current_user)
+    # + gráfico de usuarios conectados por día (actividad_diaria, últimos 30
+    # días con datos). El gráfico solo tiene datos desde que se agregó este
+    # tracking (06/08/2026) -- no hay forma de reconstruir días anteriores.
+    stats['conectados_ahora'] = db.execute(
+        "SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND ultima_actividad >= datetime('now','-5 minutes')"
+    ).fetchone()['c']
+    dias_rows = db.execute(
+        "SELECT fecha, COUNT(*) as c FROM actividad_diaria GROUP BY fecha ORDER BY fecha DESC LIMIT 30"
+    ).fetchall()
+    chart_dias = [{'fecha': r['fecha'], 'cantidad': r['c']} for r in reversed(dias_rows)]
     db.close()
-    return render_template('admin/dashboard.html', stats=stats, proximos=proximos, user=g.user)
+    return render_template('admin/dashboard.html', stats=stats, proximos=proximos,
+                            chart_dias=chart_dias, user=g.user)
+
+
+@bp.route('/api/conectados-ahora')
+@admin_required
+def conectados_ahora_json():
+    """Endpoint liviano para refrescar solo el número/barra de "conectados
+    ahora" del dashboard cada 30s (JS, ver dashboard.html) sin recargar toda
+    la página ni volver a pegarle al gráfico de días."""
+    db = get_db()
+    n = db.execute(
+        "SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND ultima_actividad >= datetime('now','-5 minutes')"
+    ).fetchone()['c']
+    db.close()
+    return {'conectados_ahora': n}
 
 # USUARIOS
 @bp.route('/usuarios')
@@ -259,6 +286,9 @@ def _usuarios_para_exportar(db):
                   (SELECT COUNT(*) FROM costo_m2_consultas c WHERE c.user_id=u.id)                    AS n_costo_m2,
                   (SELECT MIN(fecha_inicio) FROM suscripciones s
                      WHERE s.user_id=u.id AND s.estado='authorized')                                  AS abonado_desde,
+                  (SELECT plan_nombre FROM suscripciones s
+                     WHERE s.user_id=u.id AND s.estado='authorized'
+                     ORDER BY s.fecha_inicio DESC, s.id DESC LIMIT 1)                                  AS plan_nombre_actual,
                   {SQL_MAIL_ESTADO}       AS mail_estado,
                   {SQL_MAIL_ESTADO_FECHA} AS mail_estado_fecha
            FROM users u
@@ -342,7 +372,8 @@ def usuarios_exportar_contactar():
     usuarios = _usuarios_para_exportar(db)
     db.close()
 
-    buf, download_name = generar_excel_usuarios_a_contactar(usuarios)
+    buf, download_name = generar_excel_usuarios_a_contactar(
+        usuarios, mp_planes=current_app.config.get('MP_PLANES', {}))
     return send_file(buf,
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                       as_attachment=True, download_name=download_name)
@@ -378,7 +409,8 @@ def usuarios_exportar():
     usuarios = _usuarios_para_exportar(db)
     db.close()
 
-    buf, download_name = generar_excel_usuarios_a_contactar(usuarios)
+    buf, download_name = generar_excel_usuarios_a_contactar(
+        usuarios, mp_planes=current_app.config.get('MP_PLANES', {}))
     return send_file(buf,
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                       as_attachment=True, download_name=download_name)

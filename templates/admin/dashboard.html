@@ -12,6 +12,29 @@
     <div class="kpi"><b>{{ stats.presupuestos }}</b><span>Presupuestos totales</span></div>
   </div>
 
+  {# ── Actividad de usuarios ── Fix 06/08/2026, pedido de Daniel: conectados
+     en el momento (barra + número, se refresca solo cada 30s) + gráfico de
+     conectados por día. Ver routes/admin.py::dashboard()/conectados_ahora_json. #}
+  <div class="bloque">
+    <div class="bloque-hd">Actividad de usuarios</div>
+    <div style="padding:14px 16px">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <b style="font-size:26px" id="numConectados">{{ stats.conectados_ahora }}</b>
+        <span style="color:var(--gris);font-size:13px">conectados ahora (últimos 5 min) de {{ stats.activos }} activos</span>
+      </div>
+      <div style="background:var(--fondo);border-radius:6px;height:10px;overflow:hidden;margin-bottom:20px">
+        <div id="barraConectados" style="height:100%;background:#22c55e;transition:width .4s;
+             width:{{ ((stats.conectados_ahora / stats.activos * 100) if stats.activos else 0) }}%"></div>
+      </div>
+      <div style="font-size:12px;color:var(--gris);margin-bottom:8px">Usuarios conectados por día</div>
+      {% if chart_dias %}
+      <canvas id="chartConexiones" height="90"></canvas>
+      {% else %}
+      <div style="font-size:13px;color:var(--gris)">Todavía sin datos — este gráfico empieza a llenarse desde hoy.</div>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="bloque">
     <div class="bloque-hd">Requiere respuesta</div>
     <a class="adm-fila" href="{{ url_for('admin.whatsapp_inbox') }}">
@@ -67,4 +90,40 @@
     <a class="adm-fila" href="{{ url_for('admin.rendimientos') }}"><div class="t"><b>Rendimientos HOF/HAY</b></div><i class="bi bi-chevron-right chev"></i></a>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if chart_dias %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const diasConexion = {{ chart_dias | tojson }};
+new Chart(document.getElementById('chartConexiones'), {
+  type: 'bar',
+  data: {
+    labels: diasConexion.map(d => d.fecha.slice(5).split('-').reverse().join('/')),
+    datasets: [{ label: 'Conectados', data: diasConexion.map(d => d.cantidad), backgroundColor: '#2563eb' }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+  }
+});
+</script>
+{% endif %}
+<script>
+// Refresca solo el número/barra de "conectados ahora" cada 30s -- no toca el
+// gráfico de días (ese sí requiere recargar la página para actualizarse).
+const activosTotalDash = {{ stats.activos }};
+function refrescarConectadosDash() {
+  fetch("{{ url_for('admin.conectados_ahora_json') }}")
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('numConectados').textContent = d.conectados_ahora;
+      const pct = activosTotalDash ? (d.conectados_ahora / activosTotalDash * 100) : 0;
+      document.getElementById('barraConectados').style.width = pct + '%';
+    })
+    .catch(() => {});
+}
+setInterval(refrescarConectadosDash, 30000);
+</script>
 {% endblock %}

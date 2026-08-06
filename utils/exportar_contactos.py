@@ -91,9 +91,19 @@ HEADERS_VENCIDOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "Paí
                      "Presup.", "Borr.", "Costo/m²", "Tipo", "Venció el", "Comentarios",
                      "Mail: estado", "Mail: fecha"]
 
+# 06/08/2026, pedido de Daniel: 2 columnas nuevas en Abonados para ver de un
+# vistazo cuánto ingresa realmente por cada suscriptor. "Plan / $mes" muestra
+# el plan actual (Mensual/Trimestral/Semestral/Anual) y su precio de lista
+# por mes. "$ cobrados" es ESE precio mensual ya descontado el 14% que se
+# queda Mercado Pago -- normalizado a base mensual para que las 4 duraciones
+# sean comparables entre sí (no el monto real del último pago, que varía
+# según cuántos meses pagó de una vez). Ver _escribir_hoja_abonados() para el
+# cálculo y el total que va arriba de la columna.
 HEADERS_ABONADOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
-                     "Presup.", "Borr.", "Costo/m²", "Abonado desde", "Vence", "Comentarios",
-                     "Mail: estado", "Mail: fecha"]
+                     "Presup.", "Borr.", "Costo/m²", "Plan / $mes", "$ cobrados (mensual, neto MP 14%)",
+                     "Abonado desde", "Vence", "Comentarios", "Mail: estado", "Mail: fecha"]
+
+MP_COMISION_PCT = 14  # % que se queda Mercado Pago (Checkout Pro) -- confirmado por Daniel 06/08/2026
 
 HEADER_FONT = Font(name="Arial", bold=True, color="FFFFFF", size=10)
 HEADER_FILL = PatternFill("solid", fgColor="1F2937")
@@ -324,11 +334,39 @@ def _escribir_hoja_vencidos(ws, usuarios):
     ws.freeze_panes = "A2"
 
 
-def _escribir_hoja_abonados(ws, usuarios):
+def _fmt_ars(n):
+    return f"$ {n:,.0f}".replace(',', '.')
+
+
+def _plan_y_cobrado(u, mp_planes):
+    """Devuelve (etiqueta_plan, monto_neto_mensual) para la fila de un
+    abonado. `u['plan_nombre_actual']` sale de la suscripción 'authorized'
+    más reciente de ese usuario (ver subquery en
+    routes/admin.py::_usuarios_para_exportar); si por algún motivo viene
+    vacía (no debería, plan_nombre tiene default 'mensual' en la tabla desde
+    siempre) se asume 'mensual' como plan más común. El monto ya sale
+    normalizado a base mensual y neto del {MP_COMISION_PCT}% de Mercado Pago
+    -- ver comentario en HEADERS_ABONADOS."""
+    plan_key = (u['plan_nombre_actual'] if 'plan_nombre_actual' in u.keys() else None) or 'mensual'
+    plan_cfg = mp_planes.get(plan_key) or mp_planes.get('mensual', {})
+    precio_mes = plan_cfg.get('precio_mes', 14499)
+    nombre_plan = plan_cfg.get('nombre', 'Plan Mensual').replace('Plan ', '')
+    neto_mensual = round(precio_mes * (100 - MP_COMISION_PCT) / 100)
+    etiqueta = f"{nombre_plan} / {_fmt_ars(precio_mes)}/mes"
+    return etiqueta, neto_mensual
+
+
+def _escribir_hoja_abonados(ws, usuarios, mp_planes):
     """Cuentas pagas y activas ahora mismo (mismo criterio 'sub_activa' que
     ya usan routes/pagos.py::planes()/dashboard() -- es_trial=0, active=1,
-    subscription_expires >= hoy). Son los que SÍ están pagando los $12.500 --
-    el segmento que le interesa llamar a Daniel para entender el uso bajo."""
+    subscription_expires >= hoy). Son los que SÍ están pagando -- el
+    segmento que le interesa llamar a Daniel para entender el uso bajo.
+
+    06/08/2026: fila 2 (justo debajo del encabezado, "arriba" de los datos
+    como pidió Daniel) trae el TOTAL de la columna "$ cobrados" sumado entre
+    todos los abonados de esta hoja -- un vistazo rápido al ingreso mensual
+    neto real, sin tener que sumar la columna a mano. Los datos arrancan en
+    la fila 3."""
     for c, h in enumerate(HEADERS_ABONADOS, start=1):
         cell = ws.cell(row=1, column=c, value=h)
         cell.font = HEADER_FONT
@@ -336,33 +374,58 @@ def _escribir_hoja_abonados(ws, usuarios):
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         cell.border = BORDER
 
-    for r, u in enumerate(usuarios, start=2):
-        row = [
+    filas = []
+    total_neto = 0
+    for u in usuarios:
+        etiqueta_plan, neto_mensual = _plan_y_cobrado(u, mp_planes)
+        total_neto += neto_mensual
+        filas.append([
             u['nombre'] or '—', u['email'], u['telefono'] or '', u['ciudad'] or '',
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
-            u['n_costo_m2'], (u['abonado_desde'] or '')[:10], u['subscription_expires'] or '',
+            u['n_costo_m2'], etiqueta_plan, _fmt_ars(neto_mensual),
+            (u['abonado_desde'] or '')[:10], u['subscription_expires'] or '',
             u['comentario_seguimiento'] or '',
-        ] + _mail_cols(u)
+        ] + _mail_cols(u))
+
+    TOTAL_FONT = Font(name="Arial", bold=True, size=10)
+    TOTAL_FILL = PatternFill("solid", fgColor="E5E7EB")
+    fila_total = [''] * len(HEADERS_ABONADOS)
+    fila_total[0] = f"TOTAL ({len(usuarios)} abonados)"
+    fila_total[10] = _fmt_ars(total_neto)  # columna "$ cobrados" (índice 10, 0-based)
+    for c, val in enumerate(fila_total, start=1):
+        cell = ws.cell(row=2, column=c, value=val)
+        cell.font = TOTAL_FONT
+        cell.fill = TOTAL_FILL
+        cell.border = BORDER
+        cell.alignment = Alignment(vertical="center")
+
+    for r, row in enumerate(filas, start=3):
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 12, 12, 55, 16, 12]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 22, 24, 12, 12, 55, 16, 12]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    ws.freeze_panes = "A2"
+    ws.freeze_panes = "A3"
 
 
-def generar_excel_usuarios_a_contactar(usuarios):
+def generar_excel_usuarios_a_contactar(usuarios, mp_planes=None):
     """usuarios: lista de sqlite3.Row con al menos email_verificado,
     n_presupuestos, n_borradores, n_costo_m2, nombre, email, telefono,
-    ciudad, provincia, pais, created_at, subscription_expires (ver query en
-    routes/admin.py::usuarios_exportar_contactar).
+    ciudad, provincia, pais, created_at, subscription_expires, plan_nombre_actual
+    (ver query en routes/admin.py::_usuarios_para_exportar).
+
+    mp_planes: dict de config.py::Config.MP_PLANES (current_app.config['MP_PLANES']),
+    usado solo por la hoja "Abonados" para mostrar plan/$mes y el cobrado
+    neto -- ver _escribir_hoja_abonados(). Si no se pasa, usa un fallback
+    mínimo con el plan mensual actual.
 
     Devuelve (BytesIO, download_name) listo para send_file.
     """
+    mp_planes = mp_planes or {'mensual': {'nombre': 'Plan Mensual', 'precio_mes': 14499}}
     segmento_a = [u for u in usuarios if _segmento(u) == SEG_A]
     segmento_b = [u for u in usuarios if _segmento(u) == SEG_B]
     segmento_c = [u for u in usuarios if _segmento(u) == SEG_C]
@@ -387,7 +450,7 @@ def generar_excel_usuarios_a_contactar(usuarios):
     _escribir_hoja_vencidos(ws_vencidos, vencidos)
 
     ws_abonados = wb.create_sheet("Abonados")
-    _escribir_hoja_abonados(ws_abonados, abonados)
+    _escribir_hoja_abonados(ws_abonados, abonados, mp_planes)
 
     ws_a = wb.create_sheet("A - Sin validar email")
     _escribir_hoja_segmento(ws_a, segmento_a, _mensaje_activacion)
@@ -415,7 +478,12 @@ def generar_excel_usuarios_a_contactar(usuarios):
         ("Hoja 'Vencidos': prueba gratis o suscripción paga que venció y no se renovó "
          "(columna 'Tipo' distingue cuál de las dos).", notas_font),
         ("Hoja 'Abonados': cuentas pagas y activas ahora mismo -- las que sí están "
-         "pagando la suscripción.", notas_font),
+         "pagando la suscripción. Columna 'Plan / $mes' muestra el plan actual y su "
+         f"precio de lista mensual; '$ cobrados' es ese precio ya neto del "
+         f"{MP_COMISION_PCT}% que se queda Mercado Pago, normalizado a mes (para poder "
+         "comparar Mensual/Trimestral/Semestral/Anual en la misma base). La fila justo "
+         "debajo del encabezado trae el TOTAL de esa columna sumando todos los abonados.",
+         notas_font),
 ("TODAS las hojas (incluidas 'Todos los usuarios' y los segmentos A/B/C/D) "
          "traen una columna 'Comentarios' para anotar, llamada por llamada, la causa "
          "del uso escaso o nulo -- da igual desde qué hoja contactaste a cada uno, es "

@@ -13,7 +13,36 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 06/08/2026 — 13:03 ART_
+_Última actualización: 06/08/2026 — 16:44 ART_
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 4to bloque) — Cuadro "Actividad de usuarios" en el dashboard + 2 columnas nuevas en hoja Abonados del export ⚠️ SIN COMMITEAR
+
+Pedido de Daniel: (1) un cuadro en Admin con gráfico de conexiones por día + una barra que mida los conectados en el momento, y (2) en la hoja "Abonados" del export, 2 columnas — Plan/$mes y $ cobrados (neto del 14% que se queda MP) con el total arriba.
+
+**Antes de implementar, 2 decisiones de Daniel (vía preguntas, no asumidas):**
+- "$ cobrados" = precio $/mes de lista del plan del usuario, neto del 14%, **normalizado a base mensual** (no el monto real del último pago) — así Mensual/Trimestral/Semestral/Anual quedan comparables entre sí y el total de arriba es un "ingreso mensual neto" real.
+- Ventana para "conectado ahora" = **5 minutos** sin actividad.
+
+**1) Actividad de usuarios (dashboard):**
+- No existía NINGÚN tracking de actividad hasta ahora (solo `session_token` al loguear, nada que se actualizara en cada request). Se agregó:
+  - `users.ultima_actividad` (migración `3i`): se pisa en `utils/auth.py::get_current_user()` en cada request autenticado — alimenta el contador en vivo.
+  - `actividad_diaria` (tabla nueva, migración `3i`): 1 fila por usuario y día (`INSERT OR IGNORE`, no cuenta doble por más requests que haga ese día) — alimenta el gráfico.
+  - Ninguno de los dos cuenta a los admins (Daniel navegando el panel no debe inflar el número de "clientes conectados").
+- Dashboard (`routes/admin.py::dashboard()`): `conectados_ahora` (`ultima_actividad >= now - 5 min`) + `chart_dias` (últimos 30 días con datos de `actividad_diaria`).
+- Nuevo endpoint liviano `GET /admin/api/conectados-ahora` (JSON) para refrescar solo el número/barra cada 30s sin recargar la página ni tocar el gráfico.
+- Template (`templates/admin/dashboard.html`): número + barra de "conectados ahora" (JS hace polling cada 30s) + gráfico de barras (Chart.js vía CDN, cargado solo acá) de conectados por día. Si todavía no hay datos (recién deployado), muestra un aviso en vez de un gráfico vacío.
+- **Limitación real, no un bug:** el gráfico de días arranca vacío y se va llenando desde el día del deploy — no hay forma de reconstruir actividad de días anteriores porque nunca se registró.
+
+**2) Excel > hoja Abonados — Plan/$mes y $ cobrados:**
+- `_usuarios_para_exportar()` (`routes/admin.py`): subquery nueva `plan_nombre_actual` (plan de la suscripción `authorized` más reciente de cada usuario).
+- `utils/exportar_contactos.py`: `_escribir_hoja_abonados()` ahora recibe `mp_planes` (viene de `current_app.config['MP_PLANES']`, mismos 4 planes/precios de la feature de pagos del bloque anterior) y arma por fila: **"Plan / $mes"** (ej. "Semestral / $ 11.499/mes") y **"$ cobrados (mensual, neto MP 14%)"** (precio $/mes × 0,86, redondeado al peso). La **fila 2** (justo debajo del encabezado, arriba de los datos que arrancan en la fila 3) trae "TOTAL (N abonados)" con la suma de esa columna.
+- Hoja "Leer primero" actualizada con la explicación de las 2 columnas nuevas.
+
+**Verificado (funcional, no solo sintaxis) — con la app real:** `ast.parse` OK en los 4 archivos tocados. Test funcional con `test_client()` real: (a) un usuario no-admin pega a `/costo-m2/` → `/admin/api/conectados-ahora` pasa de 0 a 1, `actividad_diaria` tiene la fila del día, y el dashboard renderizado muestra "1" en `numConectados`; el propio admin logueado NO se cuenta. (b) 3 abonados de prueba con planes Mensual/Trimestral/Semestral reales (`suscripciones.estado='authorized'`) → export real vía `/admin/usuarios/exportar-contactar` → Excel leído con openpyxl: fila 2 = "TOTAL (3 abonados)" / "$ 33.107"; filas de datos con "Mensual / $ 14.499/mes" → "$ 12.469", "Trimestral / $ 12.499/mes" → "$ 10.749", "Semestral / $ 11.499/mes" → "$ 9.889" (todos = precio_mes × 0,86 redondeado, y la suma de los 3 coincide exacto con el total de la fila 2).
+
+**Archivos tocados:** `database.py` (migración 3i + columna/tabla en `init_db()`), `utils/auth.py` (`get_current_user()`), `routes/admin.py` (`dashboard()`, endpoint nuevo `conectados_ahora_json`, `_usuarios_para_exportar()`, las 2 rutas de export pasan `mp_planes`), `templates/admin/dashboard.html` (cuadro nuevo + script), `utils/exportar_contactos.py` (`HEADERS_ABONADOS`, `_escribir_hoja_abonados()`, `generar_excel_usuarios_a_contactar()`).
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 3er bloque) — 'DeckAr' revertido a 'Rev Text.' en TODAS partes (dato real, no solo rótulo) ⚠️ SIN COMMITEAR
 

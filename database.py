@@ -2692,6 +2692,36 @@ def migrate_db():
             db.commit()
             print(f"[migrate_db] 3h: 'DeckAr' renombrado a 'Rev Text.' ({n} filas)")
 
+        # ── 3i. Actividad de usuarios: conectados ahora + conexiones/día ────
+        # Pedido de Daniel 06/08/2026: cuadro en el dashboard de Admin con (a)
+        # un contador en vivo de "conectados ahora" (ventana de 5 min sin
+        # actividad) y (b) un gráfico de cuántos usuarios se conectaron cada
+        # día. No existía ningún tracking de actividad hasta ahora (solo
+        # session_token/session_expires al loguear, nada que se actualizara
+        # en cada request). Se agrega acá para bases ya existentes (fresh
+        # installs ya traen esto desde init_db()):
+        #   - users.ultima_actividad: se pisa en cada request autenticado
+        #     (utils/auth.py::get_current_user) -- alimenta el contador vivo.
+        #   - actividad_diaria: 1 fila por usuario y día (INSERT OR IGNORE,
+        #     no cuenta doble por más requests que haga ese día) -- alimenta
+        #     el gráfico.
+        ya_3i = db.execute("SELECT valor FROM config WHERE clave='3i_done'").fetchone()
+        if not ya_3i:
+            cols_users_3i = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            if 'ultima_actividad' not in cols_users_3i:
+                db.execute("ALTER TABLE users ADD COLUMN ultima_actividad DATETIME")
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS actividad_diaria (
+                    user_id INTEGER NOT NULL,
+                    fecha DATE NOT NULL,
+                    PRIMARY KEY (user_id, fecha)
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3i_done','2026-08-06')")
+            db.commit()
+            print("[migrate_db] 3i: users.ultima_actividad + tabla actividad_diaria agregadas")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
@@ -2711,7 +2741,18 @@ def init_db():
         session_token TEXT,
         session_expires DATETIME,
         is_admin INTEGER DEFAULT 0,
+        ultima_actividad DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 06/08/2026: cuadro de "conectados" del dashboard de Admin -- 1 fila
+    -- por usuario y día (PK compuesta evita contar 2 veces el mismo día
+    -- aunque haga muchos requests). Ver migración 3i en migrate_db() para
+    -- el mismo agregado en bases ya existentes.
+    CREATE TABLE IF NOT EXISTS actividad_diaria (
+        user_id INTEGER NOT NULL,
+        fecha DATE NOT NULL,
+        PRIMARY KEY (user_id, fecha)
     );
 
     CREATE TABLE IF NOT EXISTS materiales (

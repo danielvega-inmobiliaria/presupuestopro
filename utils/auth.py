@@ -43,6 +43,23 @@ def get_current_user():
            AND active=1 AND (subscription_expires IS NULL OR subscription_expires >= date('now') OR es_trial=1)""",
         (uid, token)
     ).fetchone()
+    if user:
+        # Fix 06/08/2026, pedido de Daniel: registrar actividad para el cuadro
+        # de "Actividad de usuarios" del dashboard de Admin. ultima_actividad
+        # se pisa en cada request autenticado y alimenta el contador en vivo
+        # (ventana de 5 min, ver routes/admin.py::dashboard). actividad_diaria
+        # es 1 fila por usuario y día (INSERT OR IGNORE -- no cuenta doble
+        # aunque el usuario haga muchos requests el mismo día) y alimenta el
+        # gráfico de conexiones por día. No se cuentan los admins en ninguno
+        # de los dos (el cuadro mide uso real de clientes, no las propias
+        # sesiones de Daniel navegando el panel).
+        db.execute("UPDATE users SET ultima_actividad=datetime('now') WHERE id=?", (uid,))
+        if not user['is_admin']:
+            db.execute(
+                "INSERT OR IGNORE INTO actividad_diaria (user_id, fecha) VALUES (?, date('now'))",
+                (uid,)
+            )
+        db.commit()
     db.close()
     return user
 
