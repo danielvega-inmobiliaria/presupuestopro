@@ -13,7 +13,25 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 06/08/2026 — 11:09 ART_
+_Última actualización: 06/08/2026 — 11:38 ART_
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 2do bloque) — Bug grande pre-existente encontrado y resuelto: los 90/90 materiales de Admin > Precios ya matchean ⚠️ SIN COMMITEAR
+
+Daniel aplicó el aumento del 6.5% y reportó (captura) que varios materiales quedaron en $0: Piedra Partida, Granza y Perlitas Telgopor. Estos 3 NO se rompieron por el aumento — investigando se encontró que **la pantalla Admin > Precios nunca los mostró bien, desde que existe esa lista**.
+
+- **Causa raíz:** `_LISTA_PRECIOS` (routes/admin.py) es una lista de nombres escrita a mano para armar la pantalla — busca cada nombre contra `analisis_sub.sub_nombre` (`WHERE es_material=1`). El nombre en la lista tiene que coincidir letra por letra con lo que hay guardado en la base; si no coincide, la pantalla muestra $0 (no porque el precio real sea $0, sino porque no encuentra la fila) — y peor, si Daniel escribía un precio ahí y guardaba, el `UPDATE ... WHERE sub_nombre=?` tampoco encontraba ninguna fila, así que el precio real usado en los cálculos de presupuesto NUNCA cambiaba, aunque la pantalla no mostrara ningún error.
+- **Alcance real (auditoría completa, no solo los 3 reportados):** de los 90 materiales de la lista, **32 no coincidían** con ningún `sub_nombre` real. 27 eran tildes/ñ faltantes (`Cano`→`Caño`, `latex`→`látex`, `ceramico`→`cerámico`, `neumatico`→`neumático`, `sintetico`→`sintético`, `Zocalo`→`Zócalo`, `calcareo`→`calcáreo`, `hidraulica hidratada`→`Hidráulica`, entre otros). 2 más ("Llaves de Paso Agua"/"Llaves de Paso Gas") comparten la misma fila real ("Llaves de Paso", una sola). El último, `'Rev Text.'`, quedó marcado como "sin resolver" en la 1ra vuelta.
+- **`'Rev Text.' resuelto** (Daniel avisó que en Costo/m2 de "Revest. Texturado" SÍ le aparecía con precio, $4.400) — no era un material sin cargar. La migración 2n ("358 materiales resincronizados contra PRESUPUESTO COCHERA.xlsx") había renombrado este material de `'Rev Text.'` a **`'DeckAr'`** (nombre comercial real del producto) dentro de la receta del ítem, y `_LISTA_PRECIOS` se quedó con el nombre viejo. El precio SÍ había sido actualizado por el aumento del 6.5% de hoy ($4.166,67 → $4.400 redondeado a $100, coincide exacto con lo que vio Daniel) porque `precios_aumento()` trabaja contra toda la tabla, no contra esta lista — solo faltaba el rótulo para que la pantalla también lo encontrara.
+- **Fix final: 31 nombres corregidos, 90/90 materiales matchean.** No se tocó ninguna fila de la base — es solo la etiqueta con la que la pantalla busca/edita cada material.
+- **Verificado (funcional, no solo sintaxis) — con la app real:** `ast.parse` OK. Auditoría automática de los 90 nombres contra `analisis_sub` real (post `init_db()`+`migrate_db()`): 0 sin match. Render real de `/admin/precios`: los 90 inputs de precio muestran su valor real, incluido DeckAr ($4.166,67, antes de volver a aplicar cualquier aumento nuevo).
+
+**Archivos tocados:** `routes/admin.py` (mismo archivo del aumento del 6.5%, ver bloque de abajo — mismo commit pendiente).
+
+**Pendiente de Daniel:**
+1. Los 3 pasos pendientes del bloque de abajo (jornales + aumento del 6.5%).
+2. Después de deployar, conviene revisar Admin > Precios una vez — con 31 materiales que antes mostraban $0 pasando a mostrar su precio real, confirmar que el aumento del 6.5% de hoy (que sí se aplicó a todos, incluidos estos 31, porque trabajó contra la base real) los dejó donde corresponde.
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat) — Actualización de precios: jornales + aumento general a la lista de materiales, redondeo a $100 ⚠️ SIN COMMITEAR
 

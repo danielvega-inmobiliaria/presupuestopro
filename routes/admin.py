@@ -1680,12 +1680,54 @@ def email_responder(cid):
 
 
 # PRECIOS MATERIALES
+# Fix 06/08/2026 (encontrado mientras Daniel probaba el aumento del 6.5%,
+# reportó que varios materiales le aparecían en $0 después de aplicarlo):
+# 'Piedra Partida (Calc. ó Granít.)', 'Granza (mediana)' y 'Perlitas Telgopor
+# (75 Lts)' NO son el sub_nombre real que usa analisis_sub HOY -- no aparecen
+# con ese texto exacto en la migración más reciente que tocó estos 3
+# materiales (2q, LISTA_MATERIALES_V3_formulafix.xlsx). Confirmado levantando
+# la base real (init_db+migrate_db) y mirando qué nombre quedó efectivamente
+# cargado: 'Piedra partida' (p minúscula, $93.000), 'Granza' (sin paréntesis,
+# $36.000), 'Perlitas Telgopor' (sin el "(75 Lts)", $106,67 -- el factor de
+# bolsa de 75Lt para el precio comercial sigue andando igual, `_info_comercial`
+# matchea por la palabra "perlitas", no por el nombre completo). Resultado:
+# esta pantalla mostraba $0 para los 3 SIEMPRE (no por el 6.5% aplicado hoy)
+# porque el lookup por nombre nunca encontraba la fila real -- y peor, si
+# Daniel hubiera escrito un precio y guardado, el UPDATE ("WHERE
+# sub_nombre=?") tampoco encontraba ninguna fila para actualizar, así que el
+# precio real usado en los cálculos de presupuesto nunca cambiaba, aunque la
+# pantalla pareciera aceptar el cambio sin error. Corregido acá a los
+# nombres reales -- no se tocó ninguna fila de la base, es solo la etiqueta
+# con la que esta pantalla busca/edita cada material.
+#
+# Al confirmar esos 3, se hizo una auditoría completa (script aparte, no
+# queda en el repo) comparando CADA nombre de esta lista contra los
+# sub_nombre reales de analisis_sub: de 90 materiales, 32 no matcheaban.
+# 27 eran el mismo problema (tildes/ñ faltantes: "Cano"→"Caño",
+# "latex"→"látex", "ceramico"→"cerámico", "neumatico"→"neumático", etc.) y
+# se corrigieron igual que los 3 de arriba. 2 más ("Llaves de Paso Agua" y
+# "Llaves de Paso Gas") en realidad comparten la MISMA fila real
+# ("Llaves de Paso", una sola, sin distinguir agua/gas) — se corrigieron los
+# 2 rótulos a ese nombre real (ya era así en los datos, esto no cambia el
+# comportamiento, solo hace que la pantalla deje de mostrar $0 en los dos).
+# 'Rev Text.' -- Daniel encontró (vía Costo/m2 de "Revest. Texturado") que
+# SÍ tiene precio real, $4.400, así que no era un material sin cargar como
+# se había concluido antes. Causa real: la migración 2n ("358 materiales
+# resincronizados contra PRESUPUESTO COCHERA.xlsx", database.py línea 1874)
+# renombró este material de 'Rev Text.' a 'DeckAr' (nombre comercial real
+# del producto) DENTRO de la receta del ítem -- ese resync pasó por encima
+# del nombre viejo que _LISTA_PRECIOS seguía usando. El precio SÍ se vio
+# afectado por el aumento del 6.5% de hoy (4166.67 → 4400 redondeado a $100,
+# coincide exacto con lo que Daniel vio en Costo/m2) porque
+# `precios_aumento()` trabaja contra TODO analisis_sub, no contra esta
+# lista -- lo único que faltaba corregir era el rótulo para que esta
+# pantalla también lo encuentre y lo pueda editar.
 _LISTA_PRECIOS = [
     ('CORRALÓN - Áridos y Cemento', [
-        'Cemento portland bolsas', 'Cemento Albañilería', 'Cal hidráulica hidratada',
+        'Cemento portland bolsas', 'Cemento Albañilería', 'Cal Hidráulica',
         'Cal aérea Milagro', 'Hidrófugo', 'Arena común', 'Tierra Colorada',
-        'Piedra Partida (Calc. ó Granít.)', 'Granza (mediana)', 'Hormigon elaborado colado',
-        'Perlitas Telgopor (75 Lts)',
+        'Piedra partida', 'Granza', 'Hormigon elaborado colado',
+        'Perlitas Telgopor',
     ]),
     ('CORRALÓN - Ladrillos y Mampostería', [
         'Ladrillos comunes', 'Ladrillos vista',
@@ -1698,46 +1740,46 @@ _LISTA_PRECIOS = [
         'Clavos 2"', 'Clavos 2" 1/2', 'Clavos 3"', 'Clavos 4"',
     ]),
     ('CORRALÓN - Viguetas', [
-        'Viga Vipret 4m.', 'Ladrillo Telgopor 12*38*1m',
+        'Viga Vipret 4m.', 'Ladrillo telgopor 12*38*1m',
     ]),
     ('Maderera', [
         'Palito 1"x1"', 'Metal desplegado', 'Saligna   1"x2"', 'Saligna 1"x4"',
         'Saligna 3"x3"', 'Pino encofrado 1"', 'Tirantes 2x6', 'Pino tabla machimbre',
         'Escurridores 1/2 x 2', 'Issolant', 'Clavadores 2 x 2', 'Chapas Techo',
-        'Tornillo c/arand goma', 'Chapas Cerco', 'Zocalo de madera', 'Tarugo 6',
+        'Tornillo c/arand goma', 'Chapas Cerco', 'Zócalo de madera', 'Tarugo 6',
         'Tornillo',
     ]),
     ('Instalaciones - Electricas', [
-        'Cano Corrugado 1"', 'Cano Corrugado 3/4"', 'Cajas Metalicas',
+        'Caño Corrugado 1"', 'Caño Corrugado 3/4"', 'Cajas Metalicas',
         'Cable 2,5 mm', 'Cable 1,5 mm',
     ]),
     ('Instalaciones - Sanitarias', [
-        'Cano Awaduct 110', 'Cano Awaduct 63', 'Cano Awaduct 50',
-        'Cano Awaduct 40', 'Accesorios Desagues',
+        'Caño Awaduct 110', 'Caño Awaduct 63', 'Caño Awaduct 50',
+        'Caño Awaduct 40', 'Accesorios Desagues',
     ]),
     ('Instalaciones - Agua F/C', [
-        'Cano TF 25', 'Cano TF 20', 'Accesorios TF', 'Llaves de Paso Agua',
+        'Caño TF 25', 'Caño TF 20', 'Accesorios TF', 'Llaves de Paso',
     ]),
     ('Instalaciones - Gas', [
-        'Cano Epoxi 3/4', 'Cano epoxi 1/2', 'Accesorios Gas', 'Llaves de Paso Gas',
+        'Caño Epoxi 3/4', 'Caño epoxi 1/2', 'Accesorios Gas', 'Llaves de Paso',
     ]),
     ('Revestimientos y Pisos', [
         'Klaukol', 'Pastina',
-        'Rvto.ceramico 1', 'Rvto.ceramico 2', 'Rvto.ceramico 3 (porcellanato)',
-        'Piso ceramico 1', 'Piso ceramico 2', 'Piso ceramico 3 (porcellanato)',
-        'Mosaico calcareo', 'Loseta cemento 60x40cm', 'Baldosa ceramica azotea',
-        'Zocalo ceramico 1', 'Zocalo ceramico 2', 'Zocalo ceramico 3 (Porcellanato)',
+        'Rvto.cerámico 1', 'Rvto.cerámico 2', 'Rvto.cerámico 3 (porcellanato)',
+        'Piso cerámico 1', 'Piso cerámico 2', 'Piso cerámico 3 (porcellanato)',
+        'Mosaico calcáreo', 'Loseta cemento 60x40cm', 'Baldosa cerámica azotea',
+        'Zócalo cerámico 1', 'Zócalo cerámico 2', 'Zócalo cerámico 3 (Porcellanato)',
     ]),
     ('Pinturas y Terminaciones', [
-        'Pintura latex exterior', 'Pintura latex interior', 'Pintura latex cielos',
+        'Pintura látex exterior', 'Pintura látex interior', 'Pintura látex cielos',
         'Esmalte albalux', 'Pintura especial 1', 'Pintura especial 2',
-        'Pintura satinol', 'Color pintura cal', 'Enduido sintetico',
+        'Pintura satinol', 'Color pintura cal', 'Enduido sintético',
     ]),
     ('Materiales Especiales', [
-        'Super Iggam', 'Salpicrete', 'Rev Text.', 'Fondo Base',
+        'Super Iggam', 'Salpicrete', 'DeckAr', 'Fondo Base',
     ]),
     ('Servicios y Varios', [
-        'Transporte material suelto', 'Martillo neumatico',
+        'Transporte material suelto', 'Martillo neumático',
     ]),
 ]
 
