@@ -2654,6 +2654,21 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3f: tabla email_eventos agregada (tracking de mails)")
 
+        # ── 3g. Check-in automático de abonados nuevos ─────────────────────
+        # Pedido de Daniel 06/08/2026: flag para no mandar 2 veces el
+        # check-in por WhatsApp de "cómo te está yendo" a los 7 días de la
+        # primera suscripción paga (ver utils/recordatorios.py, mismo
+        # mecanismo anti-duplicados que recordatorio_inactividad_enviado).
+        ya_3g = db.execute("SELECT valor FROM config WHERE clave='3g_done'").fetchone()
+        if not ya_3g:
+            cols_users_3g = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            if 'checkin_suscripcion_enviado' not in cols_users_3g:
+                db.execute("ALTER TABLE users ADD COLUMN checkin_suscripcion_enviado INTEGER DEFAULT 0")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3g_done','2026-08-06')")
+            db.commit()
+            print("[migrate_db] 3g: users.checkin_suscripcion_enviado agregado")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

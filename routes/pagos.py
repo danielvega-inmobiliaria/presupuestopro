@@ -170,9 +170,15 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
     logger.info(f"[MP] Usuario {user_id} activado hasta {nueva_exp}")
 
     # Notificar al usuario y al admin
+    # Fix 06/08/2026 (bug encontrado de paso, reportado y confirmado con
+    # Daniel): acá había una llamada a _enviar_email_activacion() ADEMÁS de
+    # la de más abajo ("Enviar notificacion al usuario") -- el mail de
+    # "tu cuenta está activa" se mandaba 2 VECES por cada pago, y encima con
+    # fechas en formato distinto (acá salía ISO "2026-08-06", abajo
+    # "06/08/2026"). Se saca esta llamada duplicada y se deja una sola, la
+    # de abajo (que ya tenía el formato de fecha correcto para mostrar).
     user_full = db.execute("SELECT email, nombre, apellido, telefono FROM users WHERE id=?", (user_id,)).fetchone()
     if user_full:
-        _enviar_email_activacion(user_full['email'], user_full['nombre'], nueva_exp.isoformat())
         # Siempre notificar al admin también
         try:
             api_key = os.environ.get('RESEND_API_KEY')
@@ -208,6 +214,33 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
             user_nombre=user['nombre'],
             fecha_vencimiento=nueva_exp.strftime('%d/%m/%Y'),
         )
+
+    # NUEVO 06/08/2026, pedido de Daniel: agradecimiento automático por
+    # WhatsApp al confirmarse CUALQUIER pago (alta nueva o renovación) --
+    # plantilla `retencion_agradecimiento_suscripcion` (Meta), ver
+    # RETENCION_USUARIOS/PROYECTO.md. No bloquea el flujo de pago si falla
+    # (ej. plantilla todavía no aprobada en Meta) -- solo queda el error
+    # registrado en retencion_contactos para revisar en Admin > Seguimiento.
+    if user_full and user_full['telefono']:
+        try:
+            from routes.whatsapp_bot import enviar_plantilla_whatsapp
+            ok_wa, detalle_wa = enviar_plantilla_whatsapp(
+                user_full['telefono'], 'retencion_agradecimiento_suscripcion',
+                parametros={'nombre': user_full['nombre'] or ''}
+            )
+            db.execute(
+                "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) "
+                "VALUES (?,?,?,?,?)",
+                (user_id, 'whatsapp', 'abonado_gracias',
+                 'retencion_agradecimiento_suscripcion' if ok_wa
+                 else f'retencion_agradecimiento_suscripcion — ERROR: {detalle_wa}',
+                 'ok' if ok_wa else 'error')
+            )
+            db.commit()
+            if not ok_wa:
+                logger.warning(f"[WA] agradecimiento no enviado a user {user_id}: {detalle_wa}")
+        except Exception as e:
+            logger.warning(f"[WA] Error mandando agradecimiento a user {user_id}: {e}")
 
 
 # ─── rutas ────────────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ from config import Config
 from database import init_db, migrate_db
 from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual, whatsapp_bot, social_bot, email_bot, webhooks_resend
 from utils.pdf_generator import iniciales_empresa
-from utils.recordatorios import enviar_recordatorios_inactividad
+from utils.recordatorios import enviar_recordatorios_inactividad, enviar_checkin_primera_suscripcion
 
 
 def local_dt(value, fmt='%d/%m %H:%M'):
@@ -87,6 +87,11 @@ def _iniciar_scheduler(app):
             n = enviar_recordatorios_inactividad()
             if n:
                 print(f"[scheduler] recordatorios de inactividad mandados: {n}")
+            # 06/08/2026, pedido de Daniel: check-in por WhatsApp a los 7 días
+            # de la primera suscripción paga (ver utils/recordatorios.py).
+            n2 = enviar_checkin_primera_suscripcion()
+            if n2:
+                print(f"[scheduler] check-in de abonados mandados: {n2}")
 
     scheduler = BackgroundScheduler(daemon=True)
     # next_run_time explícito: sin esto, APScheduler espera un intervalo

@@ -113,3 +113,76 @@ def enviar_recordatorios_inactividad():
             print(f"[recordatorios] Error mandando a {u['email']}: {e}")
     db.close()
     return enviados
+
+
+# ─── check-in de abonados nuevos (06/08/2026, pedido de Daniel) ───────────────
+# 2da automatización de este módulo: a los DIAS_CHECKIN_ABONADO días de la
+# PRIMERA suscripción paga (no en renovaciones), preguntar por WhatsApp cómo
+# le está yendo y si tiene dudas o sugerencias. Corre en el mismo job de
+# app.py::_iniciar_scheduler (cada 60 min), mismo mecanismo de protección
+# contra duplicados entre workers (UPDATE atómico con
+# WHERE checkin_suscripcion_enviado=0).
+
+DIAS_CHECKIN_ABONADO = 7
+
+
+def _candidatos_checkin_abonado(db):
+    objetivo = (date.today() - timedelta(days=DIAS_CHECKIN_ABONADO)).isoformat()
+    return db.execute(
+        """SELECT u.id, u.nombre, u.telefono
+           FROM users u
+           WHERE u.is_admin=0 AND u.es_trial=0 AND u.active=1
+             AND u.checkin_suscripcion_enviado=0
+             AND u.telefono IS NOT NULL AND u.telefono != ''
+             AND (SELECT COUNT(*) FROM suscripciones s
+                    WHERE s.user_id=u.id AND s.estado='authorized') = 1
+             AND (SELECT MIN(fecha_inicio) FROM suscripciones s
+                    WHERE s.user_id=u.id AND s.estado='authorized') = ?
+        """,
+        (objetivo,)
+    ).fetchall()
+
+
+def enviar_checkin_primera_suscripcion():
+    """Corre la búsqueda + el envío del check-in de WhatsApp para quien se
+    suscribió por primera vez hace exactamente DIAS_CHECKIN_ABONADO días.
+    Se manda UNA sola vez -- si ya tiene más de 1 suscripción 'authorized'
+    (renovó), deja de ser "primera vez" y no matchea el filtro COUNT=1,
+    aunque el flag siga en 0. Requiere que la plantilla
+    `retencion_checkin_primera_suscripcion` esté aprobada en Meta -- si
+    falla, queda el error en retencion_contactos, no rompe nada."""
+    from routes.whatsapp_bot import enviar_plantilla_whatsapp
+
+    db = get_db()
+    candidatos = _candidatos_checkin_abonado(db)
+
+    enviados = 0
+    for u in candidatos:
+        cur = db.execute(
+            "UPDATE users SET checkin_suscripcion_enviado=1 "
+            "WHERE id=? AND checkin_suscripcion_enviado=0",
+            (u['id'],)
+        )
+        db.commit()
+        if cur.rowcount == 0:
+            continue  # otro worker ya lo tomó en esta misma corrida
+        try:
+            ok, detalle = enviar_plantilla_whatsapp(
+                u['telefono'], 'retencion_checkin_primera_suscripcion',
+                parametros={'nombre': u['nombre'] or ''}
+            )
+            db.execute(
+                "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) "
+                "VALUES (?,?,?,?,?)",
+                (u['id'], 'whatsapp', 'abonado_checkin',
+                 'retencion_checkin_primera_suscripcion' if ok
+                 else f'retencion_checkin_primera_suscripcion — ERROR: {detalle}',
+                 'ok' if ok else 'error')
+            )
+            db.commit()
+            if ok:
+                enviados += 1
+        except Exception as e:
+            print(f"[recordatorios] Error mandando check-in a user {u['id']}: {e}")
+    db.close()
+    return enviados
