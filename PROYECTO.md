@@ -13,7 +13,20 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 06/08/2026 — 11:38 ART_
+_Última actualización: 06/08/2026 — 13:03 ART_
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 3er bloque) — 'DeckAr' revertido a 'Rev Text.' en TODAS partes (dato real, no solo rótulo) ⚠️ SIN COMMITEAR
+
+En el bloque anterior (ver debajo) se había corregido el **rótulo** de Admin > Precios de `'Rev Text.'` a `'DeckAr'` para que coincidiera con el nombre real guardado en la base (así lo había dejado la migración 2n). Daniel pidió revertir esa decisión: **'DeckAr' es un nombre comercial de la zona de Rosario, no se reconoce en el resto del país** — y la app apunta a expansión regional (ver `PRESUPUESTOPRO_EXPANSION_REGIONAL` en el HUB). Esta vez el pedido es al revés: no tocar el rótulo, sino **renombrar el dato real** en la base para que todo el sistema use 'Rev Text.' de forma consistente.
+
+- **Migración nueva `3h`** (`database.py`, después del bloque `3g`): `UPDATE analisis_sub SET sub_nombre='Rev Text.' WHERE sub_nombre='DeckAr'`, guardada con flag `3h_done` en `config` (mismo patrón idempotente de siempre). Esta es la pieza que faltaba — sin esto, el cambio solo se habría aplicado a instalaciones nuevas (el seed de la migración 2n también se corrigió, línea ~1874, pero esa migración ya corrió en la base real de Daniel el 04/07/2026 y no se re-ejecuta).
+- **`_LISTA_PRECIOS`** (`routes/admin.py`, sector "Materiales Especiales"): `'DeckAr'` → `'Rev Text.'`. Comentario explicativo actualizado con la razón de la reversión.
+- **Costo/m2 y Presupuestos:** no necesitaron ningún cambio de código — ambos leen `sub_nombre` en vivo desde `analisis_sub` (`_calcular_materiales_desde_rubros`), así que siguen el nuevo nombre automáticamente en cuanto corre la migración 3h. También se confirmó que `_NORMALIZE_MAT`/clasificadores en `routes/presupuesto.py` ya contemplan tanto `'rev text'` como `'deckar'` como sinónimos — no requieren edición.
+- **Verificado (funcional, no solo sintaxis) — con la app real:** `ast.parse` OK en `database.py` y `routes/admin.py`. Test funcional: se armó una base simulando el estado real de Daniel (fila con `sub_nombre='DeckAr'`, sin el flag `3h_done`) y se corrió `migrate_db()` → la fila pasó a `'Rev Text.'` (1 fila afectada), precio intacto ($4.166,67). Segunda corrida de `migrate_db()` confirma idempotencia (no vuelve a tocar nada, 0 filas). `GET /admin/precios` (con sesión admin real, `session_token` válido) muestra `'Rev Text.'` con su precio real y ya NO aparece `'DeckAr'` en el HTML. `GET /costo-m2/resultado?item_id=<Revest. Texturado>` también muestra `'Rev Text.'` (no `'DeckAr'`) con precio.
+
+**Archivos tocados:** `database.py` (migración 3h + seed de 2n corregido), `routes/admin.py` (`_LISTA_PRECIOS` + comentario).
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 2do bloque) — Bug grande pre-existente encontrado y resuelto: los 90/90 materiales de Admin > Precios ya matchean ⚠️ SIN COMMITEAR
 

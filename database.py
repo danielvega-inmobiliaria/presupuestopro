@@ -1871,7 +1871,7 @@ def migrate_db():
                 ('Enlucido S.Iggam', 'Super Iggam', 12.0, 833.33, 1),
                 ('Enlucido Salpicrete', 'Salpicrete', 6.0, 2666.67, 1),
                 ('Revest. Texturado', 'Fondo Base', 0.25, 3800.0, 1),
-                ('Revest. Texturado', 'DeckAr', 3.0, 4166.67, 1),
+                ('Revest. Texturado', 'Rev Text.', 3.0, 4166.67, 1),
                 ('R. exterior cal (az+gr+f)', 'Cemento portland bolsas', 4.25, 332.0, 1),
                 ('R. exterior cal (az+gr+f)', 'Cemento Albañilería', 4.71, 296.0, 1),
                 ('R. exterior cal (az+gr+f)', 'Hidrófugo', 0.19, 2900.0, 1),
@@ -2668,6 +2668,29 @@ def migrate_db():
             db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3g_done','2026-08-06')")
             db.commit()
             print("[migrate_db] 3g: users.checkin_suscripcion_enviado agregado")
+
+        # ── 3h. 'DeckAr' vuelve a llamarse 'Rev Text.' ──────────────────────
+        # Pedido de Daniel 06/08/2026: "DeckAr" es un nombre comercial de la
+        # zona de Rosario, no se reconoce en otras provincias (la app apunta
+        # a expansión regional, ver PRESUPUESTOPRO_EXPANSION_REGIONAL). Este
+        # material se llamaba 'Rev Text.' hasta que la migración 2n
+        # ("358 materiales resincronizados contra PRESUPUESTO COCHERA.xlsx",
+        # 04/07/2026) lo renombró a 'DeckAr' dentro de la receta de
+        # "Revest. Texturado" -- acá se revierte ese nombre en la base real
+        # (2n ya corrió hace un mes, no se vuelve a ejecutar sola). Alcanza
+        # con este UPDATE porque todo el resto de la app (Costo/m2,
+        # Presupuestos, Admin > Precios) lee el nombre del material en vivo
+        # desde analisis_sub -- no hay ningún otro lugar con "DeckAr"
+        # hardcodeado (verificado con un grep de todo el proyecto).
+        ya_3h = db.execute("SELECT valor FROM config WHERE clave='3h_done'").fetchone()
+        if not ya_3h:
+            n = db.execute(
+                "UPDATE analisis_sub SET sub_nombre='Rev Text.' WHERE sub_nombre='DeckAr'"
+            ).rowcount
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3h_done','2026-08-06')")
+            db.commit()
+            print(f"[migrate_db] 3h: 'DeckAr' renombrado a 'Rev Text.' ({n} filas)")
 
     except Exception as e:
         print(f"[migrate_db] {e}")

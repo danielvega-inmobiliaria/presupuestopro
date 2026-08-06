@@ -1722,6 +1722,16 @@ def email_responder(cid):
 # `precios_aumento()` trabaja contra TODO analisis_sub, no contra esta
 # lista -- lo único que faltaba corregir era el rótulo para que esta
 # pantalla también lo encuentre y lo pueda editar.
+#
+# Reversión 06/08/2026: Daniel decidió que 'DeckAr' NO se mantiene como
+# nombre -- es un nombre comercial de la zona de Rosario, no se reconoce en
+# el resto del país (la app apunta a expansión regional). Se vuelve a
+# 'Rev Text.' en TODAS partes: acá (rótulo de pantalla) y en la base real,
+# vía la migración 3h en database.py (UPDATE analisis_sub SET
+# sub_nombre='Rev Text.' WHERE sub_nombre='DeckAr'). Costo/m2 y Presupuestos
+# no necesitan ningún cambio de código -- ambos leen sub_nombre en vivo
+# desde analisis_sub, así que siguen el nuevo nombre automáticamente en
+# cuanto corre la migración.
 _LISTA_PRECIOS = [
     ('CORRALÓN - Áridos y Cemento', [
         'Cemento portland bolsas', 'Cemento Albañilería', 'Cal Hidráulica',
@@ -1776,7 +1786,7 @@ _LISTA_PRECIOS = [
         'Pintura satinol', 'Color pintura cal', 'Enduido sintético',
     ]),
     ('Materiales Especiales', [
-        'Super Iggam', 'Salpicrete', 'DeckAr', 'Fondo Base',
+        'Super Iggam', 'Salpicrete', 'Rev Text.', 'Fondo Base',
     ]),
     ('Servicios y Varios', [
         'Transporte material suelto', 'Martillo neumático',
