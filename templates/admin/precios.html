@@ -14,6 +14,34 @@
     El precio de cálculo se convierte automáticamente y se guarda al hacer click en Guardar.
   </p>
 
+  {# ── AUMENTO GENERAL ── Fix 06/08/2026, pedido de Daniel: aplicar un %
+     a toda la lista de materiales de una sola vez, en vez de ítem por ítem.
+     Form aparte (no puede ir anidado dentro de #formPrecios, HTML no
+     permite <form> dentro de <form>) que postea directo a
+     admin.precios_aumento (routes/admin.py), separado del guardado manual
+     de abajo. #}
+  <form method="post" action="{{ url_for('admin.precios_aumento') }}"
+        onsubmit="return confirm('¿Aplicar este aumento a TODA la lista de materiales? Esto pisa los precios actuales.');"
+        class="bloque" style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:12px 14px">
+    <div class="campo sufijo" style="margin-bottom:0">
+      <label>Aumento general a toda la lista</label>
+      <input type="number" name="pct" class="n" step="0.1" placeholder="6.5">
+      <span>%</span>
+    </div>
+    <div class="campo" style="margin-bottom:0">
+      <label>Redondear a</label>
+      <select name="redondeo" class="n">
+        <option value="1">$1</option>
+        <option value="10">$10</option>
+        <option value="100" selected>$100</option>
+      </select>
+    </div>
+    <button type="submit" class="btn2 btn2-min">
+      <i class="bi bi-graph-up-arrow"></i> Aplicar a toda la lista
+    </button>
+    <span class="ayuda" style="margin:0">No toca los Jornales (se editan aparte, abajo).</span>
+  </form>
+
   <form method="post" action="{{ url_for('admin.precios_actualizar') }}" id="formPrecios">
 
     {# ── JORNALES ── #}

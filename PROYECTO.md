@@ -13,9 +13,41 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 06/08/2026 — 10:36 ART_
+_Última actualización: 06/08/2026 — 11:09 ART_
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat) — Botón "Exportar" de Admin > Usuarios no reaccionaba al Aceptar del confirm ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat) — Actualización de precios: jornales + aumento general a la lista de materiales, redondeo a $100 ⚠️ SIN COMMITEAR
+
+Pedido de Daniel: Jornal Oficial $85.000/día, Jornal Ayudante $43.000/día, y un aumento del 6.5% a toda la lista de precios de materiales — redondeado primero al peso, después pidió pasarlo a redondeo a los $100.
+
+- **Jornales:** NO hizo falta código nuevo — Admin > Precios ya tiene los campos "Jornal Oficial"/"Jornal Ayudante" editables (`routes/admin.py::precios_actualizar()`, ya en producción desde antes). Como no tengo acceso a la base de producción, **esto lo tiene que cargar Daniel a mano**: entrar a Admin > Precios, poner 85000 y 43000 en esos 2 campos, Guardar — automáticamente recalcula `items_obra.precio_mo_ars` de todos los ítems (ya lo hacía antes, no se tocó esa lógica).
+- **Aumento a la lista de materiales:** esto SÍ era código nuevo — la pantalla solo permitía editar precio por precio, no había forma de aplicar un % a toda la lista de una vez. Se agregó:
+  - `routes/admin.py::precios_aumento()` (ruta nueva `POST /admin/precios/aumento`): toma un `%` y una escala de redondeo (`redondeo`: $1/$10/$100, selector en el form, default $100), recalcula `analisis_sub.precio_ars` de todos los materiales (`es_material=1`), redondeando "hacia arriba desde .5" (redondeo tradicional, no el bankers' rounding de `round()` de Python). Actualiza todas las filas que comparten el mismo `sub_nombre` (un material puede aparecer duplicado en varios ítems/rubros), evitando que queden desincronizadas entre sí.
+  - **Piso de seguridad agregado:** un material barato (ej. $40) con redondeo a $100 puede caer a $0 (40×1.065=42.6, redondea para abajo) — quedaría gratis en los presupuestos, un bug peor que el redondeo en sí. Si el precio original era mayor a $0, nunca baja de $100 (o de la escala de redondeo elegida).
+  - `templates/admin/precios.html`: nuevo bloque arriba de todo, "Aumento general a toda la lista" — input de % + selector "Redondear a" ($1/$10/$100) + botón, con confirmación antes de aplicar (pisa los precios actuales). Es un `<form>` separado del formulario grande de edición manual (HTML no permite forms anidados).
+- **Verificado (funcional, no solo sintaxis) — con la app real:** `ast.parse` OK. Render real de `/admin/precios` con sesión de admin real: aparece el bloque nuevo con $100 preseleccionado. Aplicado 6.5% con redondeo a $100 sobre datos de prueba reales en sqlite: $5.200→$5.500, $8.500→$9.100, $250→$300 (todos verificados a mano contra la cuenta exacta), incluyendo un material con 2 filas duplicadas (mismo nombre, distinto ítem) — quedaron sincronizadas. Caso límite probado a propósito: un material de $40 sin el piso de seguridad hubiera quedado en $0 — con el piso, queda en $100. `%` inválido o en 0 no rompe nada ni modifica precios. De paso también probé que cargar los jornales 85000/43000 por la ruta ya existente sigue funcionando.
+
+**Archivos tocados:** `routes/admin.py`, `templates/admin/precios.html`.
+
+**Pendiente manual de Daniel después del deploy (no lo puedo hacer yo, no tengo acceso a producción):**
+1. Cargar Jornal Oficial 85.000 y Ayudante 43.000 en Admin > Precios → Guardar todos.
+2. Poner 6.5 en el campo nuevo "Aumento general a toda la lista" → Aplicar a toda la lista.
+
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add routes/admin.py templates/admin/precios.html PROYECTO.md
+git commit -m "feat: aumento general (%) a toda la lista de precios de materiales en Admin > Precios, redondeado sin decimales"
+git push
+```
+
+---
+
+### ✅ CONFIRMADO: los 2 pendientes de cont. 22 COMMITEADOS Y PUSHEADOS
+Daniel confirmó que ya pusheó los dos. `git log`/fetch real contra `origin/main` lo confirma: `da8e2a5` (4 planes de pago único) y `3272dab` (fix botón Exportar) están en `origin/main`, sincronizado 1:1 (0/0). Ambos ya en producción — no hace falta re-pushear nada.
+
+---
+
+### ✅ CIERRE 06/08/2026 (cont. 22, mismo chat) — Botón "Exportar" de Admin > Usuarios no reaccionaba al Aceptar del confirm — COMMITEADO Y PUSHEADO (`3272dab`)
 
 Daniel reportó: al exportar, aparece la pregunta de si tiene un Excel anterior con comentarios, pone Aceptar y no pasa nada — ni se abre el selector de archivo, ni navega a ningún lado, queda la misma pantalla sin reacción.
 
@@ -26,17 +58,9 @@ Daniel reportó: al exportar, aparece la pregunta de si tiene un Excel anterior 
 
 **Archivos tocados:** `templates/admin/usuarios.html`.
 
-```bash
-cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
-rm -f .git/index.lock
-git add templates/admin/usuarios.html PROYECTO.md
-git commit -m "fix: boton Exportar de Admin Usuarios no reaccionaba (confirm() rompia el user-activation del selector de archivo) -- reemplazado por 2 botones explicitos"
-git push
-```
-
 ---
 
-### 🟡 CIERRE 06/08/2026 (cont. 22) — Planes de pago único por duración (referencia Sismat) — CODEADO Y VERIFICADO, ⚠️ SIN COMMITEAR (esperando OK final de Daniel)
+### ✅ CIERRE 06/08/2026 (cont. 22) — Planes de pago único por duración (referencia Sismat) — COMMITEADO Y PUSHEADO (`da8e2a5`)
 
 Pedido de Daniel (ver `UNIFICACION_PRESUPUESTOPRO/PROYECTO.md`, Ideas Futuras 05-06/08): reemplazar el plan único mensual por 4 planes de pago único (mismo esquema que Sismat, sin renovación automática). Precios definidos por Daniel: Mensual $14.499/mes, Trimestral $12.499/mes ($37.497 total), Semestral $11.499/mes ($68.994 total, destacado como "más elegido"), Anual $9.499/mes ($113.988 total).
 
@@ -57,15 +81,7 @@ Pedido de Daniel (ver `UNIFICACION_PRESUPUESTOPRO/PROYECTO.md`, Ideas Futuras 05
 - Pago real simulado con SDK de MP mockeado (`unittest.mock`): pago aprobado con `metadata={plan: trimestral, meses: 3}` → activa la cuenta por 90 días exactos, con `plan_nombre='Plan Trimestral'` y `monto_ars=37497` guardados en `suscripciones`. Mismo `payment_id` llamado 2 veces (simulando retorno+webhook) → la 2da no duplica, idempotencia sigue funcionando con planes de N meses.
 - Mockup visual de las 4 cards mostrado a Daniel en el chat antes de decidir si commitear.
 
-**⚠️ NO COMMITEADO A PROPÓSITO** — Daniel pidió explícitamente "comentamelo antes de dejarlo activo". Código listo y verificado, pero no se corrió `git push` hasta que confirme que lo vio y está conforme.
-
-```bash
-cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
-rm -f .git/index.lock
-git add config.py routes/pagos.py PROYECTO.md
-git commit -m "feat: 4 planes de pago unico por duracion (mensual/trimestral/semestral/anual), reemplaza plan unico mensual"
-git push
-```
+Daniel vio el mockup, dio el OK y pusheó él mismo — confirmado en `origin/main`.
 
 ---
 

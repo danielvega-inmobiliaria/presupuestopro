@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import urllib.request
 from datetime import date, datetime, timedelta
@@ -1796,6 +1797,68 @@ def precios():
     return render_template('admin/precios.html', sectores=sectores, user=g.user,
                            jornal_oficial_dia=jornal_oficial_dia,
                            jornal_ayudante_dia=jornal_ayudante_dia)
+
+@bp.route('/precios/aumento', methods=['POST'])
+@admin_required
+def precios_aumento():
+    """Aplica un aumento porcentual a TODA la lista de precios de materiales
+    (analisis_sub.precio_ars, es_material=1) de una sola vez, en vez de tener
+    que tocar ítem por ítem en Admin > Precios.
+
+    Agregado 06/08/2026, pedido de Daniel (aumento del 6.5% con redondeo, sin
+    decimales, a toda la lista). Antes esa pantalla solo permitía editar cada
+    material a mano; para un ajuste general periódico (algo que en Argentina
+    se repite seguido) hacía falta escribir un script/migración cada vez.
+    Redondeo "hacia arriba desde .5" (el redondeo tradicional en español, no
+    el bankers' rounding de Python round(), que redondea 0.5 al par más
+    cercano y puede confundir en algo con plata de por medio).
+
+    Fix 06/08/2026 (mismo día, 2do pedido): el redondeo era siempre al peso
+    -- Daniel pidió redondear a los $100. Se deja elegible (`redondeo`: 1, 10
+    o 100, default 100) por si el próximo aumento necesita otra escala, en
+    vez de hardcodear un solo valor y tener que volver a tocar código."""
+    try:
+        pct = float((request.form.get('pct') or '0').replace(',', '.'))
+    except (TypeError, ValueError):
+        flash('Porcentaje inválido.', 'error')
+        return redirect(url_for('admin.precios'))
+    if pct == 0:
+        flash('Ingresá un porcentaje distinto de 0.', 'error')
+        return redirect(url_for('admin.precios'))
+
+    try:
+        redondeo = int(request.form.get('redondeo') or 100)
+    except (TypeError, ValueError):
+        redondeo = 100
+    if redondeo not in (1, 10, 100):
+        redondeo = 100
+
+    db = get_db()
+    filas = db.execute(
+        "SELECT sub_nombre, MAX(precio_ars) as precio_ars "
+        "FROM analisis_sub WHERE es_material=1 GROUP BY sub_nombre"
+    ).fetchall()
+    actualizados = 0
+    for f in filas:
+        bruto = f['precio_ars'] * (1 + pct / 100)
+        nuevo = math.floor(bruto / redondeo + 0.5) * redondeo
+        # Piso de seguridad: un material barato (ej. $40) con redondeo a
+        # $100 puede caer a $0 (40*1.065=42.6, redondea para abajo) -- eso
+        # lo dejaría gratis en los presupuestos, un bug peor que el
+        # redondeo en sí. Si el precio original era > 0, nunca baja de
+        # `redondeo`.
+        if nuevo == 0 and bruto > 0:
+            nuevo = redondeo
+        db.execute(
+            "UPDATE analisis_sub SET precio_ars=? WHERE sub_nombre=? AND es_material=1",
+            (nuevo, f['sub_nombre'])
+        )
+        actualizados += 1
+    db.commit()
+    db.close()
+    flash(f'Aumento del {pct:g}% aplicado a {actualizados} materiales (redondeado a ${redondeo}).', 'success')
+    return redirect(url_for('admin.precios'))
+
 
 @bp.route('/precios/actualizar', methods=['POST'])
 @admin_required
