@@ -14,38 +14,38 @@
        borrador), con mensajes de WhatsApp y email ya sugeridos por fila.
        Antes esto se armaba a mano con capturas de pantalla de esta tabla.
 
-       Fix 03/08/2026 (2da vuelta, pedido de Daniel): antes esto eran 2
-       pasos sueltos ("Importar comentarios" y después "Exportar"). Ahora un
-       solo botón "Exportar" hace las 2 cosas: al click pregunta (confirm)
-       si hay un Excel anterior con comentarios para sumar -- si elegís el
-       archivo, se suma y ENSEGUIDA se baja el Excel nuevo ya actualizado
-       (routes/admin.py::usuarios_exportar); si cancelás el picker, exporta
-       directo sin tocar nada (usuarios_exportar_contactar, GET, sin
-       archivo). No hay forma de que el propio navegador "busque solo" el
-       archivo en la compu de Daniel -- ninguna web puede leer el disco sin
-       que el usuario elija el archivo, así que el picker es inevitable;
-       esto es lo más cercano a 1 solo click respetando esa restricción. #}
+       Fix 03/08/2026 (2da vuelta, pedido de Daniel): se probó 1 solo botón
+       "Exportar" con un confirm() de JS que preguntaba si había un Excel
+       anterior con comentarios, y si contestabas que sí disparaba el picker
+       de archivo con un input.click() programático.
+
+       Fix 06/08/2026 (bug reportado por Daniel: apretaba "Aceptar" en el
+       confirm y no pasaba nada -- ni se abría el selector de archivo, ni
+       navegaba a ningún lado, quedaba la misma pantalla sin reacción).
+       Causa: en algunos navegadores, el diálogo nativo de confirm() puede
+       resetear el "user activation" que el script necesita para poder abrir
+       el selector de archivos por código (input.click()) -- así que el
+       segundo paso (abrir el picker) fallaba en silencio, sin error visible,
+       exactamente el síntoma reportado. Fix: se saca el confirm() del medio
+       -- ahora son 2 botones separados y explícitos. El de "Sumar
+       comentarios y exportar" es un <label> que apunta directo al input de
+       archivo (patrón HTML estándar, sin ningún .click() por script de por
+       medio) -- el navegador SIEMPRE abre el picker de forma nativa con un
+       click real del usuario sobre el label, no hay forma de que falle en
+       silencio como con el confirm()+click() de antes. #}
     <form action="{{ url_for('admin.usuarios_exportar') }}" method="post" enctype="multipart/form-data"
           style="display:inline" id="formExportar">
       <input type="file" name="excel" accept=".xlsx" id="inputExportar" style="display:none">
     </form>
-    <a href="#" class="btn2 btn2-min" onclick="ppExportarUsuarios(); return false;"
-       title="Descarga el Excel con Vencidos, Abonados, segmentos A-D y el listado completo. Te pregunta si querés sumar antes los comentarios de un Excel anterior.">
+    <a href="{{ url_for('admin.usuarios_exportar_contactar') }}" class="btn2 btn2-min"
+       title="Descarga el Excel con Vencidos, Abonados, segmentos A-D y el listado completo, sin sumar comentarios.">
       <i class="bi bi-file-earmark-excel"></i> Exportar
     </a>
+    <label for="inputExportar" class="btn2 btn2-min" style="cursor:pointer"
+       title="Elegí un Excel anterior con comentarios ya anotados -- se suman a la base y se baja el Excel nuevo ya actualizado.">
+      <i class="bi bi-file-earmark-plus"></i> Sumar comentarios y exportar
+    </label>
     <script>
-      function ppExportarUsuarios() {
-        var conComentarios = confirm(
-          '¿Tenés un Excel anterior con comentarios ya anotados (en cualquier hoja)?\n\n' +
-          'Aceptar = elegís ese archivo, se suman los comentarios y se baja el Excel nuevo ya actualizado.\n' +
-          'Cancelar = exportar directo, sin sumar nada nuevo.'
-        );
-        if (conComentarios) {
-          document.getElementById('inputExportar').click();
-        } else {
-          window.location = "{{ url_for('admin.usuarios_exportar_contactar') }}";
-        }
-      }
       document.getElementById('inputExportar').addEventListener('change', function () {
         if (this.files.length) document.getElementById('formExportar').requestSubmit();
       });

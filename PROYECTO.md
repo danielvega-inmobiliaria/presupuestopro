@@ -13,7 +13,28 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 06/08/2026 — 10:28 ART_
+_Última actualización: 06/08/2026 — 10:36 ART_
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat) — Botón "Exportar" de Admin > Usuarios no reaccionaba al Aceptar del confirm ⚠️ SIN COMMITEAR
+
+Daniel reportó: al exportar, aparece la pregunta de si tiene un Excel anterior con comentarios, pone Aceptar y no pasa nada — ni se abre el selector de archivo, ni navega a ningún lado, queda la misma pantalla sin reacción.
+
+- **Causa:** el botón usaba `window.confirm()` (JS) y, si contestaba que sí, disparaba el selector de archivo por código (`input.click()`). En algunos navegadores el diálogo nativo de `confirm()` puede resetear el "user activation" que el script necesita para poder abrir un selector de archivos programáticamente — el segundo paso fallaba en silencio, sin ningún error visible. Coincide exacto con el síntoma reportado (cero reacción).
+- **Fix:** `templates/admin/usuarios.html` — se saca el `confirm()` del medio. Ahora son 2 botones separados y explícitos: "Exportar" (directo, sin comentarios) y "Sumar comentarios y exportar" (un `<label>` que apunta directo al input de archivo oculto — patrón HTML estándar, sin ningún `.click()` por script de por medio, así que el navegador siempre abre el selector con un click real del usuario, sin poder fallar en silencio como antes).
+- **Verificado:** Jinja2 parseó bien el template. Render real vía `create_app()` + `test_client()` con sesión de admin real (no mockeada): el HTML de `/admin/usuarios` ya no tiene ningún `confirm(`, y sí tiene el `<label for="inputExportar">` y el texto "Sumar comentarios y exportar".
+- Las 2 rutas de backend (`usuarios_exportar_contactar` directo, `usuarios_exportar` con archivo) no se tocaron — el problema era 100% del lado del navegador/JS.
+
+**Archivos tocados:** `templates/admin/usuarios.html`.
+
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add templates/admin/usuarios.html PROYECTO.md
+git commit -m "fix: boton Exportar de Admin Usuarios no reaccionaba (confirm() rompia el user-activation del selector de archivo) -- reemplazado por 2 botones explicitos"
+git push
+```
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 22) — Planes de pago único por duración (referencia Sismat) — CODEADO Y VERIFICADO, ⚠️ SIN COMMITEAR (esperando OK final de Daniel)
 
