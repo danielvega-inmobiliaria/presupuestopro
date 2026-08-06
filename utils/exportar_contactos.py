@@ -141,10 +141,14 @@ def _mensaje_activacion(nombre):
           f"todavía no activaste tu cuenta por mail. Si te trabó algo del proceso "
           f"contanos, te ayudamos. Y si preferís, te reenviamos el mail de "
           f"activación. Ingresá en: {APP_URL}")
-    email = (f"Hola {nombre}, notamos que todavía no confirmaste tu cuenta en "
-             f"PresupuestoPRO. Es un paso rápido y te deja usar la app sin "
-             f"restricciones. Si tuviste alguna dificultad para activarla, "
-             f"contanos." + WA_CTA)
+    # Actualizado 05/08/2026: mismo enfoque "bondades + link" que la plantilla
+    # de WhatsApp retencion_activar_cuenta_promo, en vez del enfoque viejo de
+    # "¿tuviste una dificultad?".
+    email = (f"Hola {nombre}, con PresupuestoPRO armás el presupuesto completo de tu "
+             f"obra —materiales, mano de obra y costo por m²— en minutos, con precios "
+             f"siempre actualizados contra corralones reales. Para empezar a usarla, "
+             f"solo te falta activar tu cuenta. Entrá acá: "
+             f"https://presupuestopro.com.ar/login" + WA_CTA)
     return wa, email
 
 
@@ -154,10 +158,12 @@ def _mensaje_seguimiento(nombre):
           f"¿Qué te pareció? ¿Tuviste alguna dificultad usando la app? Nos ayuda "
           f"mucho tu opinión, y si necesitás una mano con el próximo presupuesto "
           f"contanos.")
-    email = (f"Hola {nombre}, gracias por probar PresupuestoPRO. Nos gustaría saber "
-             f"qué te pareció y si encontraste alguna dificultad al usarla. Tu "
-             f"feedback nos ayuda a mejorar, y estamos para ayudarte con tu "
-             f"próximo presupuesto." + WA_CTA)
+    # Actualizado 05/08/2026: mismo enfoque que retencion_primer_presupuesto
+    # (ahora empuja a probar Costo/m², no solo pide feedback).
+    email = (f"Hola {nombre}, ya armaste un presupuesto en PresupuestoPRO. ¿Sabías que "
+             f"también podés calcular el costo por m² de tu obra en segundos, con "
+             f"precios siempre actualizados contra corralones reales? Probalo acá: "
+             f"https://presupuestopro.com.ar/costo-m2/" + WA_CTA)
     return wa, email
 
 
@@ -167,9 +173,12 @@ def _mensaje_sin_uso(nombre):
           f"todavía no hiciste tu primer presupuesto. ¿Te trabaste en algún paso o "
           f"tuviste alguna duda? Contanos y te ayudamos a armarlo — no lleva más de "
           f"unos minutos. Ingresá en: {APP_URL}")
-    email = (f"Hola {nombre}, notamos que activaste tu cuenta en PresupuestoPRO pero "
-             f"todavía no armaste tu primer presupuesto. Si tuviste alguna dificultad "
-             f"para empezar, contanos — te ayudamos con el primero." + WA_CTA)
+    # Actualizado 05/08/2026: mismo enfoque que retencion_sin_uso reformulada.
+    email = (f"Hola {nombre}, activaste tu cuenta en PresupuestoPRO pero todavía no la "
+             f"probaste. Con la app armás el presupuesto completo de tu obra "
+             f"—materiales, mano de obra y costo por m²— en minutos, con precios "
+             f"siempre actualizados contra corralones reales. Empezá ahora: "
+             f"https://presupuestopro.com.ar/login" + WA_CTA)
     return wa, email
 
 
@@ -179,9 +188,12 @@ def _mensaje_solo_costo_m2(nombre):
           f"PresupuestoPRO pero todavía no armaste un presupuesto completo. Es el "
           f"paso siguiente natural y no lleva mucho más tiempo — ¿te ayudamos a "
           f"armar el primero?")
-    email = (f"Hola {nombre}, notamos que usaste la calculadora de Costo/m² en "
-             f"PresupuestoPRO pero todavía no armaste un presupuesto completo. Si "
-             f"querés, te ayudamos a dar ese paso — contanos si tuviste alguna duda." + WA_CTA)
+    # Actualizado 05/08/2026: mismo enfoque que retencion_solo_costo_m2 reformulada.
+    email = (f"Hola {nombre}, ya probaste la calculadora de Costo/m² en PresupuestoPRO. "
+             f"El paso siguiente es armar el presupuesto completo de tu obra "
+             f"—materiales y mano de obra al detalle, con precios siempre actualizados "
+             f"contra corralones reales— en minutos. Hacé tu primer presupuesto: "
+             f"https://presupuestopro.com.ar/presupuesto/nuevo" + WA_CTA)
     return wa, email
 
 
@@ -192,9 +204,12 @@ def _mensaje_prueba_por_vencer(nombre):
     wa = (f"Hola {nombre}! Tu prueba gratis de PresupuestoPRO está por terminar. Si "
           f"te sirvió, podés suscribirte desde la app para seguir usándola sin "
           f"cortes. Cualquier duda sobre el pago, contanos.")
+    # Actualizado 05/08/2026: mismo enfoque que retencion_prueba_por_vencer_promo.
     email = (f"Hola {nombre}, tu prueba gratis de PresupuestoPRO está por terminar. "
-             f"Si te resultó útil, podés suscribirte desde la app para seguir "
-             f"usándola sin interrupciones." + WA_CTA)
+             f"Seguí armando presupuestos completos de tu obra —materiales, mano de "
+             f"obra y costo por m²— con precios siempre actualizados contra corralones "
+             f"reales, sin cortes. Suscribite acá: "
+             f"https://presupuestopro.com.ar/pagos/planes" + WA_CTA)
     return wa, email
 
 
@@ -203,16 +218,19 @@ def _mensaje_suscripcion_vencida(nombre):
     (suscripción paga que no se renovó), no por uso.
     Actualizado 05/08/2026: texto espejado de la plantilla `retencion_suscripcion_vencida`
     reformulada y aprobada por Meta el 04/08/2026 (enfoque de valor + link directo a planes,
-    en vez del enfoque de soporte/"¿tuviste una dificultad?" original)."""
+    en vez del enfoque de soporte/"¿tuviste una dificultad?" original). El mail ahora
+    usa el mismo enfoque (antes tenía el texto viejo de soporte)."""
     nombre = nombre or ''
     wa = (f"Hola {nombre}! Con PresupuestoPRO armás el presupuesto completo de tu obra "
           f"—materiales, mano de obra y costo por m²— en minutos, con precios siempre "
           f"actualizados contra corralones reales, así nunca te quedás corto. Reactivá tu "
           f"suscripción y seguí ahorrando tiempo en cada obra: "
           f"https://presupuestopro.com.ar/pagos/planes")
-    email = (f"Hola {nombre}, notamos que tu suscripción a PresupuestoPRO venció. Si "
-             f"tuviste algún problema con el pago o decidiste no continuar, nos "
-             f"ayuda mucho que nos cuentes por qué. Y si querés reactivarla, avisanos." + WA_CTA)
+    email = (f"Hola {nombre}, con PresupuestoPRO armás el presupuesto completo de tu "
+             f"obra —materiales, mano de obra y costo por m²— en minutos, con precios "
+             f"siempre actualizados contra corralones reales, así nunca te quedás "
+             f"corto. Reactivá tu suscripción y seguí ahorrando tiempo en cada obra: "
+             f"https://presupuestopro.com.ar/pagos/planes" + WA_CTA)
     return wa, email
 
 
