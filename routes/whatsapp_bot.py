@@ -146,10 +146,9 @@ FALLBACK_RESPUESTA = "¡Hola! Para arrancar, escribí: menú"
 # de depender solo del matching por palabras clave. WhatsApp permite hasta 10
 # filas en total por lista — exactamente las 10 categorías del FAQ.
 SALUDO_MENU = (
-    "¡Hola! 👋 Soy el asistente de *PresupuestoPRO*. Elegí un tema de la "
-    "lista para ayudarte más rápido, o escribime tu consulta directamente.\n\n"
-    "¿No encontrás lo que buscás o querés dejarnos un comentario? "
-    "Contanos desde la app: Menú → Sugerencias."
+    "¡Hola! 👋 Soy el asistente de *PresupuestoPRO*. Elegí un tema presionando "
+    "la lista de abajo. Si ninguno corresponde a tu consulta, escribime "
+    "directamente cuál es tu duda."
 )
 
 CATEGORIAS = [
@@ -305,6 +304,26 @@ CATEGORIAS = [
 ]
 
 _KEYWORDS_MENU = {"menu", "menú", "opciones", "ayuda", "inicio", "hola", "buenas"}
+
+# Agregado 05/08/2026: pedidos explícitos de que un humano contacte al
+# usuario (llamada, "hablar con alguien", etc.). A diferencia de
+# _KEYWORDS_MENU (match exacto del mensaje completo), acá se busca como
+# substring — el pedido suele venir dentro de una frase más larga
+# ("hola, me pueden llamar?"). Van sin tildes porque se comparan contra
+# texto ya pasado por _normalizar().
+_KEYWORDS_HUMANO = (
+    "llamame", "llamenme", "llamar", "que me llamen", "que me llame",
+    "pueden llamarme", "me pueden llamar", "necesito que me llamen",
+    "contactenme", "contactame", "que me contacten", "que me contacte",
+    "hablar con alguien", "hablar con una persona", "hablar con un asesor",
+    "hablar con un humano", "quiero un asesor", "atencion personalizada",
+)
+
+
+def _pide_contacto_humano(normalizado):
+    """True si el mensaje pide explícitamente que lo llamen o lo contacte
+    una persona (no un pedido de FAQ ni de menú)."""
+    return any(kw in normalizado for kw in _KEYWORDS_HUMANO)
 
 
 def buscar_categoria(categoria_id):
@@ -634,6 +653,23 @@ def recibir_mensaje():
                 telefono,
                 f"¡Gracias por contarnos{saludo}! Te responde en breve alguien "
                 "del equipo de PresupuestoPRO (no un bot) 🙂",
+            )
+            _actualizar_sesion(telefono)
+            return '', 200
+
+        # Bug detectado 05/08/2026: si alguien pedía que lo llamen/contacten
+        # ("llamame", "contactenme", "hablar con alguien", etc.) y la
+        # conversación estaba vencida (+24hs), el bot igual mandaba el menú
+        # de 10 categorías sin importar el texto, y nunca confirmaba que un
+        # humano iba a responder (eso solo pasaba para contactos de
+        # retención reciente). Ahora se detecta el pedido primero, se anota
+        # para revisión manual y se confirma explícitamente al usuario.
+        if _pide_contacto_humano(normalizado):
+            _guardar_consulta_sin_responder(telefono, texto)
+            enviar_mensaje_whatsapp(
+                telefono,
+                "¡Listo! Anoté tu pedido — alguien del equipo de PresupuestoPRO "
+                "te va a contactar a la brevedad 🙂",
             )
             _actualizar_sesion(telefono)
             return '', 200
