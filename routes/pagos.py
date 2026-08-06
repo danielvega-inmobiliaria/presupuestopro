@@ -115,7 +115,7 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
         return False
 
 
-def _activar_suscripcion(db, user_id, payment_id, meses=1):
+def _activar_suscripcion(db, user_id, payment_id, meses=1, plan_nombre='mensual', monto_ars=None):
     """Activa o renueva la suscripcion del usuario por N meses.
 
     Fix 05/08/2026 (bug reportado por Daniel: pagó 1 mes y le quedó vencimiento
@@ -156,15 +156,21 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
         "UPDATE users SET active=1, subscription_expires=?, mp_preapproval_id=?, es_trial=0 WHERE id=?",
         (nueva_exp.isoformat(), payment_id, user_id)
     )
+    # Fix 06/08/2026: antes `plan_nombre` quedaba hardcodeado 'mensual' y
+    # `monto_ars` salía siempre de MP_PRECIO_ARS (el precio único viejo) --
+    # ahora que hay 4 planes por duración (MP_PLANES), cada uno guarda su
+    # propio nombre/monto real. Si no se pasa nada (compatibilidad con algún
+    # llamado viejo), cae al comportamiento anterior.
+    if monto_ars is None:
+        monto_ars = current_app.config.get('MP_PRECIO_ARS', 15000)
     db.execute("""
         INSERT INTO suscripciones (user_id, mp_preapproval_id, plan_nombre, monto_ars, estado, fecha_inicio, fecha_fin)
-        VALUES (?, ?, 'mensual', ?, 'authorized', ?, ?)
+        VALUES (?, ?, ?, ?, 'authorized', ?, ?)
         ON CONFLICT(mp_preapproval_id) DO UPDATE SET
             estado='authorized',
             fecha_fin=excluded.fecha_fin,
             updated_at=CURRENT_TIMESTAMP
-    """, (user_id, payment_id,
-          current_app.config.get('MP_PRECIO_ARS', 15000),
+    """, (user_id, payment_id, plan_nombre, monto_ars,
           hoy.isoformat(), nueva_exp.isoformat()))
     db.commit()
     logger.info(f"[MP] Usuario {user_id} activado hasta {nueva_exp}")
@@ -243,14 +249,99 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1):
             logger.warning(f"[WA] Error mandando agradecimiento a user {user_id}: {e}")
 
 
+def _procesar_pago_por_id(payment_id):
+    """Consulta el pago directamente en MP por su ID y, si está aprobado,
+    activa la suscripción con los datos que MP tiene guardados (metadata:
+    user_id, plan, meses) — fuente única de verdad tanto para /retorno como
+    para /webhook.
+
+    Agregado 06/08/2026 al sumar los 4 planes por duración: antes /retorno
+    llamaba a _activar_suscripcion() con meses=1 SIEMPRE (hardcodeado, sin
+    leer qué plan se pagó en realidad), confiando en la sesión del navegador.
+    Eso es fragil para 2 casos reales que ya soporta la pantalla de pago:
+    (a) alguien paga desde el link compartido en otro dispositivo/sesión, sin
+    el `session` del usuario que lo generó, y (b) si /retorno llegara a
+    procesar el pago ANTES que /webhook con un meses incorrecto, la
+    deduplicación por payment_id (fix 05/08) haría que /webhook, con el dato
+    correcto, ya no pueda corregirlo. Consultar el pago por API en los 2
+    lugares evita ambos problemas: los meses/plan siempre salen del lado
+    servidor↔MP, nunca de un query param o de la sesión."""
+    sdk = _get_sdk()
+    result = sdk.payment().get(payment_id)
+    payment = result.get("response", {})
+
+    estado = payment.get("status", "")
+    if estado != "approved":
+        logger.info(f"[MP] payment {payment_id} estado={estado!r}, no se activa nada.")
+        return False
+
+    metadata    = payment.get("metadata", {}) or {}
+    payer       = payment.get("payer", {}) or {}
+    payer_email = payer.get("email", "")
+    user_id_meta = metadata.get("user_id")
+    plan_key    = metadata.get("plan") or 'mensual'
+    try:
+        meses = int(metadata.get("meses") or 1)
+    except (TypeError, ValueError):
+        meses = 1
+
+    planes_cfg = current_app.config.get('MP_PLANES', {})
+    plan_info  = planes_cfg.get(plan_key, {})
+    plan_nombre = plan_info.get('nombre', plan_key)
+    monto_ars   = plan_info.get('precio_total')
+
+    db = get_db()
+    user = None
+    if user_id_meta:
+        user = db.execute("SELECT id FROM users WHERE id=?", (user_id_meta,)).fetchone()
+    if not user and payer_email:
+        user = db.execute("SELECT id FROM users WHERE email=?", (payer_email,)).fetchone()
+
+    if user:
+        _activar_suscripcion(db, user['id'], str(payment_id), meses=meses,
+                              plan_nombre=plan_nombre, monto_ars=monto_ars)
+        logger.info(f"[MP] Usuario {user['id']} activado por payment {payment_id} (plan={plan_key}, meses={meses})")
+    else:
+        logger.warning(f"[MP] Usuario no encontrado para payment {payment_id}: email={payer_email} meta_id={user_id_meta}")
+    db.close()
+    return bool(user)
+
+
 # ─── rutas ────────────────────────────────────────────────────────────────────
 
 @bp.route('/planes')
 @_login_required
 def planes():
+    """Fix 06/08/2026: antes había 1 solo plan mensual (botón único). Ahora
+    muestra los 4 planes de MP_PLANES (config.py) — pago único por duración,
+    sin renovación automática, mismo esquema que el competidor Sismat (ver
+    UNIFICACION_PRESUPUESTOPRO/PROYECTO.md, Ideas Futuras 05-06/08). Se le
+    calcula acá el % de ahorro de cada plan contra pagar mes a mes al precio
+    del plan mensual, para mostrar el badge "Ahorrás X%"."""
     user = _get_user(session['user_id'])
-    precio_ars = current_app.config.get('MP_PRECIO_ARS', 15000)
     public_key = current_app.config.get('MP_PUBLIC_KEY', '')
+    planes_cfg = current_app.config.get('MP_PLANES', {})
+    precio_mensual_base = planes_cfg.get('mensual', {}).get('precio_mes', 0)
+
+    planes_lista = []
+    for clave, p in planes_cfg.items():
+        costo_mes_a_mes = precio_mensual_base * p['meses']
+        ahorro_pct = 0
+        if costo_mes_a_mes > 0:
+            ahorro_pct = round((costo_mes_a_mes - p['precio_total']) / costo_mes_a_mes * 100)
+        planes_lista.append({
+            'clave': clave,
+            'nombre': p['nombre'],
+            'meses': p['meses'],
+            'precio_mes': p['precio_mes'],
+            'precio_total': p['precio_total'],
+            'destacado': p.get('destacado', False),
+            'ahorro_pct': ahorro_pct,
+        })
+    # Orden fijo por duración (el dict de Python ya respeta orden de
+    # inserción, pero se ordena explícito por las dudas).
+    orden = {'mensual': 0, 'trimestral': 1, 'semestral': 2, 'anual': 3}
+    planes_lista.sort(key=lambda p: orden.get(p['clave'], 99))
 
     sub_activa = False
     sub_expires = None
@@ -280,14 +371,22 @@ def planes():
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <style>
   body { background: #f8f9fa; }
-  .plan-card { border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
-  .price { font-size: 2.5rem; font-weight: 700; color: #0d6efd; }
+  .plan-card { border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08); border: 2px solid transparent; height: 100%; }
+  .plan-card.destacado { border-color: #0d6efd; box-shadow: 0 8px 32px rgba(13,110,253,.18); transform: scale(1.03); }
+  .badge-destacado { position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+                      background: #0d6efd; color: #fff; padding: 4px 16px; border-radius: 20px;
+                      font-size: .78rem; font-weight: 700; white-space: nowrap; }
+  .badge-ahorro { background: #d1f5e0; color: #0a7a3d; font-size: .74rem; font-weight: 700;
+                   padding: 3px 10px; border-radius: 20px; display: inline-block; }
+  .price { font-size: 2.1rem; font-weight: 700; color: #0d1e3c; }
+  .price-total { font-size: .82rem; color: #888; }
+  .plan-card .card-body { position: relative; }
 </style>
 </head>
 <body>
 <div class="container py-5">
-  <h2 class="text-center mb-2">Activa tu suscripcion</h2>
-  <p class="text-center text-muted mb-5">Crea presupuestos profesionales y descargalos en PDF</p>
+  <h2 class="text-center mb-2">Elegí tu plan</h2>
+  <p class="text-center text-muted mb-5">Pago único, sin renovación automática — vos decidís cuándo volver a pagar</p>
 
   {% if sub_activa %}
   <div class="alert alert-success text-center">
@@ -299,43 +398,51 @@ def planes():
   <div class="alert alert-danger text-center">{{ error }}</div>
   {% endif %}
 
-  <div class="row justify-content-center">
-    <div class="col-md-5">
-      <div class="card plan-card p-4">
-        <div class="card-body text-center">
-          <h4 class="mb-1">Plan Mensual</h4>
-          <div class="price my-3">$ {{ '{:,.0f}'.format(precio_ars) }} <small class="fs-6 text-muted">ARS/mes</small></div>
-          <ul class="list-unstyled text-start mb-4">
-            <li>Presupuestos ilimitados</li>
-            <li>PDF profesional</li>
-            <li>Analisis de costos</li>
-            <li>Multi-moneda</li>
-            <li>Paga con dinero en cuenta, tarjeta debito/credito o Rapipago/Pago Facil</li>
-          </ul>
+  <div class="row justify-content-center g-4">
+    {% for p in planes %}
+    <div class="col-6 col-md-3">
+      <div class="card plan-card p-3 {{ 'destacado' if p.destacado else '' }}">
+        {% if p.destacado %}<span class="badge-destacado">Más elegido</span>{% endif %}
+        <div class="card-body text-center px-1">
+          <h5 class="mb-1">{{ p.nombre }}</h5>
+          <div class="price my-2">$ {{ '{:,.0f}'.format(p.precio_mes) }}<small class="fs-6 text-muted">/mes</small></div>
+          <div class="price-total mb-2">
+            Total $ {{ '{:,.0f}'.format(p.precio_total) }} ({{ p.meses }} {{ 'mes' if p.meses == 1 else 'meses' }})
+          </div>
+          {% if p.ahorro_pct > 0 %}
+          <div class="mb-3"><span class="badge-ahorro">Ahorrás {{ p.ahorro_pct }}%</span></div>
+          {% else %}
+          <div class="mb-3">&nbsp;</div>
+          {% endif %}
           {% if not sub_activa %}
           <form method="POST" action="/pagos/crear-suscripcion">
-            <button type="submit" class="btn btn-primary btn-lg w-100">
-              Pagar con Mercado Pago
+            <input type="hidden" name="plan" value="{{ p.clave }}">
+            <button type="submit" class="btn {{ 'btn-primary' if p.destacado else 'btn-outline-primary' }} w-100">
+              Elegir
             </button>
           </form>
           {% else %}
-          <a href="/dashboard" class="btn btn-success btn-lg w-100">Ir al Dashboard</a>
+          <a href="/dashboard" class="btn btn-success w-100">Ir al Dashboard</a>
           {% endif %}
         </div>
       </div>
     </div>
+    {% endfor %}
   </div>
 
-  <p class="text-center mt-4 text-muted small">
+  <ul class="list-unstyled text-center text-muted mt-5 mb-3 small">
+    <li>Presupuestos ilimitados · PDF profesional · Análisis de costos · Multi-moneda</li>
+  </ul>
+  <p class="text-center text-muted small">
     Pagos seguros procesados por Mercado Pago.<br>
-    Podes pagar con dinero en cuenta, tarjeta de debito/credito o efectivo en Rapipago/Pago Facil.
+    Podes pagar con dinero en cuenta, tarjeta de debito/credito (en cuotas) o efectivo en Rapipago/Pago Facil.
   </p>
 </div>
 </body>
 </html>
 """
     return render_template_string(html,
-        precio_ars=precio_ars,
+        planes=planes_lista,
         public_key=public_key,
         sub_activa=sub_activa,
         sub_expires=sub_expires,
@@ -345,17 +452,33 @@ def planes():
 @bp.route('/crear-suscripcion', methods=['POST'])
 @_login_required
 def crear_suscripcion():
-    """Crea una preference de pago unico en MP y redirige al checkout."""
+    """Crea una preference de pago unico en MP y redirige al checkout.
+
+    Fix 06/08/2026: antes el precio/nombre salían fijos de MP_PRECIO_ARS/
+    MP_PLAN_NOMBRE (1 solo plan). Ahora lee qué plan eligió el usuario en
+    /pagos/planes (campo `plan` del form) contra MP_PLANES — si viene vacío o
+    inválido, cae a 'mensual' por las dudas (nunca deja pasar un plan que no
+    exista en la config). `meses` y `plan` quedan en el metadata del pago
+    para que /retorno y /webhook (vía _procesar_pago_por_id) sepan cuánto
+    tiempo sumar sin tener que confiar en la sesión del navegador."""
     user = _get_user(session['user_id'])
     sdk = _get_sdk()
     base_url = current_app.config['APP_BASE_URL']
-    precio = current_app.config['MP_PRECIO_ARS']
     user_id = session['user_id']
+
+    planes_cfg = current_app.config.get('MP_PLANES', {})
+    plan_key = request.form.get('plan', 'mensual')
+    if plan_key not in planes_cfg:
+        plan_key = 'mensual'
+    plan_info = planes_cfg.get(plan_key, {'nombre': current_app.config['MP_PLAN_NOMBRE'],
+                                           'precio_total': current_app.config['MP_PRECIO_ARS'],
+                                           'meses': 1})
+    precio = plan_info['precio_total']
 
     preference_data = {
         "items": [
             {
-                "title": current_app.config['MP_PLAN_NOMBRE'],
+                "title": f"PresupuestoPRO — {plan_info['nombre']}",
                 "quantity": 1,
                 "unit_price": float(precio),
                 "currency_id": "ARS",
@@ -373,6 +496,8 @@ def crear_suscripcion():
         "metadata": {
             "user_id": user_id,
             "app": "presupuestopro",
+            "plan": plan_key,
+            "meses": plan_info['meses'],
         },
         "statement_descriptor": "PRESUPUESTOPRO",
         "expires": False,
@@ -454,9 +579,13 @@ def retorno():
     preference_id   = request.args.get('preference_id') or session.pop('mp_preference_id', None)
 
     if status == 'approved' and payment_id:
-        db = get_db()
-        _activar_suscripcion(db, session['user_id'], payment_id)
-        db.close()
+        # Fix 06/08/2026: antes llamaba a _activar_suscripcion() con meses=1
+        # fijo, sin importar qué plan se pagó -- ver docstring completo en
+        # _procesar_pago_por_id() más arriba.
+        try:
+            _procesar_pago_por_id(payment_id)
+        except Exception as e:
+            logger.error(f"[MP retorno] Error procesando {payment_id}: {e}")
         mensaje = "Pago aprobado! Ya podes usar PresupuestoPRO."
         tipo = "success"
     elif status == 'pending':
@@ -523,37 +652,12 @@ def webhook():
     if topic not in ("payment", "merchant_order"):
         return jsonify({"ok": True}), 200
 
+    # Fix 06/08/2026: antes esta ruta consultaba el pago por API acá mismo y
+    # duplicaba (con otro código) exactamente lo que hace /retorno -- ahora
+    # las 2 comparten _procesar_pago_por_id(), que ya lee meses/plan del
+    # metadata en vez de asumir 1 mes siempre.
     try:
-        sdk = _get_sdk()
-        result = sdk.payment().get(resource_id)
-        payment = result.get("response", {})
-
-        estado   = payment.get("status", "")
-        metadata = payment.get("metadata", {})
-        payer    = payment.get("payer", {})
-        payer_email = payer.get("email", "")
-        user_id_meta = metadata.get("user_id")
-
-        logger.info(f"[MP Webhook] payment {resource_id} estado={estado} email={payer_email} user_id_meta={user_id_meta}")
-
-        if estado != "approved":
-            return jsonify({"ok": True}), 200
-
-        db = get_db()
-        user = None
-        if user_id_meta:
-            user = db.execute("SELECT id FROM users WHERE id=?", (user_id_meta,)).fetchone()
-        if not user and payer_email:
-            user = db.execute("SELECT id FROM users WHERE email=?", (payer_email,)).fetchone()
-
-        if user:
-            _activar_suscripcion(db, user['id'], str(resource_id))
-            logger.info(f"[MP Webhook] Usuario {user['id']} activado por payment {resource_id}")
-        else:
-            logger.warning(f"[MP Webhook] Usuario no encontrado: email={payer_email} meta_id={user_id_meta}")
-
-        db.close()
-
+        _procesar_pago_por_id(resource_id)
     except Exception as e:
         logger.error(f"[MP Webhook] Error procesando {resource_id}: {e}")
 

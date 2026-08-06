@@ -13,9 +13,54 @@ PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra 
 
 ---
 
-_Última actualización: 05/08/2026 — 16:42 ART_
+_Última actualización: 06/08/2026 — 10:28 ART_
 
-### 🟡 CIERRE 05/08/2026 (cont. 21 — 2do bloque) — Validación de teléfono (no aceptar un email pegado ahí) ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22) — Planes de pago único por duración (referencia Sismat) — CODEADO Y VERIFICADO, ⚠️ SIN COMMITEAR (esperando OK final de Daniel)
+
+Pedido de Daniel (ver `UNIFICACION_PRESUPUESTOPRO/PROYECTO.md`, Ideas Futuras 05-06/08): reemplazar el plan único mensual por 4 planes de pago único (mismo esquema que Sismat, sin renovación automática). Precios definidos por Daniel: Mensual $14.499/mes, Trimestral $12.499/mes ($37.497 total), Semestral $11.499/mes ($68.994 total, destacado como "más elegido"), Anual $9.499/mes ($113.988 total).
+
+**Hallazgo previo (seguía en pie):** el código actual no usa auto-débito — es Checkout Pro de pago único (Preference), igual que Sismat. Ver más abajo la corrección sobre un preapproval viejo (26-27/06, ya reemplazado) que causó un cobro real el 01/08 a una cuenta de prueba — Daniel ya lo canceló a mano en MP.
+
+**Implementación:**
+- `config.py`: nuevo diccionario `MP_PLANES` (mensual/trimestral/semestral/anual — nombre, meses, precio_mes, precio_total, destacado). `MP_PRECIO_ARS`/`MP_PLAN_NOMBRE` quedan como fallback de compatibilidad, ya no se usan en el flujo normal.
+- `routes/pagos.py::planes()`: ahora arma 4 cards (antes 1) — calcula el % de ahorro de cada plan contra pagar mes a mes al precio del plan mensual, marca la destacada con badge "Más elegido".
+- `routes/pagos.py::crear_suscripcion()`: lee el plan elegido del form (`plan`), valida contra `MP_PLANES`, arma la preference con precio/nombre de ese plan y guarda `plan`+`meses` en el `metadata` del pago.
+- Nuevo helper `_procesar_pago_por_id()`: consulta el pago por API a MP (fuente única de verdad) y lee `meses`/`plan` del metadata — usado tanto por `/retorno` como por `/webhook` (antes cada uno tenía su propia lógica duplicada, y `/retorno` ni siquiera leía el plan, activaba siempre con meses=1 fijo).
+- `_activar_suscripcion()`: ahora también recibe `plan_nombre` y `monto_ars` reales (antes quedaba hardcodeado `'mensual'` y el precio viejo único). La deduplicación por `payment_id` (fix 05/08) no se tocó, sigue funcionando igual con cualquier plan.
+- Publicado en la misma ruta de siempre: **`/pagos/planes`** (accesible desde el botón "Suscribirme" del banner de prueba en el Dashboard) — no es una pantalla nueva, es la misma que ya existía con las 4 opciones en vez de 1.
+
+**Verificado (funcional, no solo sintaxis) — con la app real, no simulado:**
+- `ast.parse` OK en `config.py` y `routes/pagos.py`.
+- Cálculo de ahorro por plan: mensual 0%, trimestral 14%, semestral 21% (destacado=True), anual 34% — orden correcto.
+- Render real de `/pagos/planes` vía `create_app()` + `test_client()` (no mockeado) — el HTML devuelto contiene los 4 nombres de plan, el badge "Más elegido" y los precios/totales correctos.
+- Pago real simulado con SDK de MP mockeado (`unittest.mock`): pago aprobado con `metadata={plan: trimestral, meses: 3}` → activa la cuenta por 90 días exactos, con `plan_nombre='Plan Trimestral'` y `monto_ars=37497` guardados en `suscripciones`. Mismo `payment_id` llamado 2 veces (simulando retorno+webhook) → la 2da no duplica, idempotencia sigue funcionando con planes de N meses.
+- Mockup visual de las 4 cards mostrado a Daniel en el chat antes de decidir si commitear.
+
+**⚠️ NO COMMITEADO A PROPÓSITO** — Daniel pidió explícitamente "comentamelo antes de dejarlo activo". Código listo y verificado, pero no se corrió `git push` hasta que confirme que lo vio y está conforme.
+
+```bash
+cd /d/ESCRITORIO/CLAUDE/APP_PRESUPUESTOPRO
+rm -f .git/index.lock
+git add config.py routes/pagos.py PROYECTO.md
+git commit -m "feat: 4 planes de pago unico por duracion (mensual/trimestral/semestral/anual), reemplaza plan unico mensual"
+git push
+```
+
+---
+
+### ⚠️ CORRECCIÓN 06/08/2026 — sí existió auto-débito real en el pasado, ya reemplazado en código, pero dejó un preapproval viejo cobrando solo
+
+Daniel reportó un cobro real el 01/08 a una cuenta de prueba a nombre de su señora (creada en julio), tuvo que cancelar la suscripción a mano desde Mercado Pago. Investigando el historial de git se confirmó:
+- El código SÍ usó `sdk.preapproval()` (suscripción recurrente real de MP, auto-débito) entre el 26/06 y el 27/06/2026 (commits `b58424f`, `15a16a5`, `21b3d78`) — 4-5 días antes del lanzamiento (01/07).
+- El 27/06 (commit `92e0828`, "feat: preference MP + PWA install") se reemplazó por el sistema de pago único (Preference) que está vigente hoy. Cambiar el código no cancela lo que ya estaba autorizado del lado de Mercado Pago — un preapproval sigue cobrando solo hasta que alguien lo cancele explícitamente. Eso es exactamente lo que pasó con la cuenta de prueba.
+- El `notification_url` del preapproval viejo apuntaba al mismo `/pagos/webhook` que sigue activo hoy — el cobro del 01/08 probablemente SÍ llegó a nuestro webhook actual y pudo haber activado/extendido esa cuenta de prueba en nuestra base. Pendiente revisar manualmente en Admin > Usuarios el estado de esa cuenta.
+- **Recomendación pendiente para Daniel:** revisar en el dashboard de Mercado Pago (sección Suscripciones) si quedan OTROS preapprovals activos de esos días de prueba (26-27/06) — el código actual no tiene forma de listarlos ni cancelarlos, así que cualquier otro que haya quedado vivo sigue cobrando solo hasta que se cancele a mano en MP.
+- Esto refuerza el esquema de planes con pago único recién implementado arriba: 100% Preference, nunca más preapproval.
+
+---
+
+### ✅ CONFIRMADO: cont. 21 (2do bloque) COMMITEADO Y PUSHEADO — Validación de teléfono (no aceptar un email pegado ahí)
+Commit `5e5b227` ya en `origin/main` (confirmado por `git log`/fetch real). Detalle de lo implementado:
 
 Daniel detectó en Admin > Usuarios un usuario (Cristian) con el mismo email pegado en el campo Teléfono/WhatsApp (se veía duplicado: mismo texto en el ícono de mail y en el de WhatsApp).
 
