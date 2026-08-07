@@ -2722,6 +2722,36 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3i: users.ultima_actividad + tabla actividad_diaria agregadas")
 
+        # ── 3j. Automatización de mails de retención por tandas horarias ───
+        # Pedido de Daniel 07/08/2026: en vez de mandar los 6 mensajes de
+        # segmento/trigger a mano desde Admin > Seguimiento, que se manden
+        # solos en tandas horarias (ver utils/recordatorios.py::
+        # enviar_backlog_email_segmentos). Con 2 workers de gunicorn
+        # (Procfile) el job de app.py corre en cada proceso por separado --
+        # esta tabla es el mismo patrón de "el que gana la carrera manda"
+        # que ya usa recordatorio_inactividad_enviado/checkin_suscripcion_
+        # enviado, pero a nivel de TANDA (no de usuario individual, porque
+        # acá se manda a varios usuarios distintos en la misma corrida): el
+        # UNIQUE(tipo, fecha, hora) hace que el segundo worker que intente
+        # `INSERT OR IGNORE` la misma tanda choque contra la fila que ya
+        # insertó el primero (rowcount=0) y no vuelva a mandar nada.
+        ya_3j = db.execute("SELECT valor FROM config WHERE clave='3j_done'").fetchone()
+        if not ya_3j:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS envios_batch_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tipo TEXT NOT NULL,
+                    fecha DATE NOT NULL,
+                    hora INTEGER NOT NULL,
+                    creado_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(tipo, fecha, hora)
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3j_done','2026-08-07')")
+            db.commit()
+            print("[migrate_db] 3j: envios_batch_log agregada (tandas horarias de retención)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

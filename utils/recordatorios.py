@@ -186,3 +186,108 @@ def enviar_checkin_primera_suscripcion():
             print(f"[recordatorios] Error mandando check-in a user {u['id']}: {e}")
     db.close()
     return enviados
+
+
+# ─── mails de retención automáticos por tandas horarias (07/08/2026) ─────────
+# Pedido de Daniel: los 6 mensajes de segmento/trigger (A/B/C/D + prueba por
+# vencer) que hoy se mandan a mano desde Admin > Seguimiento, mandarlos SOLOS
+# por mail (sin riesgo tipo Meta, WhatsApp queda para otra etapa) en tandas
+# horarias en vez de un solo batch diario -- así se puede comparar qué
+# horario responde más. HOY (07/08) es una prueba con 4 cortes en la tarde;
+# de acá en más, mientras no se cambie este diccionario, corre el esquema
+# estable de 2 cortes (10 y 19hs) con más volumen a las 10 -- ajustar según
+# lo que midamos hoy.
+#
+# "Vencidos" (suscripción/prueba vencida) queda AFUERA a propósito: depende
+# de la oferta 50%/48hs todavía en construcción (ver routes/pagos.py cuando
+# esté), no del mensaje de soporte viejo -- mandarle las 2 cosas por
+# separado sería contactar dos veces con mensajes distintos en poco tiempo.
+HORARIOS_BACKLOG_EMAIL = {
+    '2026-08-07': [(16, 5), (17, 5), (18, 5), (19, 5)],
+}
+HORARIOS_BACKLOG_EMAIL_DEFAULT = [(10, 12), (19, 8)]
+
+
+def _tanda_de_hoy(hora_art, fecha_str):
+    horarios = HORARIOS_BACKLOG_EMAIL.get(fecha_str, HORARIOS_BACKLOG_EMAIL_DEFAULT)
+    for hora, cantidad in horarios:
+        if hora == hora_art:
+            return cantidad
+    return 0
+
+
+def _candidatos_backlog_email(db, limite):
+    """Reusa la misma clasificación que ya usa Admin > Seguimiento
+    (_usuarios_seguimiento/_categoria/_tipo_mensaje en routes/admin.py) para
+    no duplicar la lógica de segmentos -- import perezoso para no generar un
+    import circular (mismo criterio que ya usa este archivo con
+    routes.whatsapp_bot más arriba). Excluye 'vencidos' (ver nota arriba) y
+    a cualquiera que YA tenga un envío de email registrado para ESE tipo en
+    retencion_contactos (evita repetir aunque haya recibido otro tipo de
+    mail antes, ej. el de bienvenida). Ordena por más antiguo primero."""
+    from routes.admin import _usuarios_seguimiento, _categoria, _tipo_mensaje
+
+    candidatos = []
+    for fila in _usuarios_seguimiento():
+        if not fila.get('email'):
+            continue
+        categoria = _categoria(fila)
+        if categoria == 'vencidos':
+            continue
+        tipo = _tipo_mensaje(fila, categoria)
+        ya = db.execute(
+            "SELECT 1 FROM retencion_contactos WHERE user_id=? AND canal='email' AND segmento=? LIMIT 1",
+            (fila['id'], tipo)
+        ).fetchone()
+        if ya:
+            continue
+        candidatos.append((fila, tipo))
+
+    candidatos.sort(key=lambda ft: ft[0].get('created_at') or '')
+    return candidatos[:limite]
+
+
+def enviar_backlog_email_segmentos():
+    """Corre la tanda horaria de mails de retención. Devuelve la cantidad
+    mandada en ESTA corrida (0 si no hay RESEND_API_KEY, si esta hora no
+    tiene tanda asignada, o si otro worker ya corrió esta misma tanda -- ver
+    envios_batch_log / migración 3j en database.py)."""
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        return 0
+
+    from datetime import datetime as _dt
+    ahora_art = _dt.utcnow() - timedelta(hours=3)
+    hora_art = ahora_art.hour
+    fecha_str = ahora_art.date().isoformat()
+
+    db = get_db()
+
+    limite = _tanda_de_hoy(hora_art, fecha_str)
+    if limite <= 0:
+        db.close()
+        return 0
+
+    cur = db.execute(
+        "INSERT OR IGNORE INTO envios_batch_log (tipo, fecha, hora) VALUES ('backlog_email', ?, ?)",
+        (fecha_str, hora_art)
+    )
+    db.commit()
+    if cur.rowcount == 0:
+        db.close()
+        return 0  # otro worker ya corrió esta tanda
+
+    from routes.admin import _enviar_email_seguimiento
+
+    candidatos = _candidatos_backlog_email(db, limite)
+    enviados = 0
+    for fila, tipo in candidatos:
+        try:
+            ok, _cuerpo = _enviar_email_seguimiento(db, fila, tipo)
+            db.commit()
+            if ok:
+                enviados += 1
+        except Exception as e:
+            print(f"[recordatorios] Error mandando backlog email a user {fila.get('id')}: {e}")
+    db.close()
+    return enviados
