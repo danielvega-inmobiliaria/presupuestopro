@@ -33,9 +33,25 @@ Origen: pregunta de Daniel sobre el campo "Precio unit. (editable según tu zona
 
 ---
 
-_Última actualización: 06/08/2026 — 18:17 ART_
+_Última actualización: 06/08/2026 — 23:47 ART_
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 6to bloque) — Confirmado: el modal de inscripción está muerto hace un mes, ruta `/inscripcion` eliminada ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 23) — Fix zona horaria: `date('now')` de SQLite es UTC, afectaba gráfico de conectados Y el corte de acceso por suscripción vencida ⚠️ SIN COMMITEAR
+
+Daniel notó, mirando una captura tomada a las 22:39 ART, que el gráfico de "Actividad de usuarios" ya mostraba 2 conectados en la barra del día siguiente (07/08) siendo todavía 06/08.
+
+- **Causa raíz:** `date('now')` de SQLite devuelve la fecha en **UTC**, no en hora Argentina (UTC-3). Entre las 21:00 y las 23:59 ART, en UTC ya es el día siguiente. Cualquier lugar del código que comparara o agrupara por fecha con `date('now')` quedaba corrido 3 horas respecto al día calendario real en Argentina.
+- **Encontrados y corregidos 3 usos** (mismo fix en los 3: `date('now')` → `date('now', '-3 hours')`; Argentina no tiene horario de verano, offset fijo alcanza):
+  1. `utils/auth.py::get_current_user()` — balde diario de `actividad_diaria` (el que reportó Daniel: conexiones de 21:00-23:59 ART se anotaban en el gráfico de "mañana").
+  2. `utils/auth.py::get_current_user()` — chequeo de `subscription_expires >= date('now')` que corta el login: podía cortarle el acceso a un usuario pago hasta 3hs antes de lo esperado.
+  3. `routes/admin.py::dashboard()` — contador `stats['vencidos']`: mismo corte prematuro de 3hs en el número que se muestra en el panel.
+- Verificado a mano: `date('2026-08-07 01:39:00')` (=22:39 ART del 06/08) daba `2026-08-07` (bug) y con el fix da `2026-08-06` (correcto). `ast.parse` OK en los 2 archivos.
+- **Encontrado pero NO tocado — mismo patrón, alcance más grande:** 4 lugares más usan `date.today()` de Python (no SQL) para armar `hoy_str` y clasificar usuarios como vencidos: `routes/admin.py` líneas 395, 548, 848 y `utils/exportar_contactos.py` línea 454. Si el contenedor de Railway corre en UTC (lo más probable, es el default), tienen la misma falla de 3hs -- y estos alimentan la segmentación de Admin > Seguimiento (VENCIDOS/POR VENCER) que dispara el envío masivo de WhatsApp/mail. Es un cambio más grande y toca lógica de campañas -- no se tocó sin confirmación de Daniel.
+
+**Archivos tocados:** `utils/auth.py`, `routes/admin.py`.
+
+---
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 6to bloque) — Confirmado: el modal de inscripción está muerto hace un mes, ruta `/inscripcion` eliminada — COMMITEADO Y PUSHEADO (`4973e04`)
 
 Daniel preguntó si alguien todavía puede llegar al modal de inscripción de la landing (el que alimenta la tabla `leads`) antes de borrarlo. Investigué: `templates/landing.html` tiene un comentario propio, fechado **08/07/2026**, que dice que ese modal YA se sacó ese día -- todos los botones "Probá gratis" apuntan directo a `/registro` desde entonces. Grep de todo el proyecto confirmó **cero** referencias activas a `/inscripcion` o `modalInscripcion` fuera de comentarios -- ningún `<form>`, botón ni fetch apunta ahí. Es decir: la ruta lleva casi un mes recibiendo cero requests reales, nadie tiene forma de llegar.
 
@@ -49,7 +65,7 @@ Daniel preguntó si alguien todavía puede llegar al modal de inscripción de la
 
 ---
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 5to bloque) — Limpieza de menú (Inscriptos/Nuevo usuario) + rediseño completo de Seguimiento (5 categorías + envío masivo) ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 5to bloque) — Limpieza de menú (Inscriptos/Nuevo usuario) + rediseño completo de Seguimiento (5 categorías + envío masivo) — COMMITEADO Y PUSHEADO (`94a564a`)
 
 Pedido de Daniel a partir de 5 capturas del celular: (1) sacar "Inscriptos" y "Nuevo usuario" del menú -- eran de prueba / ya no hacen falta porque el alta es siempre por la web. (2) En el dashboard, sacar "Próximos vencimientos". (3) Rediseñar "Seguimiento" (antes una lista plana de todos los usuarios accionables) como landing con 5 categorías con cantidad -- SIN VALIDAR / NUNCA PROBÓ / ESTUVO USANDO / POR VENCER / VENCIDOS -- y al entrar a cada una, botones "Mail a todos"/"WhatsApp a todos" + la lista con los datos para llamar.
 
@@ -76,7 +92,7 @@ Pedido de Daniel a partir de 5 capturas del celular: (1) sacar "Inscriptos" y "N
 
 ---
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 4to bloque) — Cuadro "Actividad de usuarios" en el dashboard + 2 columnas nuevas en hoja Abonados del export ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 4to bloque) — Cuadro "Actividad de usuarios" en el dashboard + 2 columnas nuevas en hoja Abonados del export — COMMITEADO Y PUSHEADO (`219d1e5`)
 
 Pedido de Daniel: (1) un cuadro en Admin con gráfico de conexiones por día + una barra que mida los conectados en el momento, y (2) en la hoja "Abonados" del export, 2 columnas — Plan/$mes y $ cobrados (neto del 14% que se queda MP) con el total arriba.
 
@@ -105,7 +121,7 @@ Pedido de Daniel: (1) un cuadro en Admin con gráfico de conexiones por día + u
 
 ---
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 3er bloque) — 'DeckAr' revertido a 'Rev Text.' en TODAS partes (dato real, no solo rótulo) ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 3er bloque) — 'DeckAr' revertido a 'Rev Text.' en TODAS partes (dato real, no solo rótulo) — COMMITEADO Y PUSHEADO (`447f182`)
 
 En el bloque anterior (ver debajo) se había corregido el **rótulo** de Admin > Precios de `'Rev Text.'` a `'DeckAr'` para que coincidiera con el nombre real guardado en la base (así lo había dejado la migración 2n). Daniel pidió revertir esa decisión: **'DeckAr' es un nombre comercial de la zona de Rosario, no se reconoce en el resto del país** — y la app apunta a expansión regional (ver `PRESUPUESTOPRO_EXPANSION_REGIONAL` en el HUB). Esta vez el pedido es al revés: no tocar el rótulo, sino **renombrar el dato real** en la base para que todo el sistema use 'Rev Text.' de forma consistente.
 
@@ -118,7 +134,7 @@ En el bloque anterior (ver debajo) se había corregido el **rótulo** de Admin >
 
 ---
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 2do bloque) — Bug grande pre-existente encontrado y resuelto: los 90/90 materiales de Admin > Precios ya matchean ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 2do bloque) — Bug grande pre-existente encontrado y resuelto: los 90/90 materiales de Admin > Precios ya matchean — COMMITEADO Y PUSHEADO (`447f182`)
 
 Daniel aplicó el aumento del 6.5% y reportó (captura) que varios materiales quedaron en $0: Piedra Partida, Granza y Perlitas Telgopor. Estos 3 NO se rompieron por el aumento — investigando se encontró que **la pantalla Admin > Precios nunca los mostró bien, desde que existe esa lista**.
 
@@ -136,7 +152,7 @@ Daniel aplicó el aumento del 6.5% y reportó (captura) que varios materiales qu
 
 ---
 
-### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat) — Actualización de precios: jornales + aumento general a la lista de materiales, redondeo a $100 ⚠️ SIN COMMITEAR
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat) — Actualización de precios: jornales + aumento general a la lista de materiales, redondeo a $100 — COMMITEADO Y PUSHEADO (`c2dff69`)
 
 Pedido de Daniel: Jornal Oficial $85.000/día, Jornal Ayudante $43.000/día, y un aumento del 6.5% a toda la lista de precios de materiales — redondeado primero al peso, después pidió pasarlo a redondeo a los $100.
 

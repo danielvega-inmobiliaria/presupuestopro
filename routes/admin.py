@@ -156,7 +156,10 @@ def dashboard():
     stats = {
         'total_users':   db.execute("SELECT COUNT(*) as c FROM users WHERE is_admin=0").fetchone()['c'],
         'activos':       db.execute("SELECT COUNT(*) as c FROM users WHERE active=1 AND is_admin=0").fetchone()['c'],
-        'vencidos':      db.execute("SELECT COUNT(*) as c FROM users WHERE subscription_expires < date('now') AND is_admin=0").fetchone()['c'],
+        # Fix 06/08/2026 (cont. 23): date('now') es UTC -- ver mismo fix en
+        # utils/auth.py. Contaba usuarios como vencidos hasta 3hs antes de
+        # tiempo en la franja 21:00-23:59 ART.
+        'vencidos':      db.execute("SELECT COUNT(*) as c FROM users WHERE subscription_expires < date('now', '-3 hours') AND is_admin=0").fetchone()['c'],
         'presupuestos':  db.execute("SELECT COUNT(*) as c FROM presupuestos").fetchone()['c'],
         'mensajes_nuevos': db.execute("SELECT COUNT(*) as c FROM contactos WHERE leido=0").fetchone()['c'],
         'sugerencias_nuevas': db.execute("SELECT COUNT(*) as c FROM sugerencias WHERE leido=0").fetchone()['c'],

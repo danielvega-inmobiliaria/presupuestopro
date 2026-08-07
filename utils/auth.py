@@ -38,9 +38,13 @@ def get_current_user():
     # aunque su subscription_expires ya haya pasado — la prueba vencida se
     # maneja con un bloqueo suave (ver utils/trial.py::trial_required), no con
     # un corte total en el login como las suscripciones pagas vencidas.
+    # Fix 06/08/2026 (cont. 23): date('now') es UTC -- comparado contra un
+    # subscription_expires pensado en día calendario ART, cortaba el acceso
+    # hasta 3hs antes de tiempo (21:00 a 23:59 ART, cuando en UTC ya es el
+    # día siguiente). Mismo ajuste que en actividad_diaria: -3hs fijas.
     user = db.execute(
         """SELECT * FROM users WHERE id=? AND session_token=?
-           AND active=1 AND (subscription_expires IS NULL OR subscription_expires >= date('now') OR es_trial=1)""",
+           AND active=1 AND (subscription_expires IS NULL OR subscription_expires >= date('now', '-3 hours') OR es_trial=1)""",
         (uid, token)
     ).fetchone()
     if user:
@@ -55,8 +59,14 @@ def get_current_user():
         # sesiones de Daniel navegando el panel).
         db.execute("UPDATE users SET ultima_actividad=datetime('now') WHERE id=?", (uid,))
         if not user['is_admin']:
+            # Fix 06/08/2026 (cont. 23): date('now') de SQLite es UTC, no hora
+            # Argentina (UTC-3) -- entre las 21:00 y las 23:59 ART el día ya
+            # cambiaba en UTC, así que conexiones de esa franja se contaban en
+            # el gráfico de "mañana" en vez de "hoy". Se resta 3hs a mano
+            # (Argentina no tiene horario de verano, -3 es fijo todo el año)
+            # para que el balde de "fecha" respete el día calendario ART.
             db.execute(
-                "INSERT OR IGNORE INTO actividad_diaria (user_id, fecha) VALUES (?, date('now'))",
+                "INSERT OR IGNORE INTO actividad_diaria (user_id, fecha) VALUES (?, date('now', '-3 hours'))",
                 (uid,)
             )
         db.commit()
