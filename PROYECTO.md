@@ -7,13 +7,47 @@
 ---
 
 ## Descripción del proyecto
-_(457 caracteres — la versión anterior de este archivo tenía 532 y excedía el límite de 500 del campo; esta ya es la que está pegada en el campo real)_
+_(492 caracteres — actualizada 06/08/2026: la versión anterior decía "Suscripción mensual $12.500", desactualizada desde que se pasó a 4 planes de pago único por duración el mismo día. Esta es la que va pegada en el campo real.)_
 
-PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra de construcción en minutos — rubros e ítems, cálculo automático de materiales, mano de obra (oficial/ayudante) y costo por m2, con precios actualizados para Argentina. Suscripción mensual vía Mercado Pago ($12.500 ARS). Lanzada 01/07/2026, para contratistas, albañiles y profesionales que hoy presupuestan a mano o en planillas. Slogan: "De los metros a los pesos, en minutos."
+PresupuestoPRO (presupuestopro.com.ar): app web para armar presupuestos de obra de construcción en minutos — rubros e ítems, cálculo automático de materiales, mano de obra (oficial/ayudante) y costo por m2, con precios actualizados para Argentina. Pago único vía Mercado Pago, 4 planes por duración (1/3/6/12 meses, desde $9.499/mes). Lanzada 01/07/2026, para contratistas, albañiles y profesionales que hoy presupuestan a mano o en planillas. Slogan: "De los metros a los pesos, en minutos."
 
 ---
 
-_Última actualización: 06/08/2026 — 17:49 ART_
+## Ideas Futuras
+
+_Notas de funcionalidades que Daniel planteó pero decidió NO implementar todavía (dejarlas anotadas acá para no perder el contexto cuando las retome en otro chat)._
+
+### 06/08/2026 — Precios propios por usuario, con expansión a zonas geográficas por proveedor
+
+Origen: pregunta de Daniel sobre el campo "Precio unit. (editable según tu zona)" del Paso 6 (Materiales) del presupuesto. **Investigado y confirmado:** hoy ese campo SOLO afecta el presupuesto puntual que se está armando -- el valor editado se guarda en el `session_json` de esa fila de `presupuestos` (ver `routes/presupuesto.py::materiales()`, línea ~1333), no en ningún lugar por usuario. Si el usuario arranca un presupuesto nuevo, vuelve a traer el precio general de `analisis_sub` (el mismo que administra Daniel en Admin > Precios) -- no existe hoy ninguna noción de "precio de este usuario" que persista entre presupuestos.
+
+**Idea planteada (2 partes, la 2da amplía a la 1ra):**
+1. Que cada usuario pueda tener su propia lista de precios de materiales (ajustada a lo que paga en su corralón/proveedor real), que quede guardada y se use como base en CUALQUIER presupuesto futuro que arme -- no solo en el que estaba armando en ese momento.
+2. **Ampliación del mismo día:** en vez de que cada usuario cargue sus propios precios desde cero, dividir el país en **zonas geográficas** (según dónde se vaya concentrando la base de usuarios de la app), conseguir **proveedores destacados por zona** (acuerdos/relevamiento con corralones representativos de cada región), y tener una lista de precios propia por zona. Al usar la app, según la **localidad del usuario o la ubicación de la obra** (pueden no coincidir -- ej. un contratista de Rosario presupuestando una obra en Santa Fe capital), sugerirle usar la lista de precios del proveedor más cercano a esa zona.
+
+**Por qué no se implementa ahora:** es una funcionalidad grande -- implica una tabla nueva (precios por usuario y/o por zona), un mecanismo de definición de zonas (manual al principio, ¿por provincia? ¿por radio geográfico?), conseguir y mantener actualizados los proveedores destacados de cada zona (trabajo de relevamiento, no solo de código -- similar al trabajo ya hecho para armar la lista general de precios), una pantalla para que el usuario vea/edite su lista, y cambiar la lógica de cálculo de Presupuesto y Costo/m² (`_calcular_materiales_desde_rubros` en `routes/presupuesto.py`, reusada por `routes/costo_m2.py`) para priorizar el precio de zona/usuario sobre el precio general cuando exista. Daniel decidió anotarla y no arrancarla todavía.
+
+**Posible dependencia con otro proyecto del cluster:** la idea de "zonas según dónde se concentren los usuarios" depende de tener suficiente volumen de usuarios por región como para justificar proveedores propios por zona -- vale la pena revisar `PRESUPUESTOPRO_HUB.md` cuando se retome esto, aunque hoy no es lo mismo que `PRESUPUESTOPRO_EXPANSION_REGIONAL` (ese proyecto es sobre expandir a otros PAÍSES, no sobre zonificar dentro de Argentina).
+
+**Nota aparte, no urgente:** la descripción corta del proyecto (arriba, campo de 500 caracteres) todavía dice "Suscripción mensual vía Mercado Pago ($12.500 ARS)" -- desactualizada desde el cambio a 4 planes de pago único de hoy (cont. 22). Convendría actualizarla la próxima vez que se toque este archivo con margen para redactarla bien.
+
+---
+
+_Última actualización: 06/08/2026 — 18:17 ART_
+
+### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 6to bloque) — Confirmado: el modal de inscripción está muerto hace un mes, ruta `/inscripcion` eliminada ⚠️ SIN COMMITEAR
+
+Daniel preguntó si alguien todavía puede llegar al modal de inscripción de la landing (el que alimenta la tabla `leads`) antes de borrarlo. Investigué: `templates/landing.html` tiene un comentario propio, fechado **08/07/2026**, que dice que ese modal YA se sacó ese día -- todos los botones "Probá gratis" apuntan directo a `/registro` desde entonces. Grep de todo el proyecto confirmó **cero** referencias activas a `/inscripcion` o `modalInscripcion` fuera de comentarios -- ningún `<form>`, botón ni fetch apunta ahí. Es decir: la ruta lleva casi un mes recibiendo cero requests reales, nadie tiene forma de llegar.
+
+**Eliminado** (`routes/dashboard.py`): la ruta `POST /inscripcion` + su función auxiliar `_enviar_notificacion()` (mandaba el mail de aviso a Daniel cuando entraba un lead) + el import `resend` que solo usaba esa función + el import `request` que solo usaba esa ruta.
+
+**Se dejó intacto** (no era lo que se pidió borrar, y no está muerto -- Daniel puede querer consultarlo): la tabla `leads` (quedan los 7 registros viejos de cuando el modal sí estaba activo) y la pantalla `admin.leads` (ya sin link en el menú desde el bloque anterior, pero sigue accesible por URL si hace falta revisar esos 7 registros).
+
+**Verificado (funcional, no solo sintaxis) — con la app real:** `ast.parse` OK. La landing (`GET /`) sigue cargando 200 sin la ruta. `POST /inscripcion` ahora devuelve **404** (antes hubiera dado 200/500 según el body) -- confirma que ya no existe, y que nada más en la app dependía de ella.
+
+**Archivos tocados:** `routes/dashboard.py`.
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 22, mismo chat, 5to bloque) — Limpieza de menú (Inscriptos/Nuevo usuario) + rediseño completo de Seguimiento (5 categorías + envío masivo) ⚠️ SIN COMMITEAR
 
