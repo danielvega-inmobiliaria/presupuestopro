@@ -2752,6 +2752,27 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3j: envios_batch_log agregada (tandas horarias de retención)")
 
+        # ── 3k. Opt-out de retención ("Baja") ───────────────────────────────
+        # Pedido de Daniel 07/08/2026: con los mails ahora automáticos, varios
+        # usuarios (Reinaldo, Rodrigo y "algunos más") respondieron "Baja" a
+        # un mensaje de retención -- antes eso solo quedaba visible en Admin >
+        # WhatsApp/Email como una consulta más, sin nada que impidiera
+        # seguir contactándolos (a mano o por la tanda automática). Con esta
+        # columna, marcar a alguien como dado de baja lo saca de raíz de
+        # _usuarios_seguimiento() -- no aparece más en Seguimiento, no entra
+        # en la tanda automática de mails, ni en los botones "a todos" (los
+        # 3 comparten esa misma función) -- ver el filtro agregado en el
+        # WHERE de esa query.
+        ya_3k = db.execute("SELECT valor FROM config WHERE clave='3k_done'").fetchone()
+        if not ya_3k:
+            cols_users_3k = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+            if 'retencion_opt_out' not in cols_users_3k:
+                db.execute("ALTER TABLE users ADD COLUMN retencion_opt_out INTEGER DEFAULT 0")
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3k_done','2026-08-07')")
+            db.commit()
+            print("[migrate_db] 3k: users.retencion_opt_out agregado (baja de retención)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:

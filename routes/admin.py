@@ -567,7 +567,7 @@ def _usuarios_seguimiento():
                   (SELECT resultado FROM retencion_contactos rc WHERE rc.user_id=u.id
                      ORDER BY rc.created_at DESC LIMIT 1)                                              AS ultimo_resultado
            FROM users u
-           WHERE u.is_admin=0
+           WHERE u.is_admin=0 AND (u.retencion_opt_out IS NULL OR u.retencion_opt_out=0)
            ORDER BY u.created_at DESC"""
     ).fetchall()
     db.close()
@@ -840,6 +840,28 @@ def seguimiento_categoria_whatsapp_todos(categoria):
     return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
 
 
+@bp.route('/seguimiento/<int:uid>/opt-out', methods=['POST'])
+@admin_required
+def seguimiento_opt_out(uid):
+    """Marcar/desmarcar "Baja de retención" -- agregado 07/08/2026, pedido
+    de Daniel al ver varias respuestas de "Baja" en Admin > WhatsApp desde
+    que los mails son automáticos. Mientras esté marcado, este usuario
+    desaparece de _usuarios_seguimiento() (Seguimiento, tanda automática de
+    mails y los botones "a todos" -- las 3 comparten esa función), así no
+    se lo vuelve a contactar por error. NO borra el historial de
+    retencion_contactos ni impide mandarle un mail/whatsapp puntual a mano
+    desde esta misma pantalla si hiciera falta (eso queda como excepción
+    explícita, no automática)."""
+    valor = 1 if request.form.get('accion') == 'baja' else 0
+    db = get_db()
+    db.execute("UPDATE users SET retencion_opt_out=? WHERE id=?", (valor, uid))
+    db.commit()
+    db.close()
+    flash('Usuario dado de BAJA de retención -- no se lo va a volver a contactar automático.' if valor
+          else 'Baja de retención revertida -- vuelve a aparecer en Seguimiento.', 'success')
+    return redirect(url_for('admin.seguimiento_detalle', uid=uid))
+
+
 @bp.route('/seguimiento/<int:uid>')
 @admin_required
 def seguimiento_detalle(uid):
@@ -958,6 +980,21 @@ def seguimiento_detalle(uid):
       {% endif %}
       {% if f.suscripcion_vencida %}
       <div class="alert alert-danger small mt-2 mb-0">Suscripción vencida el {{ f.subscription_expires }}.</div>
+      {% endif %}
+      {% if f.retencion_opt_out %}
+      <div class="alert alert-secondary small mt-2 mb-0 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-slash-circle"></i> Usuario dado de <strong>BAJA</strong> de retención -- no se lo contacta automático.</span>
+        <form method="POST" action="{{ url_for('admin.seguimiento_opt_out', uid=f.id) }}" class="ms-2">
+          <input type="hidden" name="accion" value="alta">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Revertir</button>
+        </form>
+      </div>
+      {% else %}
+      <form method="POST" action="{{ url_for('admin.seguimiento_opt_out', uid=f.id) }}" class="mt-2"
+            onsubmit="return confirm('¿Dar de baja a {{ f.nombre or f.email }} de retención? No se lo va a volver a contactar automático (podés revertirlo después).');">
+        <input type="hidden" name="accion" value="baja">
+        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-slash-circle"></i> Dar de baja de retención</button>
+      </form>
       {% endif %}
     </div>
   </div>
