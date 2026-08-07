@@ -292,6 +292,27 @@ def _mensaje_checkin_activo(nombre):
     return wa, email
 
 
+def _mensaje_checkin_abonado(nombre):
+    """Agregado 07/08/2026: Daniel preguntó qué se manda al usar "Mail/
+    WhatsApp a todos" en la categoría "Abonados" (nueva, ver
+    routes/admin.py::_categoria) y se encontró un problema real -- estaba
+    reusando _mensaje_checkin_activo(), que dice "vimos que ya armaste
+    varios presupuestos". Eso es cierto para SEG_ACTIVO (2+ presupuestos,
+    para quien se escribió ese texto originalmente el 06/08), pero "Abonados"
+    agrupa a CUALQUIER suscriptor pago esté vencido o no -- alguien recién
+    suscripto (ej. Claudio/Rodrigo, abonados desde el 04-05/08) puede tener 0
+    o 1 presupuesto todavía, y ese texto le mentiría. Este mensaje es
+    genérico a propósito, no asume ningún nivel de uso."""
+    nombre = nombre or ''
+    wa = (f"Hola {nombre}! Somos de PresupuestoPRO. Gracias por confiar en la app "
+          f"para tus obras -- ¿cómo te está yendo? Si tenés alguna consulta, sugerencia "
+          f"o algo que se pueda mejorar, contanos, nos ayuda un montón.")
+    email = (f"Hola {nombre}, gracias por confiar en PresupuestoPRO para tus obras. "
+             f"¿Cómo te está yendo? Si tenés alguna consulta, sugerencia o encontraste "
+             f"algo que se pueda mejorar, contanos -- nos ayuda un montón." + WA_CTA)
+    return wa, email
+
+
 def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
     for c, h in enumerate(HEADERS_SEGMENTO, start=1):
         cell = ws.cell(row=1, column=c, value=h)

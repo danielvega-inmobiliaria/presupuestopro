@@ -13,6 +13,7 @@ from utils.exportar_contactos import (
     generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D, SEG_ACTIVO,
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
     _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida, _mensaje_checkin_activo,
+    _mensaje_checkin_abonado,
 )
 from utils.email_tracking import registrar_envio, ETIQUETAS_EVENTO, SQL_MAIL_ESTADO, SQL_MAIL_ESTADO_FECHA
 from database import get_db, recalcular_precio_mo_ars
@@ -43,6 +44,13 @@ TEMPLATES_WHATSAPP = {
     # entonces el envío por WhatsApp para 'activo' va a dar error visible
     # (no falla en silencio) -- el email sí funciona ya (usa Resend, no Meta).
     'activo': 'retencion_checkin_usuario_activo',
+    # 07/08/2026: plantilla NUEVA y distinta de 'activo' -- ver
+    # _mensaje_checkin_abonado() en utils/exportar_contactos.py para el
+    # motivo (el texto de 'activo' asume 2+ presupuestos, falso para un
+    # abonado recién suscripto). FALTA CREARLA Y QUE LA APRUEBEN EN META,
+    # mismo criterio que el resto: hasta entonces el WhatsApp da error
+    # visible, el email ya funciona (Resend).
+    'abonado': 'retencion_checkin_abonado',
 }
 
 MENSAJES_EMAIL = {
@@ -53,6 +61,7 @@ MENSAJES_EMAIL = {
     'trial': _mensaje_prueba_por_vencer,
     'vencido': _mensaje_suscripcion_vencida,
     'activo': _mensaje_checkin_activo,
+    'abonado': _mensaje_checkin_abonado,
 }
 
 TIPO_LABEL = {
@@ -63,6 +72,7 @@ TIPO_LABEL = {
     'trial': 'Prueba por vencer',
     'vencido': 'Suscripción vencida',
     'activo': 'Check-in (usuario activo)',
+    'abonado': 'Check-in (abonado)',
 }
 
 # ── Seguimiento > Retención de usuarios (rediseño 06/08/2026, pedido de
@@ -144,7 +154,7 @@ def _tipo_mensaje(fila, categoria):
     if categoria == 'vencidos':
         return 'vencido'
     if categoria == 'abonados':
-        return 'activo'
+        return 'abonado'
     if fila['segmento'] == SEG_B:
         return 'B'
     if fila['segmento'] == SEG_D:
