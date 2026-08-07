@@ -202,6 +202,13 @@ def enviar_checkin_primera_suscripcion():
 # de la oferta 50%/48hs todavía en construcción (ver routes/pagos.py cuando
 # esté), no del mensaje de soporte viejo -- mandarle las 2 cosas por
 # separado sería contactar dos veces con mensajes distintos en poco tiempo.
+#
+# "Abonados" (categoría nueva 07/08/2026, ver routes/admin.py::_categoria)
+# TAMBIÉN queda afuera: ya tienen su propio automático dedicado
+# (enviar_checkin_primera_suscripcion(), a los 7 días de la primera
+# suscripción) -- sumarlos acá los duplicaría con un 2do check-in genérico.
+# Esta categoría queda para contacto MANUAL desde Seguimiento, a criterio
+# de Daniel.
 HORARIOS_BACKLOG_EMAIL = {
     '2026-08-07': [(16, 5), (17, 5), (18, 5), (19, 5)],
 }
@@ -232,7 +239,7 @@ def _candidatos_backlog_email(db, limite):
         if not fila.get('email'):
             continue
         categoria = _categoria(fila)
-        if categoria == 'vencidos':
+        if categoria in ('vencidos', 'abonados'):
             continue
         tipo = _tipo_mensaje(fila, categoria)
         ya = db.execute(

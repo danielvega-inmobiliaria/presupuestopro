@@ -76,33 +76,50 @@ TIPO_LABEL = {
 # (mismo criterio que ya usa el Excel/dashboard); POR_VENCER es SOLO prueba
 # gratis por terminar (hoy no hay noción de "pago que vence pronto", ver
 # nota en _categoria()).
-CATEGORIAS_SEGUIMIENTO = ['vencidos', 'por_vencer', 'sin_validar', 'nunca_probo', 'estuvo_usando']
+CATEGORIAS_SEGUIMIENTO = ['vencidos', 'por_vencer', 'abonados', 'sin_validar', 'nunca_probo', 'estuvo_usando']
 
+# Orden por importancia (07/08/2026, pedido de Daniel al agregar "Abonados"):
+# 1-2. Vencidos/Por vencer -- urgente, plata que se está perdiendo o a punto
+#      de perderse.
+# 3. Abonados -- ya están pagando, es la plata que HOY entra: no es urgente
+#    (no tienen nada por vencer), pero es la más importante de cuidar/no
+#    perder, así que va inmediatamente después de los 2 urgentes y antes de
+#    los segmentos que todavía no convirtieron.
+# 4-6. Sin validar / Nunca probó / Estuvo usando -- prospectos, en el mismo
+#      orden que ya tenían (sin tocar ese criterio, era el de Daniel del
+#      06/08/2026).
 CATEGORIA_LABEL = {
+    'vencidos':      'Vencidos',
+    'por_vencer':    'Por vencer',
+    'abonados':      'Abonados',
     'sin_validar':   'Sin validar',
     'nunca_probo':   'Nunca probó',
     'estuvo_usando': 'Estuvo usando',
-    'por_vencer':    'Por vencer',
-    'vencidos':      'Vencidos',
 }
 
 CATEGORIA_DESC = {
+    'vencidos':      'Prueba gratis vencida sin convertir, o suscripción paga que no se renovó.',
+    'por_vencer':    'Prueba gratis por terminar (3 días o menos, o último presupuesto disponible).',
+    'abonados':      'Suscripción paga y al día -- no están por vencer ni vencidos, es la base que hoy factura.',
     'sin_validar':   'No activaron la cuenta por mail todavía.',
     'nunca_probo':   'Validaron la cuenta pero nunca hicieron un presupuesto ni usaron Costo/m².',
     'estuvo_usando': 'Ya usaron la app (1+ presupuesto, borrador o Costo/m²) y no están por vencer ni vencidos.',
-    'por_vencer':    'Prueba gratis por terminar (3 días o menos, o último presupuesto disponible).',
-    'vencidos':      'Prueba gratis vencida sin convertir, o suscripción paga que no se renovó.',
 }
 
 
 def _categoria(fila):
-    """Devuelve UNA de las 5 categorías de CATEGORIAS_SEGUIMIENTO para esta
+    """Devuelve UNA de las 6 categorías de CATEGORIAS_SEGUIMIENTO para esta
     fila (ya con 'segmento'/'trial_por_vencer'/'suscripcion_vencida'
-    calculados por _usuarios_seguimiento())."""
+    calculados por _usuarios_seguimiento()). 'abonados' (07/08/2026) se
+    chequea antes que segmento (sin_validar/nunca_probo/estuvo_usando)
+    porque alguien que ya paga puede tener cualquier segmento de uso -- acá
+    interesa verlo agrupado como abonado, no mezclado en esos 3."""
     if fila['suscripcion_vencida']:
         return 'vencidos'
     if fila['trial_por_vencer']:
         return 'por_vencer'
+    if not fila['es_trial']:
+        return 'abonados'
     if fila['segmento'] == SEG_A:
         return 'sin_validar'
     if fila['segmento'] == SEG_C:
@@ -114,7 +131,10 @@ def _tipo_mensaje(fila, categoria):
     """Tipo de mensaje (clave de TEMPLATES_WHATSAPP/MENSAJES_EMAIL/TIPO_LABEL)
     a usar para ESTA fila dentro de su categoría. Para 'estuvo_usando' varía
     según el segmento real (B/D/activo) porque cada uno tiene un mensaje
-    distinto ya armado -- las otras 4 categorías son 1 a 1 con un tipo fijo."""
+    distinto ya armado -- las demás categorías son 1 a 1 con un tipo fijo.
+    'abonados' reusa el mismo mensaje de check-in que ya existía para
+    usuarios activos ('activo') -- mismo texto, ahora accesible también
+    desde acá para cualquier abonado sea cual sea su uso."""
     if categoria == 'sin_validar':
         return 'A'
     if categoria == 'nunca_probo':
@@ -123,6 +143,8 @@ def _tipo_mensaje(fila, categoria):
         return 'trial'
     if categoria == 'vencidos':
         return 'vencido'
+    if categoria == 'abonados':
+        return 'activo'
     if fila['segmento'] == SEG_B:
         return 'B'
     if fila['segmento'] == SEG_D:
@@ -650,9 +672,9 @@ def seguimiento():
     {% for cat in categorias %}
     <div class="col-6 col-md-4">
       <a href="{{ url_for('admin.seguimiento_categoria', categoria=cat) }}" class="text-decoration-none">
-        <div class="card shadow-sm h-100 {{ 'border-danger' if cat=='vencidos' else ('border-warning' if cat=='por_vencer' else '') }}">
+        <div class="card shadow-sm h-100 {{ 'border-danger' if cat=='vencidos' else ('border-warning' if cat=='por_vencer' else ('border-success' if cat=='abonados' else '')) }}">
           <div class="card-body text-center py-4">
-            <div class="display-6 fw-bold {{ 'text-danger' if cat=='vencidos' else ('text-warning' if cat=='por_vencer' else 'text-dark') }}">{{ conteos[cat] }}</div>
+            <div class="display-6 fw-bold {{ 'text-danger' if cat=='vencidos' else ('text-warning' if cat=='por_vencer' else ('text-success' if cat=='abonados' else 'text-dark')) }}">{{ conteos[cat] }}</div>
             <div class="fw-semibold text-uppercase small mt-2">{{ cat_label[cat] }}</div>
             <div class="text-muted small mt-1">{{ cat_desc[cat] }}</div>
           </div>
