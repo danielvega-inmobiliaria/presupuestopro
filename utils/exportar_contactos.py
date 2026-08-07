@@ -38,7 +38,7 @@ Segmentación (cubre el 100% de los usuarios is_admin=0, sin huecos):
       pero igual aparece listado en "Todos los usuarios" (con esa etiqueta)
       para que Daniel tenga el panorama completo.
 """
-from datetime import date
+from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from openpyxl import Workbook
@@ -451,7 +451,11 @@ def generar_excel_usuarios_a_contactar(usuarios, mp_planes=None):
     # 03/08/2026: mismo criterio que ya usa el resto de la app (dashboard de
     # Admin y routes/pagos.py::planes()/dashboard()) -- no se inventa una
     # regla nueva acá.
-    hoy_str = date.today().isoformat()
+    # Fix 07/08/2026 (cont. 24): date.today() usa la hora del servidor (UTC en
+    # Railway), no ART -- podía clasificar mal a un usuario en la hoja
+    # Vencidos/Abonados hasta 3hs antes de tiempo. Mismo ajuste -3hs que en
+    # utils/auth.py y routes/admin.py.
+    hoy_str = (datetime.utcnow() - timedelta(hours=3)).date().isoformat()
     vencidos = [u for u in usuarios
                 if u['subscription_expires'] and u['subscription_expires'] < hoy_str]
     abonados = [u for u in usuarios

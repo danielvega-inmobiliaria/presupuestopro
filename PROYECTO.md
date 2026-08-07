@@ -33,7 +33,23 @@ Origen: pregunta de Daniel sobre el campo "Precio unit. (editable según tu zona
 
 ---
 
-_Última actualización: 06/08/2026 — 23:47 ART_
+_Última actualización: 07/08/2026 — 13:22 ART_
+
+### 🟡 CIERRE 07/08/2026 (cont. 24) — Fix zona horaria, parte 2: `date.today()` de Python (Railway=UTC) en los 3 lugares con impacto real ⚠️ SIN COMMITEAR
+
+Continuación de cont. 23: de los 4+ usos de `date.today()` detectados ayer con el mismo patrón (servidor en UTC, `subscription_expires` pensado en día calendario ART), se auditaron 10 en total y se corrigieron los 3 con impacto real en usuarios/plata. Mismo fix en los 3: `date.today()` → `(datetime.utcnow() - timedelta(hours=3)).date()`.
+
+1. `routes/pagos.py::planes()` (línea ~360, pantalla `/pagos/planes` donde paga el usuario): podía mostrar "hay que pagar" hasta 3hs antes de que venza de verdad, en la franja 21:00-23:59 ART del día exacto de vencimiento.
+2. `routes/admin.py::_usuarios_seguimiento()` (línea ~551) y la vista de ficha de un usuario (línea ~851): `suscripcion_vencida` podía marcar VENCIDO 3hs antes de tiempo -- si Daniel dispara "WhatsApp/Mail a todos" de esa categoría en esa ventana, el mensaje sale antes de que corresponda.
+3. `utils/exportar_contactos.py::generar_excel_usuarios_a_contactar()` (línea ~454): misma clasificación errónea en las hojas Vencidos/Abonados del Excel para llamar.
+
+**Dejados sin tocar, a pedido explícito (impacto cosmético o nulo, confirmado con Daniel):** timestamp "Generado el..." y nombre de archivo del Excel, fecha default al crear usuario a mano, timestamp de comentario importado (`admin.py:398,1222`, `exportar_contactos.py:490,539`), cálculo de nueva fecha de vencimiento al procesar un pago (`pagos.py:138`, el error juega a favor del usuario) y el endpoint `/pagos/estado` (`pagos.py:683`, no lo usa ningún template hoy).
+
+Verificado: `ast.parse` OK en los 3 archivos. Simulación con datetime fija (22:39 ART del 06/08 = 01:39 UTC del 07/08): `date.today()` daba `2026-08-07` (bug), con el fix da `2026-08-06` (correcto).
+
+**Archivos tocados:** `routes/pagos.py`, `routes/admin.py`, `utils/exportar_contactos.py`.
+
+---
 
 ### 🟡 CIERRE 06/08/2026 (cont. 23) — Fix zona horaria: `date('now')` de SQLite es UTC, afectaba gráfico de conectados Y el corte de acceso por suscripción vencida ⚠️ SIN COMMITEAR
 

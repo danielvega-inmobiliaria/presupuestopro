@@ -357,7 +357,13 @@ def planes():
     if user and not user['es_trial'] and user['subscription_expires']:
         try:
             sub_expires = datetime.strptime(user['subscription_expires'], '%Y-%m-%d').date()
-            sub_activa = sub_expires >= date.today() and bool(user['active'])
+            # Fix 07/08/2026 (cont. 24): date.today() usa la hora del servidor
+            # (Railway = UTC), no ART -- en la franja 21:00-23:59 ART del día
+            # exacto de vencimiento, mostraba "hay que pagar" hasta 3hs antes
+            # de tiempo. Mismo ajuste -3hs que ya se aplicó en utils/auth.py
+            # y routes/admin.py para el mismo problema.
+            hoy_ar = (datetime.utcnow() - timedelta(hours=3)).date()
+            sub_activa = sub_expires >= hoy_ar and bool(user['active'])
         except Exception:
             pass
 

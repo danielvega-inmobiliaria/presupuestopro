@@ -548,7 +548,12 @@ def _usuarios_seguimiento():
     ).fetchall()
     db.close()
 
-    hoy_str = date.today().isoformat()
+    # Fix 07/08/2026 (cont. 24): date.today() usa la hora del servidor (UTC en
+    # Railway), no ART -- en la franja 21:00-23:59 ART del día de vencimiento,
+    # marcaba "suscripción vencida" hasta 3hs antes de tiempo (afecta el
+    # segmento VENCIDOS de Admin > Seguimiento y sus envíos masivos). Mismo
+    # ajuste -3hs que en utils/auth.py.
+    hoy_str = (datetime.utcnow() - timedelta(hours=3)).date().isoformat()
     ahora = datetime.utcnow()
     filas = []
     for u in usuarios:
@@ -848,7 +853,12 @@ def seguimiento_detalle(uid):
 
     fila = dict(u)
     fila['segmento'] = _segmento(u)
-    hoy_str = date.today().isoformat()
+    # Fix 07/08/2026 (cont. 24): date.today() usa la hora del servidor (UTC en
+    # Railway), no ART -- en la franja 21:00-23:59 ART del día de vencimiento,
+    # marcaba "suscripción vencida" hasta 3hs antes de tiempo (afecta el
+    # segmento VENCIDOS de Admin > Seguimiento y sus envíos masivos). Mismo
+    # ajuste -3hs que en utils/auth.py.
+    hoy_str = (datetime.utcnow() - timedelta(hours=3)).date().isoformat()
     ahora = datetime.utcnow()
     trial_por_vencer = False
     dias_restantes = presup_restantes = None
