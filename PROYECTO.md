@@ -33,7 +33,24 @@ Origen: pregunta de Daniel sobre el campo "Precio unit. (editable según tu zona
 
 ---
 
-_Última actualización: 07/08/2026 — 13:22 ART_
+_Última actualización: 07/08/2026 — 13:44 ART_
+
+### 🟡 CIERRE 07/08/2026 (cont. 25) — Fix zona horaria, parte 3: horarios completos (no solo fechas) mostrados en UTC crudo en 4 pantallas de Admin ⚠️ SIN COMMITEAR
+
+Daniel encontró el mismo problema de raíz pero en otra forma: en Seguimiento, un contacto hecho a las 13:33 ART aparecía como "Último contacto: 16:33" -- acá no era un balde de día (cont. 23/24), era un **horario completo mostrado sin convertir**.
+
+- **Causa:** distinto síntoma, misma raíz de siempre (SQLite/Python guardan en UTC). Ya existía la solución correcta desde el 24/07/2026 -- el filtro Jinja `local_dt` (`app.py`, resta 3hs a cualquier timestamp guardado) -- y se usa en más de 10 lugares del código. Pero 4 lugares agregados **después** de esa fecha no lo usaban, mostraban el timestamp crudo con slicing (`[:10]`/`[:16]`):
+  1. `routes/admin.py` línea ~714 -- "Último contacto" en Seguimiento (el que reportó Daniel, con hora completa: mostraba directamente la hora UTC).
+  2. `routes/admin.py` líneas ~708 y ~906 -- "Registrado" en las 2 vistas de Seguimiento (solo fecha, `[:10]`).
+  3. `templates/admin/usuarios.html` línea 183 -- "Creado" en la lista de usuarios (solo fecha).
+  4. `templates/admin/tipos_cambio.html` línea 22 -- "Actualizado" del tipo de cambio USD (solo fecha).
+- **Fix:** las 5 líneas ahora usan `|local_dt` (con formato `'%d/%m/%Y'` para las que son solo fecha, formato default `%d/%m %H:%M` para la que tiene hora). Nada de lógica nueva -- se conectó cada punto suelto al mecanismo que ya existía.
+- **Verificado con la app real (test funcional, no solo sintaxis):** `ast.parse` OK, los 2 templates parsean con Jinja2. Test con `test_client()` real: usuario de prueba con un registro en `retencion_contactos.created_at='2026-08-07 16:33:00'` (UTC, el mismo caso exacto de la captura de Daniel) → `GET /admin/seguimiento/categoria/sin_validar` devuelve 200 y el HTML muestra **"Último contacto:<br>07/08 13:33"** -- la hora real ART, no la UTC guardada.
+- **De acá para adelante:** el mecanismo (`local_dt`) ya cubre todos los timestamps que se muestran en Admin hoy. El riesgo que queda es el mismo de siempre en este proyecto -- que una pantalla nueva futura muestre un timestamp crudo sin pasar por el filtro. No hay forma de blindarlo 100% sin un test automático que lo chequee; se puede agregar si Daniel lo pide.
+
+**Archivos tocados:** `routes/admin.py`, `templates/admin/usuarios.html`, `templates/admin/tipos_cambio.html`.
+
+---
 
 ### 🟡 CIERRE 07/08/2026 (cont. 24) — Fix zona horaria, parte 2: `date.today()` de Python (Railway=UTC) en los 3 lugares con impacto real ⚠️ SIN COMMITEAR
 

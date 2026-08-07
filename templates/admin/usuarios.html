@@ -180,7 +180,7 @@
       <span class="unidad">Borr. {{ u.n_borradores }}</span>
       <span class="unidad">Costo/m² {{ u.n_costo_m2 }}</span>
       <span class="unidad">Vence {{ u.subscription_expires or '∞' }}</span>
-      <span class="unidad">Creado {{ u.created_at[:10] if u.created_at else '—' }}</span>
+      <span class="unidad">Creado {{ u.created_at|local_dt('%d/%m/%Y') if u.created_at else '—' }}</span>
       {# Fix 04/08/2026 (cont. 20, pedido de Daniel): estado del ÚLTIMO mail
          mandado (bienvenida/recordatorio/seguimiento), sin salir de la App.
          Se completa solo cuando Resend empiece a mandar los webhooks (ver

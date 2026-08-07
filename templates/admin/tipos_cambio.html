@@ -19,7 +19,7 @@
           <input type="number" name="tasa_{{ tc.pais }}" class="n"
                  value="{{ '%.2f'|format(tc.tasa) }}" step="0.01" min="0">
           <span>{{ tc.simbolo }}</span>
-          <div class="pista">1 USD · Actualizado: {{ tc.updated_at[:10] if tc.updated_at else '—' }}</div>
+          <div class="pista">1 USD · Actualizado: {{ tc.updated_at|local_dt('%d/%m/%Y') if tc.updated_at else '—' }}</div>
         </div>
         {% endfor %}
         <button type="submit" class="btn2 btn2-1" style="width:100%;margin-top:6px">

@@ -705,13 +705,13 @@ def seguimiento_categoria(categoria):
           <div class="small text-muted">{{ f.ciudad or '' }}{{ ', ' if f.ciudad and f.provincia }}{{ f.provincia or '' }}</div>
         </div>
         <div class="col-md-3 small text-muted">
-          Registrado: {{ (f.created_at or '')[:10] }}<br>Vence: {{ f.subscription_expires or '∞' }}
+          Registrado: {{ f.created_at|local_dt('%d/%m/%Y') }}<br>Vence: {{ f.subscription_expires or '∞' }}
           {% if f.trial_por_vencer %}<br><span class="badge bg-warning text-dark badge-seg">{{ f.dias_restantes }}d / {{ f.presup_restantes }} presup. restantes</span>{% endif %}
           {% if f.suscripcion_vencida %}<br><span class="badge bg-danger badge-seg">Vencida ({{ f.subscription_expires }})</span>{% endif %}
         </div>
         <div class="col-md-2 small text-muted">
           {% if f.ultimo_contacto %}
-            Último contacto:<br>{{ f.ultimo_contacto[:16] }}
+            Último contacto:<br>{{ f.ultimo_contacto|local_dt }}
             {% if f.ultimo_resultado == 'ok' %}<span class="badge bg-success">enviado</span>
             {% elif f.ultimo_resultado == 'error' %}<span class="badge bg-danger">error</span>{% endif %}
           {% else %}Sin contactar todavía{% endif %}
@@ -903,7 +903,7 @@ def seguimiento_detalle(uid):
       </div>
       <hr>
       <div class="row small">
-        <div class="col-4"><strong>Registrado:</strong><br>{{ (f.created_at or '')[:10] }}</div>
+        <div class="col-4"><strong>Registrado:</strong><br>{{ f.created_at|local_dt('%d/%m/%Y') }}</div>
         <div class="col-4"><strong>Vence:</strong><br>{{ f.subscription_expires or '∞' }}</div>
         <div class="col-4"><strong>Segmento:</strong><br><span class="badge bg-secondary">{{ f.segmento }}</span></div>
       </div>
