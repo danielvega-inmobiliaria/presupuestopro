@@ -13,7 +13,7 @@ from utils.exportar_contactos import (
     generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D, SEG_ACTIVO,
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
     _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida, _mensaje_checkin_activo,
-    _mensaje_checkin_abonado,
+    _mensaje_checkin_abonado, _mensaje_conversion_d, _mensaje_conversion_b,
 )
 from utils.email_tracking import registrar_envio, ETIQUETAS_EVENTO, SQL_MAIL_ESTADO, SQL_MAIL_ESTADO_FECHA
 from database import get_db, recalcular_precio_mo_ars
@@ -51,6 +51,12 @@ TEMPLATES_WHATSAPP = {
     # mismo criterio que el resto: hasta entonces el WhatsApp da error
     # visible, el email ya funciona (Resend).
     'abonado': 'retencion_checkin_abonado',
+    # 07/08/2026: campaña de conversión (oferta 50%/48hs) para vencidos que
+    # ERAN Segmento D o B antes de vencer -- ver _tipo_mensaje() más abajo,
+    # que ahora distingue esto dentro de la categoría 'vencidos' en vez de
+    # mandarles a todos el mismo mensaje de soporte genérico ('vencido').
+    'conversion_d': 'retencion_conversion_d',
+    'conversion_b': 'retencion_conversion_b',
 }
 
 MENSAJES_EMAIL = {
@@ -62,6 +68,8 @@ MENSAJES_EMAIL = {
     'vencido': _mensaje_suscripcion_vencida,
     'activo': _mensaje_checkin_activo,
     'abonado': _mensaje_checkin_abonado,
+    'conversion_d': _mensaje_conversion_d,
+    'conversion_b': _mensaje_conversion_b,
 }
 
 TIPO_LABEL = {
@@ -73,6 +81,8 @@ TIPO_LABEL = {
     'vencido': 'Suscripción vencida',
     'activo': 'Check-in (usuario activo)',
     'abonado': 'Check-in (abonado)',
+    'conversion_d': 'Conversión 50%/48hs (ex-D)',
+    'conversion_b': 'Conversión 50%/48hs (ex-B)',
 }
 
 # ── Seguimiento > Retención de usuarios (rediseño 06/08/2026, pedido de
@@ -152,6 +162,16 @@ def _tipo_mensaje(fila, categoria):
     if categoria == 'por_vencer':
         return 'trial'
     if categoria == 'vencidos':
+        # 07/08/2026: campaña de conversión 50%/48hs solo para quienes eran
+        # D o B antes de vencer (los más prometedores, ver PROYECTO.md) -- el
+        # resto de vencidos (A/C) sigue con el mensaje de soporte genérico.
+        # fila['segmento'] sale de _segmento(), que mira uso real (presup./
+        # borradores/costo_m2) sin importar si está vencido o no -- no se
+        # pierde este dato al vencerse la prueba/suscripción.
+        if fila['segmento'] == SEG_D:
+            return 'conversion_d'
+        if fila['segmento'] == SEG_B:
+            return 'conversion_b'
         return 'vencido'
     if categoria == 'abonados':
         return 'abonado'
@@ -176,7 +196,16 @@ def _tipos_aplicables(fila):
     if fila.get('trial_por_vencer'):
         tipos.append('trial')
     if fila.get('suscripcion_vencida'):
-        tipos.append('vencido')
+        # 07/08/2026: mismo criterio que _tipo_mensaje() para la categoría
+        # 'vencidos' -- los que eran D/B antes de vencer entran a la
+        # campaña de conversión 50%/48hs en vez del mensaje de soporte
+        # genérico.
+        if fila['segmento'] == SEG_D:
+            tipos.append('conversion_d')
+        elif fila['segmento'] == SEG_B:
+            tipos.append('conversion_b')
+        else:
+            tipos.append('vencido')
     return tipos
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -872,6 +901,33 @@ def seguimiento_categoria_whatsapp_todos(categoria):
     return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
 
 
+@bp.route('/seguimiento/<int:uid>/generar-promo', methods=['POST'])
+@admin_required
+def seguimiento_generar_promo(uid):
+    """Genera (o reusa el vigente) el link de pago con 50% off por 48hs para
+    este usuario -- botón en su perfil, solo tiene sentido para vencidos
+    D/B (conversion_d/conversion_b), pero no se restringe duro por si hace
+    falta para otro caso puntual. Reusa uno existente si ya hay uno sin usar
+    y sin vencer (ver _crear_promo), así clickearlo de nuevo no genera un
+    2do link distinto -- pero si ya venció, uno nuevo le da otras 48hs
+    frescas desde ahora."""
+    from routes.pagos import _crear_promo, _art_str
+    db = get_db()
+    u = db.execute("SELECT nombre, email FROM users WHERE id=?", (uid,)).fetchone()
+    if not u:
+        db.close()
+        flash('Usuario no encontrado.', 'error')
+        return redirect(url_for('admin.seguimiento'))
+    promo = _crear_promo(db, uid, horas=48, descuento_pct=50)
+    db.close()
+    app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
+    link = f"{app_url}/pagos/promo/{promo['token']}"
+    vence_str = _art_str(promo['vence_at'], '%d/%m a las %H:%M')
+    flash(f'Link generado (válido hasta el {vence_str} ART): {link} — ya se suma solo al mail de este usuario; '
+          f'para WhatsApp, copialo y pegalo en tu respuesta.', 'success')
+    return redirect(url_for('admin.seguimiento_detalle', uid=uid))
+
+
 @bp.route('/seguimiento/<int:uid>/opt-out', methods=['POST'])
 @admin_required
 def seguimiento_opt_out(uid):
@@ -972,9 +1028,19 @@ def seguimiento_detalle(uid):
     fila['suscripcion_vencida'] = bool(u['subscription_expires']) and u['subscription_expires'] < hoy_str
     tipos = _tipos_aplicables(fila)
 
+    # 07/08/2026: si hay un link de pago con descuento vigente para este
+    # usuario, se muestra acá y se suma a los mensajes de conversion_d/b
+    # (ver _link_promo_vigente arriba).
+    db2 = get_db()
+    link_promo, vence_promo = _link_promo_vigente(db2, uid)
+    db2.close()
+
     mensajes = {}
     for tipo in tipos:
-        wa_msg, email_msg = MENSAJES_EMAIL[tipo](u['nombre'])
+        if tipo in ('conversion_d', 'conversion_b'):
+            wa_msg, email_msg = MENSAJES_EMAIL[tipo](u['nombre'], link_promo, vence_promo)
+        else:
+            wa_msg, email_msg = MENSAJES_EMAIL[tipo](u['nombre'])
         mensajes[tipo] = {'wa': wa_msg, 'email': email_msg}
 
     return render_template_string("""
@@ -1040,6 +1106,23 @@ def seguimiento_detalle(uid):
   <div class="card mb-3">
     <div class="card-header fw-bold">{{ tipo_label[tipo] }}</div>
     <div class="card-body">
+      {% if tipo in ('conversion_d', 'conversion_b') %}
+        {% if link_promo %}
+        <div class="alert alert-success small">
+          <i class="bi bi-tag"></i> Link con 50% off vigente hasta el <strong>{{ vence_promo }}</strong> (ART) --
+          ya está sumado al mensaje de abajo. <a href="{{ link_promo }}" target="_blank">{{ link_promo }}</a>
+        </div>
+        {% else %}
+        <div class="alert alert-warning small">
+          <i class="bi bi-exclamation-triangle"></i> Todavía no generaste el link de pago con descuento para este usuario.
+        </div>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin.seguimiento_generar_promo', uid=f.id) }}" class="mb-3">
+          <button type="submit" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-tag"></i> {{ 'Generar otro link (48hs frescas)' if link_promo else 'Generar link 50% off (48hs)' }}
+          </button>
+        </form>
+      {% endif %}
       <form method="POST" action="{{ url_for('admin.seguimiento_email', uid=f.id) }}" class="mb-3">
         <input type="hidden" name="tipo" value="{{ tipo }}">
         <label class="form-label small text-muted">Mensaje por email (editable):</label>
@@ -1101,7 +1184,28 @@ function abrirWhatsapp(tel, mensaje) {
 }
 </script>
 </body></html>
-""", f=fila, tipos=tipos, mensajes=mensajes, tipo_label=TIPO_LABEL, eventos=eventos, user=g.user)
+""", f=fila, tipos=tipos, mensajes=mensajes, tipo_label=TIPO_LABEL, eventos=eventos, user=g.user,
+    link_promo=link_promo, vence_promo=vence_promo)
+
+
+def _link_promo_vigente(db, user_id):
+    """(link, vence_str_ART) del último link de pago con descuento vigente
+    para este usuario, o (None, None) si nunca se generó uno o ya venció/se
+    usó. Import perezoso de routes.pagos (mismo criterio que
+    routes.whatsapp_bot en otras funciones de este archivo) para evitar
+    import circular a nivel de módulo."""
+    from routes.pagos import _art_str
+    promo = db.execute(
+        "SELECT * FROM retencion_promos WHERE user_id=? AND usado=0 AND vence_at > datetime('now') "
+        "ORDER BY creado_at DESC LIMIT 1",
+        (user_id,)
+    ).fetchone()
+    if not promo:
+        return None, None
+    app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
+    link = f"{app_url}/pagos/promo/{promo['token']}"
+    vence_str = _art_str(promo['vence_at'], '%d/%m a las %H:%M')
+    return link, vence_str
 
 
 def _ya_contactado(db, user_id, canal, segmento):
@@ -1138,7 +1242,10 @@ def _enviar_whatsapp_seguimiento(db, u, tipo):
     ok, detalle = enviar_plantilla_whatsapp(u['telefono'], plantilla, parametros={'nombre': u['nombre'] or ''})
     # Fix 24/07/2026: se guarda el texto real (no solo el nombre de la
     # plantilla) para que el Historial (Seguimiento > Ver) muestre lo mismo
-    # que se mandó, igual que el email.
+    # que se mandó, igual que el email. Nota 07/08/2026: para conversion_d/b
+    # esto queda como el texto SIN link (no se busca la promo acá) -- lo que
+    # de verdad se manda por la API de Meta es siempre el texto fijo
+    # aprobado, este valor es solo para el registro/historial.
     generador = MENSAJES_EMAIL.get(tipo)
     wa_texto, _ = generador(u['nombre']) if generador else ('', '')
     mensaje_guardado = wa_texto if ok else f"{plantilla} — ERROR: {detalle}"
@@ -1189,6 +1296,13 @@ def _enviar_email_seguimiento(db, u, tipo, mensaje_override=None):
 
     if mensaje_override:
         cuerpo_email = mensaje_override
+    elif tipo in ('conversion_d', 'conversion_b'):
+        # 07/08/2026: si ya existe un link de pago con descuento generado
+        # para este usuario (botón "Generar link 50% (48hs)" en su perfil),
+        # se lo suma al mail -- si todavía no lo generaste, manda el texto
+        # sin link ("respondé este mail y te ayudamos").
+        link, vence_str = _link_promo_vigente(db, u['id'])
+        _, cuerpo_email = generador(u['nombre'], link, vence_str)
     else:
         _, cuerpo_email = generador(u['nombre'])
 

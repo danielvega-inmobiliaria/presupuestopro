@@ -313,6 +313,44 @@ def _mensaje_checkin_abonado(nombre):
     return wa, email
 
 
+def _mensaje_conversion_d(nombre, link=None, vence_str=None):
+    """Campaña de conversión, vencidos que eran Segmento D -- 07/08/2026,
+    oferta 50%/48hs (reemplaza el 3x1 placeholder original). `link`/
+    `vence_str` son opcionales: si Daniel ya generó el link de pago con
+    descuento (botón "Generar link" en el perfil, ver routes/admin.py), se
+    suman al texto del mail y del WhatsApp "manual" -- la plantilla API
+    aprobada en Meta NO lleva el link (Meta no deja agregar texto libre a una
+    plantilla ya aprobada), por eso el envío por API sigue mandando el texto
+    fijo sin importar estos parámetros; esto es solo para el mail y para
+    "Abrir en WhatsApp (manual)"."""
+    nombre = nombre or ''
+    extra = f" Pagá acá con el descuento ya aplicado: {link}" if link else ""
+    vence_txt = f" (válido hasta el {vence_str} hora Argentina)" if vence_str and link else ""
+    base = (f"Hola {nombre}! Vimos que probaste la calculadora de Costo/m² en PresupuestoPRO, "
+            f"pero eso es solo una parte de lo que resuelve la app. Con el presupuesto completo "
+            f"tenés materiales y mano de obra calculados al detalle, con precios siempre "
+            f"actualizados. Te ahorrás las vueltas de cotizar a mano llamando al corralón. "
+            f"Por 48hs: reactivá tu cuenta con 50% de descuento en el plan que elijas.")
+    wa = base + extra + vence_txt if link else base + " Respondé este mensaje y te ayudamos a reactivar con el descuento."
+    email = base + extra + vence_txt + WA_CTA if link else base + " Respondé este mail y te ayudamos a reactivar con el descuento." + WA_CTA
+    return wa, email
+
+
+def _mensaje_conversion_b(nombre, link=None, vence_str=None):
+    """Campaña de conversión, vencidos que eran Segmento B -- mismo criterio
+    y misma nota que _mensaje_conversion_d() de arriba."""
+    nombre = nombre or ''
+    extra = f" Pagá acá con el descuento ya aplicado: {link}" if link else ""
+    vence_txt = f" (válido hasta el {vence_str} hora Argentina)" if vence_str and link else ""
+    base = (f"Hola {nombre}! Empezaste un presupuesto en PresupuestoPRO y no lo terminaste. "
+            f"La app te calcula materiales y mano de obra al detalle, con precios siempre "
+            f"actualizados — te ahorrás las vueltas de cotizar a mano llamando al corralón. "
+            f"Por 48hs: reactivá tu cuenta con 50% de descuento en el plan que elijas.")
+    wa = base + extra + vence_txt if link else base + " Respondé este mensaje y seguimos donde quedaste, con el descuento."
+    email = base + extra + vence_txt + WA_CTA if link else base + " Respondé este mail y seguimos donde quedaste, con el descuento." + WA_CTA
+    return wa, email
+
+
 def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
     for c, h in enumerate(HEADERS_SEGMENTO, start=1):
         cell = ws.cell(row=1, column=c, value=h)

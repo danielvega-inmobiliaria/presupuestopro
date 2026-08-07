@@ -13,6 +13,7 @@ Rutas:
 import json
 import logging
 import os
+import secrets
 from datetime import datetime, date, timedelta
 from functools import wraps
 
@@ -113,6 +114,57 @@ def _enviar_email_activacion(user_email, user_nombre, fecha_vencimiento):
     except Exception as e:
         logger.error(f"[Email] Error general: {type(e).__name__}: {e}")
         return False
+
+
+# ─── pago diferenciado 50%/48hs (07/08/2026, campaña de conversión D/B) ────
+# Ver RETENCION_USUARIOS/PROYECTO.md para el contexto completo. `token`
+# identifica un link personal de pago con descuento -- no requiere login
+# (el propio token, único y con vencimiento, hace de autenticación), porque
+# a quien le llega este link probablemente no tenga sesión activa (viene de
+# WhatsApp/mail después de días o semanas sin entrar a la app).
+
+def _crear_promo(db, user_id, horas=48, descuento_pct=50):
+    """Devuelve un link de pago con descuento vigente para este usuario --
+    reusa uno existente si ya hay uno sin usar y sin vencer (para que 2
+    clicks seguidos en "Generar link" no generen 2 tokens distintos)."""
+    ahora = datetime.utcnow()
+    existente = db.execute(
+        "SELECT * FROM retencion_promos WHERE user_id=? AND usado=0 AND vence_at > ? "
+        "ORDER BY creado_at DESC LIMIT 1",
+        (user_id, ahora.isoformat(sep=' '))
+    ).fetchone()
+    if existente:
+        return existente
+    token = secrets.token_urlsafe(24)
+    vence_at = (ahora + timedelta(hours=horas)).isoformat(sep=' ')
+    db.execute(
+        "INSERT INTO retencion_promos (user_id, token, descuento_pct, vence_at) VALUES (?,?,?,?)",
+        (user_id, token, descuento_pct, vence_at)
+    )
+    db.commit()
+    return db.execute("SELECT * FROM retencion_promos WHERE token=?", (token,)).fetchone()
+
+
+def _promo_vigente(db, token):
+    """Promo válida (existe, sin usar, sin vencer) o None."""
+    ahora = datetime.utcnow().isoformat(sep=' ')
+    return db.execute(
+        "SELECT * FROM retencion_promos WHERE token=? AND usado=0 AND vence_at > ?",
+        (token, ahora)
+    ).fetchone()
+
+
+def _art_str(fecha_utc, fmt='%d/%m %H:%M'):
+    """Mismo offset fijo (-3hs) que el resto de la app -- ver app.py::local_dt
+    y utils/exportar_contactos.py::_art. Acá en texto plano para usar dentro
+    de un mensaje de WhatsApp/email, no en un template Jinja."""
+    if not fecha_utc:
+        return ''
+    try:
+        dt = datetime.fromisoformat(str(fecha_utc).replace(' ', 'T'))
+    except ValueError:
+        return ''
+    return (dt - timedelta(hours=3)).strftime(fmt)
 
 
 def _activar_suscripcion(db, user_id, payment_id, meses=1, plan_nombre='mensual', monto_ars=None):
@@ -290,6 +342,19 @@ def _procesar_pago_por_id(payment_id):
     plan_nombre = plan_info.get('nombre', plan_key)
     monto_ars   = plan_info.get('precio_total')
 
+    # 07/08/2026: si este pago vino de un link de promo (50%/48hs, ver
+    # _crear_promo arriba), el monto real cobrado es MENOR al de MP_PLANES --
+    # se recalcula acá para que suscripciones.monto_ars (y el total que
+    # muestra la hoja "Abonados" del export) refleje lo que realmente entró,
+    # no el precio de lista.
+    promo_token = metadata.get('promo_token')
+    descuento_pct = metadata.get('descuento_pct')
+    if descuento_pct and monto_ars:
+        try:
+            monto_ars = round(monto_ars * (100 - float(descuento_pct)) / 100)
+        except (TypeError, ValueError):
+            pass
+
     db = get_db()
     user = None
     if user_id_meta:
@@ -301,6 +366,10 @@ def _procesar_pago_por_id(payment_id):
         _activar_suscripcion(db, user['id'], str(payment_id), meses=meses,
                               plan_nombre=plan_nombre, monto_ars=monto_ars)
         logger.info(f"[MP] Usuario {user['id']} activado por payment {payment_id} (plan={plan_key}, meses={meses})")
+        if promo_token:
+            db.execute("UPDATE retencion_promos SET usado=1 WHERE token=?", (promo_token,))
+            db.commit()
+            logger.info(f"[MP] Promo {promo_token} marcada como usada (user {user['id']})")
     else:
         logger.warning(f"[MP] Usuario no encontrado para payment {payment_id}: email={payer_email} meta_id={user_id_meta}")
     db.close()
@@ -574,6 +643,184 @@ function copiarLink() {
 """
     from flask import render_template_string as rts
     return rts(html_link, init_point=init_point)
+
+
+def _plan_picker_html(planes_lista, titulo, subtitulo, action_url, boton_label, extra_footer=''):
+    """HTML compartido por /pagos/planes y /pagos/promo/<token> -- casi el
+    mismo picker, pero acá parametrizado (título/acción/precios ya vienen
+    calculados por quien llama, no repite la lógica del % ahorro)."""
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<title>PresupuestoPRO - Planes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body { background: #f0f5ff; }
+  .plan-card { border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,.08); border: 2px solid transparent; height: 100%; }
+  .plan-card.destacado { border-color: #0d6efd; box-shadow: 0 8px 32px rgba(13,110,253,.18); }
+</style>
+</head><body>
+<div class="container py-5">
+  <h2 class="text-center mb-1">{{ titulo }}</h2>
+  <p class="text-center text-muted mb-4">{{ subtitulo }}</p>
+  <div class="row g-3 justify-content-center">
+    {% for p in planes %}
+    <div class="col-md-3">
+      <div class="card plan-card p-3 {{ 'destacado' if p.destacado else '' }}">
+        <div class="card-body text-center">
+          <h5>{{ p.nombre }}</h5>
+          {% if p.precio_original %}<div class="text-muted small text-decoration-line-through">$ {{ '{:,.0f}'.format(p.precio_original) }}</div>{% endif %}
+          <div class="price my-2" style="font-size:1.8rem;font-weight:700">$ {{ '{:,.0f}'.format(p.precio_mes) }}<small class="fs-6 text-muted">/mes</small></div>
+          <div class="text-muted small mb-2">Total $ {{ '{:,.0f}'.format(p.precio_total) }} ({{ p.meses }} {{ 'mes' if p.meses == 1 else 'meses' }})</div>
+          <form method="POST" action="{{ action_url }}">
+            <input type="hidden" name="plan" value="{{ p.clave }}">
+            <button type="submit" class="btn btn-primary w-100">{{ boton_label }}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if extra_footer %}<p class="text-center text-muted mt-4" style="font-size:.85rem">{{ extra_footer|safe }}</p>{% endif %}
+</div></body></html>
+""", planes=planes_lista, titulo=titulo, subtitulo=subtitulo, action_url=action_url,
+    boton_label=boton_label, extra_footer=extra_footer)
+
+
+@bp.route('/promo/<token>')
+def promo_pagar(token):
+    """Página del link personalizado con descuento (50%/48hs, campaña de
+    conversión D/B de vencidos) -- ver _crear_promo() en routes/admin.py y
+    RETENCION_USUARIOS/PROYECTO.md. A propósito SIN @_login_required: a
+    quien le llega este link probablemente no tenga sesión activa (viene de
+    WhatsApp/mail después de días o semanas sin entrar), el token ya
+    identifica de forma segura a qué usuario corresponde."""
+    db = get_db()
+    promo = _promo_vigente(db, token)
+    if not promo:
+        db.close()
+        return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+<body><div class="container py-5 text-center">
+<div class="alert alert-warning fs-5">Este link de descuento ya venció o ya fue usado.</div>
+<p class="text-muted">Si todavía te interesa reactivar tu cuenta, escribinos y te ayudamos.</p>
+<a href="https://wa.me/5493417542009" class="btn btn-success">Escribir por WhatsApp</a>
+</div></body></html>"""), 410
+
+    user = db.execute("SELECT * FROM users WHERE id=?", (promo['user_id'],)).fetchone()
+    db.close()
+    if not user:
+        return redirect(url_for('landing.index'))
+
+    planes_cfg = current_app.config.get('MP_PLANES', {})
+    descuento = promo['descuento_pct']
+    planes_lista = []
+    for clave, p in planes_cfg.items():
+        precio_mes_desc = round(p['precio_mes'] * (100 - descuento) / 100)
+        precio_total_desc = round(p['precio_total'] * (100 - descuento) / 100)
+        planes_lista.append({
+            'clave': clave, 'nombre': p['nombre'], 'meses': p['meses'],
+            'precio_mes': precio_mes_desc, 'precio_total': precio_total_desc,
+            'precio_original': p['precio_total'], 'destacado': p.get('destacado', False),
+        })
+    orden = {'mensual': 0, 'trimestral': 1, 'semestral': 2, 'anual': 3}
+    planes_lista.sort(key=lambda p: orden.get(p['clave'], 99))
+
+    vence_txt = _art_str(promo['vence_at'], '%d/%m a las %H:%M')
+    return _plan_picker_html(
+        planes_lista,
+        titulo=f"¡Hola {user['nombre'] or ''}! Tenés {descuento}% off",
+        subtitulo=f"Válido hasta el {vence_txt} (hora Argentina) -- elegí el plan que prefieras, el descuento aplica a todo el período.",
+        action_url=url_for('pagos.promo_crear_suscripcion', token=token),
+        boton_label=f"Reactivar con {descuento}% off",
+    )
+
+
+@bp.route('/promo/<token>/crear-suscripcion', methods=['POST'])
+def promo_crear_suscripcion(token):
+    """Igual que crear_suscripcion() pero con el precio ya descontado y sin
+    requerir sesión -- el token autentica. Redirige DIRECTO al checkout de MP
+    (a diferencia de crear_suscripcion(), que muestra una página con el link
+    para copiar -- acá no hace falta, esta página YA es la personalizada)."""
+    db = get_db()
+    promo = _promo_vigente(db, token)
+    if not promo:
+        db.close()
+        return redirect(url_for('pagos.promo_pagar', token=token))
+    user = db.execute("SELECT * FROM users WHERE id=?", (promo['user_id'],)).fetchone()
+    db.close()
+    if not user:
+        return redirect(url_for('landing.index'))
+
+    sdk = _get_sdk()
+    base_url = current_app.config['APP_BASE_URL']
+    planes_cfg = current_app.config.get('MP_PLANES', {})
+    plan_key = request.form.get('plan', 'mensual')
+    if plan_key not in planes_cfg:
+        plan_key = 'mensual'
+    plan_info = planes_cfg[plan_key]
+    descuento = promo['descuento_pct']
+    precio = round(plan_info['precio_total'] * (100 - descuento) / 100)
+
+    preference_data = {
+        "items": [{
+            "title": f"PresupuestoPRO — {plan_info['nombre']} ({descuento}% off)",
+            "quantity": 1, "unit_price": float(precio), "currency_id": "ARS",
+        }],
+        "payer": {"email": user['email']},
+        "back_urls": {
+            "success": f"{base_url}/pagos/promo/{token}/retorno?status=approved",
+            "pending": f"{base_url}/pagos/promo/{token}/retorno?status=pending",
+            "failure": f"{base_url}/pagos/promo/{token}/retorno?status=failure",
+        },
+        "auto_return": "approved",
+        "metadata": {
+            "user_id": user['id'], "app": "presupuestopro", "plan": plan_key,
+            "meses": plan_info['meses'], "promo_token": token, "descuento_pct": descuento,
+        },
+        "statement_descriptor": "PRESUPUESTOPRO",
+        "expires": False,
+        "notification_url": f"{base_url}/pagos/webhook",
+    }
+    result = sdk.preference().create(preference_data)
+    response = result.get("response", {})
+    if result.get("status") not in (200, 201) or "init_point" not in response:
+        logger.error(f"[MP] Error creando preference de promo {token}: {result}")
+        return redirect(url_for('pagos.promo_pagar', token=token) + '?error=1')
+
+    logger.info(f"[MP] Preference de promo creada para user {user['id']} (token={token}, {descuento}% off)")
+    return redirect(response.get("init_point"))
+
+
+@bp.route('/promo/<token>/retorno')
+def promo_retorno(token):
+    """Landing post-pago para links de promo -- misma lógica que retorno(),
+    sin @_login_required (no hay sesión) y sin los botones a /dashboard."""
+    status = request.args.get('status') or request.args.get('collection_status', '')
+    payment_id = request.args.get('payment_id') or request.args.get('collection_id', '')
+
+    if status == 'approved' and payment_id:
+        try:
+            _procesar_pago_por_id(payment_id)
+        except Exception as e:
+            logger.error(f"[MP promo_retorno] Error procesando {payment_id}: {e}")
+        mensaje = "¡Pago aprobado! Tu cuenta ya está reactivada con el descuento."
+        tipo = "success"
+    elif status == 'pending':
+        mensaje = "Tu pago está pendiente de acreditación. Te avisamos cuando se confirme."
+        tipo = "warning"
+    else:
+        mensaje = "El pago no se completó. Podés volver a intentarlo desde el mismo link."
+        tipo = "danger"
+
+    return render_template_string("""
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+<body><div class="container py-5 text-center">
+<div class="alert alert-{{ tipo }} fs-5">{{ mensaje }}</div>
+<a href="/login" class="btn btn-primary mt-2">Iniciar sesión</a>
+</div></body></html>""", mensaje=mensaje, tipo=tipo)
 
 
 @bp.route('/retorno')

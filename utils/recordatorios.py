@@ -298,3 +298,87 @@ def enviar_backlog_email_segmentos():
             print(f"[recordatorios] Error mandando backlog email a user {fila.get('id')}: {e}")
     db.close()
     return enviados
+
+
+# ─── recordatorio de 24hs para el link de pago con descuento (07/08/2026) ────
+# Campaña de conversión 50%/48hs (vencidos D/B, ver routes/admin.py y
+# routes/pagos.py). A la mitad del plazo (24hs después de generado el link),
+# si todavía no pagó, se le manda UN mail avisando que quedan 24hs antes de
+# perder el descuento. Por EMAIL (no WhatsApp) a pedido de Daniel -- ya
+# funciona hoy sin esperar otra aprobación de Meta.
+VENTANA_RECORDATORIO_PROMO_MIN = 23  # horas
+VENTANA_RECORDATORIO_PROMO_MAX = 25  # horas
+
+
+def _candidatos_recordatorio_promo(db):
+    from datetime import datetime as _dt
+    ahora = _dt.utcnow()
+    desde = (ahora - timedelta(hours=VENTANA_RECORDATORIO_PROMO_MAX)).isoformat(sep=' ')
+    hasta = (ahora - timedelta(hours=VENTANA_RECORDATORIO_PROMO_MIN)).isoformat(sep=' ')
+    return db.execute(
+        """SELECT rp.id, rp.token, rp.vence_at, u.id AS user_id, u.nombre, u.email
+           FROM retencion_promos rp JOIN users u ON u.id=rp.user_id
+           WHERE rp.usado=0 AND rp.recordatorio_enviado=0
+             AND rp.vence_at > ?
+             AND rp.creado_at BETWEEN ? AND ?
+        """,
+        (ahora.isoformat(sep=' '), desde, hasta)
+    ).fetchall()
+
+
+def enviar_recordatorio_promo_24h():
+    """Corre la búsqueda + el envío del recordatorio de 24hs. Devuelve la
+    cantidad mandada en ESTA corrida. Mismo mecanismo de protección contra
+    duplicados entre workers que el resto del archivo (UPDATE atómico con
+    WHERE recordatorio_enviado=0)."""
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        return 0
+
+    import resend
+    from routes.pagos import _art_str
+
+    db = get_db()
+    candidatos = _candidatos_recordatorio_promo(db)
+
+    app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
+    enviados = 0
+    resend.api_key = api_key
+    for p in candidatos:
+        if not p['email']:
+            continue
+        cur = db.execute(
+            "UPDATE retencion_promos SET recordatorio_enviado=1 WHERE id=? AND recordatorio_enviado=0",
+            (p['id'],)
+        )
+        db.commit()
+        if cur.rowcount == 0:
+            continue  # otro worker ya lo tomó en esta misma corrida
+        link = f"{app_url}/pagos/promo/{p['token']}"
+        vence_str = _art_str(p['vence_at'], '%d/%m a las %H:%M')
+        nombre = p['nombre'] or ''
+        texto = (
+            f"Hola {nombre}! Te quedan menos de 24hs para aprovechar el 50% de descuento "
+            f"en tu reactivación de PresupuestoPRO. Después del {vence_str} (hora Argentina) "
+            f"vuelve al precio normal.\n\nPagá acá con el descuento ya aplicado: {link}\n\n"
+            f"Cualquier duda, respondé este mail o escribinos por WhatsApp: {WA_LINK}"
+        )
+        try:
+            resp = resend.Emails.send({
+                "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
+                "to": [p['email']],
+                "reply_to": ["contacto@presupuestopro.com.ar"],
+                "subject": "Te quedan 24hs de tu 50% de descuento en PresupuestoPRO",
+                "text": texto,
+            })
+            registrar_envio(resp.get('id', ''), p['email'], 'recordatorio_promo_24h')
+            db.execute(
+                "INSERT INTO retencion_contactos (user_id, canal, segmento, mensaje, resultado) VALUES (?,?,?,?,?)",
+                (p['user_id'], 'email', 'recordatorio_promo_24h', texto[:500], 'ok')
+            )
+            db.commit()
+            enviados += 1
+        except Exception as e:
+            print(f"[recordatorios] Error mandando recordatorio de promo a {p['email']}: {e}")
+    db.close()
+    return enviados

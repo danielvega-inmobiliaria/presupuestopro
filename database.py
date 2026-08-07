@@ -2773,6 +2773,34 @@ def migrate_db():
             db.commit()
             print("[migrate_db] 3k: users.retencion_opt_out agregado (baja de retención)")
 
+        # ── 3l. Pago diferenciado 50%/48hs para vencidos D/B ────────────────
+        # Pedido de Daniel 07/08/2026: campaña de conversión con 50% off por
+        # 48hs, aplicado a todo el período que elija. `token` identifica el
+        # link personal (/pagos/promo/<token>, ver routes/pagos.py) -- no se
+        # genera solo, Daniel lo crea a mano desde el perfil del usuario
+        # (Seguimiento > Ver) cuando quiere mandarlo. `usado` se marca cuando
+        # el pago se confirma (mismo _procesar_pago_por_id que ya procesa
+        # pagos normales). `recordatorio_enviado` evita mandar 2 veces el
+        # aviso de "quedan 24hs" (utils/recordatorios.py).
+        ya_3l = db.execute("SELECT valor FROM config WHERE clave='3l_done'").fetchone()
+        if not ya_3l:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS retencion_promos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    token TEXT NOT NULL UNIQUE,
+                    descuento_pct INTEGER NOT NULL DEFAULT 50,
+                    creado_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    vence_at DATETIME NOT NULL,
+                    usado INTEGER DEFAULT 0,
+                    recordatorio_enviado INTEGER DEFAULT 0
+                )
+            """)
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3l_done','2026-08-07')")
+            db.commit()
+            print("[migrate_db] 3l: retencion_promos agregada (pago diferenciado 50%/48hs)")
+
     except Exception as e:
         print(f"[migrate_db] {e}")
     finally:
