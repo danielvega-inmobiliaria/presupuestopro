@@ -63,14 +63,16 @@ WA_LINK = 'https://wa.me/5493417542009'
 WA_CTA = (f"\n\nPodés responder este mail directamente, o si preferís, "
           f"escribinos por WhatsApp: {WA_LINK}")
 
+COLS_RETENCION = ["Email retención: último envío (ART)", "WhatsApp retención: último envío (ART)"]
+
 HEADERS_SEGMENTO = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Estado activación", "Creado", "Vence",
                      "Mensaje WhatsApp sugerido", "Mensaje email sugerido", "Comentarios",
-                     "Mail: estado", "Mail: fecha"]
+                     "Mail: estado", "Mail: fecha"] + COLS_RETENCION
 
 HEADERS_TODOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                   "Presup.", "Borr.", "Costo/m²", "Estado activación", "Segmento",
-                  "Creado", "Vence", "Comentarios", "Mail: estado", "Mail: fecha"]
+                  "Creado", "Vence", "Comentarios", "Mail: estado", "Mail: fecha"] + COLS_RETENCION
 
 # Agregado 03/08/2026, pedido de Daniel: columna "Comentarios" para anotar,
 # llamada por llamada, la causa del uso escaso/nulo -- en TODAS las hojas
@@ -89,7 +91,7 @@ HEADERS_TODOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
 # fija de nombres de hoja).
 HEADERS_VENCIDOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Tipo", "Venció el", "Comentarios",
-                     "Mail: estado", "Mail: fecha"]
+                     "Mail: estado", "Mail: fecha"] + COLS_RETENCION
 
 # 06/08/2026, pedido de Daniel: 2 columnas nuevas en Abonados para ver de un
 # vistazo cuánto ingresa realmente por cada suscriptor. "Plan / $mes" muestra
@@ -101,7 +103,7 @@ HEADERS_VENCIDOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "Paí
 # cálculo y el total que va arriba de la columna.
 HEADERS_ABONADOS = ["Nombre", "Email", "Teléfono", "Ciudad", "Provincia", "País",
                      "Presup.", "Borr.", "Costo/m²", "Plan / $mes", "$ cobrados (mensual, neto MP 14%)",
-                     "Abonado desde", "Vence", "Comentarios", "Mail: estado", "Mail: fecha"]
+                     "Abonado desde", "Vence", "Comentarios", "Mail: estado", "Mail: fecha"] + COLS_RETENCION
 
 MP_COMISION_PCT = 14  # % que se queda Mercado Pago (Checkout Pro) -- confirmado por Daniel 06/08/2026
 
@@ -116,6 +118,35 @@ SEG_B = "B - 1 presup./borrador en total"
 SEG_C = "C - Validado, cero actividad"
 SEG_D = "D - Validado, solo usó Costo/m2"
 SEG_ACTIVO = "Activo (2+ presup./borr.) - no prioritario"
+
+
+def _art(fecha_utc):
+    """UTC (como se guarda created_at en SQLite) -> ART (UTC-3, sin horario
+    de verano), formateado DD/MM/YYYY HH:MM. Mismo offset fijo que ya usa el
+    filtro Jinja local_dt (app.py) -- acá se repite en Python plano porque
+    esto arma un .xlsx, no un template."""
+    if not fecha_utc:
+        return ''
+    try:
+        dt = datetime.fromisoformat(str(fecha_utc).replace(' ', 'T'))
+    except ValueError:
+        return ''
+    return (dt - timedelta(hours=3)).strftime('%d/%m/%Y %H:%M')
+
+
+def _retencion_cols(u):
+    """[último email de retención (ART), último WhatsApp de retención (ART)]
+    -- agregado 07/08/2026, pedido de Daniel. A diferencia de _mail_cols()
+    (que sale de email_eventos, TODOS los mails sin distinguir tipo --
+    bienvenida, recordatorio de inactividad, retención, etc.), esto sale de
+    retencion_contactos filtrado por canal (ver subqueries
+    ultimo_email_retencion/ultimo_whatsapp_retencion en
+    routes/admin.py::_usuarios_para_exportar) -- specific al mensaje de
+    retención de Admin > Seguimiento (manual o automático), y solo cuenta
+    envíos que salieron OK (resultado='ok'), no los que fallaron."""
+    ue = u['ultimo_email_retencion'] if 'ultimo_email_retencion' in u.keys() else None
+    uw = u['ultimo_whatsapp_retencion'] if 'ultimo_whatsapp_retencion' in u.keys() else None
+    return [_art(ue), _art(uw)]
 
 
 def _mail_cols(u):
@@ -278,14 +309,14 @@ def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
             u['n_costo_m2'], estado, (u['created_at'] or '')[:10],
             u['subscription_expires'] or '∞', wa_msg, email_msg,
             u['comentario_seguimiento'] or '',
-        ] + _mail_cols(u)
+        ] + _mail_cols(u) + _retencion_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 12, 12, 55, 55, 55, 16, 12]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 12, 12, 55, 55, 55, 16, 12, 20, 20]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -306,14 +337,14 @@ def _escribir_hoja_todos(ws, usuarios):
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], estado, _segmento(u), (u['created_at'] or '')[:10],
             u['subscription_expires'] or '∞', u['comentario_seguimiento'] or '',
-        ] + _mail_cols(u)
+        ] + _mail_cols(u) + _retencion_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 32, 12, 12, 55, 16, 12]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 18, 32, 12, 12, 55, 16, 12, 20, 20]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -338,14 +369,14 @@ def _escribir_hoja_vencidos(ws, usuarios):
             u['provincia'] or '', u['pais'] or '', u['n_presupuestos'], u['n_borradores'],
             u['n_costo_m2'], tipo, u['subscription_expires'] or '',
             u['comentario_seguimiento'] or '',
-        ] + _mail_cols(u)
+        ] + _mail_cols(u) + _retencion_cols(u)
         for c, val in enumerate(row, start=1):
             cell = ws.cell(row=r, column=c, value=val)
             cell.font = BODY_FONT
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 26, 12, 55, 16, 12]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 26, 12, 55, 16, 12, 20, 20]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A2"
@@ -402,7 +433,7 @@ def _escribir_hoja_abonados(ws, usuarios, mp_planes):
             u['n_costo_m2'], etiqueta_plan, _fmt_ars(neto_mensual),
             (u['abonado_desde'] or '')[:10], u['subscription_expires'] or '',
             u['comentario_seguimiento'] or '',
-        ] + _mail_cols(u))
+        ] + _mail_cols(u) + _retencion_cols(u))
 
     TOTAL_FONT = Font(name="Arial", bold=True, size=10)
     TOTAL_FILL = PatternFill("solid", fgColor="E5E7EB")
@@ -423,7 +454,7 @@ def _escribir_hoja_abonados(ws, usuarios, mp_planes):
             cell.border = BORDER
             cell.alignment = Alignment(vertical="center", wrap_text=True)
 
-    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 22, 24, 12, 12, 55, 16, 12]
+    widths = [18, 30, 18, 20, 20, 8, 8, 8, 9, 22, 24, 12, 12, 55, 16, 12, 20, 20]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = "A3"

@@ -5,10 +5,18 @@
 <div class="pp2">
   <div style="font-weight:700;font-size:21px;margin-bottom:14px"><i class="bi bi-speedometer2"></i> Panel de administración</div>
 
+  {# Rediseño 07/08/2026, pedido de Daniel: "Usuarios totales" y "Activos"
+     daban siempre el mismo número y no aportaban nada a primera vista.
+     Estos 4 son complementarios (Abonados + En prueba + Vencidos ≈ Usuarios
+     totales, salvo algún caso borde): dan de un vistazo cuánta gente está
+     pagando, cuánta sigue en prueba, y cuánta se venció sin convertir. #}
   <div class="kpis">
     <div class="kpi dato"><b>{{ stats.total_users }}</b><span>Usuarios totales</span></div>
-    <div class="kpi bien"><b>{{ stats.activos }}</b><span>Activos</span></div>
-    <div class="kpi alerta"><b>{{ stats.vencidos }}</b><span>Suscripciones vencidas</span></div>
+    <div class="kpi bien"><b>{{ stats.abonados }}</b><span>Abonados</span></div>
+    <div class="kpi"><b>{{ stats.en_prueba }}</b><span>En prueba</span></div>
+    <div class="kpi alerta"><b>{{ stats.vencidos }}</b><span>Vencidos</span></div>
+  </div>
+  <div class="kpis" style="margin-top:6px">
     <div class="kpi"><b>{{ stats.presupuestos }}</b><span>Presupuestos totales</span></div>
   </div>
 

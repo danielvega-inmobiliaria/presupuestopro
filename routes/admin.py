@@ -153,6 +153,16 @@ bp = Blueprint('admin', __name__, url_prefix='/admin')
 @admin_required
 def dashboard():
     db = get_db()
+    # Fix 07/08/2026, pedido de Daniel: "Usuarios totales" y "Activos" daban
+    # siempre el mismo número (active=1 es el flag de cuenta habilitada, no
+    # de plan pago -- prácticamente todos lo tienen en 1) y no decía nada
+    # útil a primera vista. Se reemplaza por 3 cuadros SIN superposición que
+    # sí importan para el negocio: Abonados (pagando, al día -- mismo
+    # criterio que la hoja "Abonados" del export: es_trial=0/active=1/no
+    # vencido), En prueba (trial vigente, no vencido) y Vencidos (se deja
+    # igual que antes: prueba o pago vencido, sin convertir). 'activos' se
+    # mantiene en el dict (lo sigue usando la barra de "conectados ahora"
+    # más abajo) pero ya no es uno de los 4 KPI de arriba.
     stats = {
         'total_users':   db.execute("SELECT COUNT(*) as c FROM users WHERE is_admin=0").fetchone()['c'],
         'activos':       db.execute("SELECT COUNT(*) as c FROM users WHERE active=1 AND is_admin=0").fetchone()['c'],
@@ -160,6 +170,14 @@ def dashboard():
         # utils/auth.py. Contaba usuarios como vencidos hasta 3hs antes de
         # tiempo en la franja 21:00-23:59 ART.
         'vencidos':      db.execute("SELECT COUNT(*) as c FROM users WHERE subscription_expires < date('now', '-3 hours') AND is_admin=0").fetchone()['c'],
+        'abonados':      db.execute(
+            "SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND es_trial=0 AND active=1 "
+            "AND (subscription_expires IS NULL OR subscription_expires >= date('now', '-3 hours'))"
+        ).fetchone()['c'],
+        'en_prueba':     db.execute(
+            "SELECT COUNT(*) as c FROM users WHERE is_admin=0 AND es_trial=1 "
+            "AND (subscription_expires IS NULL OR subscription_expires >= date('now', '-3 hours'))"
+        ).fetchone()['c'],
         'presupuestos':  db.execute("SELECT COUNT(*) as c FROM presupuestos").fetchone()['c'],
         'mensajes_nuevos': db.execute("SELECT COUNT(*) as c FROM contactos WHERE leido=0").fetchone()['c'],
         'sugerencias_nuevas': db.execute("SELECT COUNT(*) as c FROM sugerencias WHERE leido=0").fetchone()['c'],
@@ -366,7 +384,13 @@ def _usuarios_para_exportar(db):
                      WHERE s.user_id=u.id AND s.estado='authorized'
                      ORDER BY s.fecha_inicio DESC, s.id DESC LIMIT 1)                                  AS plan_nombre_actual,
                   {SQL_MAIL_ESTADO}       AS mail_estado,
-                  {SQL_MAIL_ESTADO_FECHA} AS mail_estado_fecha
+                  {SQL_MAIL_ESTADO_FECHA} AS mail_estado_fecha,
+                  (SELECT MAX(rc.created_at) FROM retencion_contactos rc
+                     WHERE rc.user_id=u.id AND rc.canal='email'
+                       AND rc.resultado='ok')                                                          AS ultimo_email_retencion,
+                  (SELECT MAX(rc.created_at) FROM retencion_contactos rc
+                     WHERE rc.user_id=u.id AND rc.canal='whatsapp'
+                       AND rc.resultado='ok')                                                          AS ultimo_whatsapp_retencion
            FROM users u
            WHERE u.is_admin=0
            ORDER BY u.created_at DESC"""
@@ -762,14 +786,22 @@ def seguimiento_categoria_email_todos(categoria):
 
     db = get_db()
     filas = [f for f in _usuarios_seguimiento() if _categoria(f) == categoria]
-    enviados = errores = 0
+    enviados = errores = salteados = 0
     for f in filas:
-        ok, _ = _enviar_email_seguimiento(db, f, _tipo_mensaje(f, categoria))
+        tipo = _tipo_mensaje(f, categoria)
+        # 07/08/2026: no repetir a quien ya le llegó ESTE mensaje puntual --
+        # ver _ya_contactado(), pensado para no duplicar contra las tandas
+        # horarias automáticas.
+        if _ya_contactado(db, f['id'], 'email', tipo):
+            salteados += 1
+            continue
+        ok, _ = _enviar_email_seguimiento(db, f, tipo)
         enviados += 1 if ok else 0
         errores += 0 if ok else 1
     db.commit()
     db.close()
-    flash(f'Mail a todos ({CATEGORIA_LABEL[categoria]}): {enviados} enviados, {errores} con error.',
+    flash(f'Mail a todos ({CATEGORIA_LABEL[categoria]}): {enviados} enviados, {errores} con error, '
+          f'{salteados} salteados (ya lo habían recibido, ej. por la tanda automática).',
           'success' if errores == 0 else 'error')
     return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
 
@@ -788,15 +820,23 @@ def seguimiento_categoria_whatsapp_todos(categoria):
 
     db = get_db()
     filas = [f for f in _usuarios_seguimiento() if _categoria(f) == categoria]
-    enviados = errores = 0
+    enviados = errores = salteados = 0
     for f in filas:
-        ok, detalle, plantilla = _enviar_whatsapp_seguimiento(db, f, _tipo_mensaje(f, categoria))
+        tipo = _tipo_mensaje(f, categoria)
+        # Mismo chequeo que "Mail a todos" -- hoy WhatsApp no tiene tanda
+        # automática todavía, pero deja esto listo para cuando la tenga y
+        # evita duplicar si Daniel lo clickea 2 veces seguidas.
+        if _ya_contactado(db, f['id'], 'whatsapp', tipo):
+            salteados += 1
+            continue
+        ok, detalle, plantilla = _enviar_whatsapp_seguimiento(db, f, tipo)
         enviados += 1 if ok else 0
         errores += 0 if ok else 1
     db.commit()
     db.close()
     flash(f'WhatsApp a todos ({CATEGORIA_LABEL[categoria]}): {enviados} enviados, {errores} con error '
-          f'(sin teléfono o plantilla no aprobada en Meta).', 'success' if errores == 0 else 'error')
+          f'(sin teléfono o plantilla no aprobada en Meta), {salteados} salteados (ya contactados).',
+          'success' if errores == 0 else 'error')
     return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
 
 
@@ -993,6 +1033,22 @@ function abrirWhatsapp(tel, mensaje) {
 </script>
 </body></html>
 """, f=fila, tipos=tipos, mensajes=mensajes, tipo_label=TIPO_LABEL, eventos=eventos, user=g.user)
+
+
+def _ya_contactado(db, user_id, canal, segmento):
+    """True si ya existe un envío OK registrado en retencion_contactos para
+    ese usuario, canal y tipo puntual -- agregado 07/08/2026, pedido de
+    Daniel: desde que utils/recordatorios.py::enviar_backlog_email_segmentos
+    manda los mails de A/C/trial/estuvo_usando solo por tandas horarias, los
+    botones "a todos" de acá (que mandan a TODA la categoría sin fijarse
+    quién ya recibió el automático) duplicaban el envío. Con este chequeo,
+    "a todos" pasa a ser "a todos los que todavía no tienen ESTE mensaje
+    puntual" -- sigue sirviendo para mandar ya (sin esperar la próxima
+    tanda) a los que falten, sin repetirle a nadie."""
+    return db.execute(
+        "SELECT 1 FROM retencion_contactos WHERE user_id=? AND canal=? AND segmento=? AND resultado='ok' LIMIT 1",
+        (user_id, canal, segmento)
+    ).fetchone() is not None
 
 
 def _enviar_whatsapp_seguimiento(db, u, tipo):
