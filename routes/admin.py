@@ -14,6 +14,7 @@ from utils.exportar_contactos import (
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
     _mensaje_prueba_por_vencer, _mensaje_suscripcion_vencida, _mensaje_checkin_activo,
     _mensaje_checkin_abonado, _mensaje_conversion_d, _mensaje_conversion_b,
+    _mensaje_testimonio,
 )
 from utils.email_tracking import registrar_envio, ETIQUETAS_EVENTO, SQL_MAIL_ESTADO, SQL_MAIL_ESTADO_FECHA
 from database import get_db, recalcular_precio_mo_ars
@@ -57,6 +58,14 @@ TEMPLATES_WHATSAPP = {
     # mandarles a todos el mismo mensaje de soporte genérico ('vencido').
     'conversion_d': 'retencion_conversion_d',
     'conversion_b': 'retencion_conversion_b',
+    # 08/08/2026: pedido de testimonio para el creative de META_ADS
+    # (campaña de retargeting a Purchase) -- plantilla NUEVA, todavía sin
+    # crear en Meta. Mismo criterio que el resto: hasta que esté Activa,
+    # el botón de WhatsApp "a todos" da error visible; el email ya funciona
+    # (Resend, no necesita aprobación). No es un tipo ligado a una categoría
+    # de Seguimiento -- se manda a toda la base pareja, ver
+    # seguimiento_testimonio_a_todos().
+    'testimonio': 'retencion_pedido_testimonio',
 }
 
 MENSAJES_EMAIL = {
@@ -70,6 +79,7 @@ MENSAJES_EMAIL = {
     'abonado': _mensaje_checkin_abonado,
     'conversion_d': _mensaje_conversion_d,
     'conversion_b': _mensaje_conversion_b,
+    'testimonio': _mensaje_testimonio,
 }
 
 TIPO_LABEL = {
@@ -83,6 +93,7 @@ TIPO_LABEL = {
     'abonado': 'Check-in (abonado)',
     'conversion_d': 'Conversión 50%/48hs (ex-D)',
     'conversion_b': 'Conversión 50%/48hs (ex-B)',
+    'testimonio': 'Pedido de testimonio',
 }
 
 # ── Seguimiento > Retención de usuarios (rediseño 06/08/2026, pedido de
@@ -707,6 +718,14 @@ def seguimiento():
   <h4 class="fw-bold mb-1">Seguimiento — Retención de usuarios</h4>
   <p class="text-muted small mb-3">{{ total }} usuario{{ 's' if total != 1 else '' }} en total. Elegí una categoría para ver la lista y contactarlos.</p>
   """ + _FLASH_BLOCK + """
+  <div class="d-flex justify-content-end mb-3">
+    <form method="POST" action="{{ url_for('admin.seguimiento_testimonio_a_todos') }}"
+          onsubmit="return confirm('¿Pedir un testimonio por mail a toda la base ({{ total }} usuarios, salvo los que ya se les pidió)? Es para el creative de la campaña de retargeting.');">
+      <button type="submit" class="btn btn-outline-dark btn-sm">
+        <i class="bi bi-chat-quote"></i> Pedir testimonio a toda la base (mail)
+      </button>
+    </form>
+  </div>
   <div class="row g-3">
     {% for cat in categorias %}
     <div class="col-6 col-md-4">
@@ -901,6 +920,41 @@ def seguimiento_categoria_whatsapp_todos(categoria):
     return redirect(url_for('admin.seguimiento_categoria', categoria=categoria))
 
 
+@bp.route('/seguimiento/testimonio-a-todos', methods=['POST'])
+@admin_required
+def seguimiento_testimonio_a_todos():
+    """Pedido de testimonio (08/08/2026, para el creative de la campaña de
+    retargeting a Purchase de META_ADS) -- a diferencia del resto de "a
+    todos" de acá arriba, esto NO está ligado a una categoría de Seguimiento:
+    se manda a TODA la base activa (misma lista que _usuarios_seguimiento(),
+    ya excluye admins y opt-out de retención) pareja, sin importar segmento.
+    Mismo dedupe que el resto (_ya_contactado) para no pedirle 2 veces a
+    quien ya se le pidió. Solo por email por ahora -- el WhatsApp masivo
+    queda listo en el código (tipo 'testimonio' en TEMPLATES_WHATSAPP) pero
+    no funciona hasta que Daniel cree `retencion_pedido_testimonio` en Meta
+    y quede Activa (mismo patrón que toda plantilla nueva del proyecto).
+    Claudio y Rodrigo (los 2 abonados reales) quedan afuera de este envío
+    masivo a propósito -- Daniel les manda un texto más personalizado a mano
+    desde su perfil (Seguimiento > Ver), pesa más viniendo de clientes ya
+    convertidos que el genérico de acá."""
+    db = get_db()
+    filas = _usuarios_seguimiento()
+    enviados = errores = salteados = 0
+    for f in filas:
+        if _ya_contactado(db, f['id'], 'email', 'testimonio'):
+            salteados += 1
+            continue
+        ok, _ = _enviar_email_seguimiento(db, f, 'testimonio')
+        enviados += 1 if ok else 0
+        errores += 0 if ok else 1
+    db.commit()
+    db.close()
+    flash(f'Pedido de testimonio (mail a toda la base): {enviados} enviados, {errores} con error, '
+          f'{salteados} salteados (ya se les había pedido antes).',
+          'success' if errores == 0 else 'error')
+    return redirect(url_for('admin.seguimiento'))
+
+
 @bp.route('/seguimiento/<int:uid>/generar-promo', methods=['POST'])
 @admin_required
 def seguimiento_generar_promo(uid):
@@ -1027,6 +1081,14 @@ def seguimiento_detalle(uid):
     fila['presup_restantes'] = presup_restantes
     fila['suscripcion_vencida'] = bool(u['subscription_expires']) and u['subscription_expires'] < hoy_str
     tipos = _tipos_aplicables(fila)
+    # 08/08/2026: 'testimonio' no depende del segmento (a diferencia de A/B/
+    # C/D/trial/vencido) -- se ofrece SIEMPRE acá para poder pedirle a
+    # cualquiera, editando el texto antes de mandar. Pensado sobre todo para
+    # Claudio/Rodrigo (los 2 abonados reales): Daniel edita el texto acá
+    # para algo más personalizado que el genérico del envío masivo
+    # (seguimiento_testimonio_a_todos), y con "Abrir en WhatsApp (manual)"
+    # lo manda hoy mismo sin esperar que Meta apruebe la plantilla.
+    tipos = tipos + ['testimonio']
 
     # 07/08/2026: si hay un link de pago con descuento vigente para este
     # usuario, se muestra acá y se suma a los mensajes de conversion_d/b

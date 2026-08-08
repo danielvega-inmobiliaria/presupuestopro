@@ -351,6 +351,30 @@ def _mensaje_conversion_b(nombre, link=None, vence_str=None):
     return wa, email
 
 
+def _mensaje_testimonio(nombre):
+    """Agregado 08/08/2026, pedido de Daniel (vía META_ADS): pedido de
+    testimonio real para el creative de la campaña de retargeting a
+    Purchase -- se descartaron testimonios inventados por riesgo legal
+    (Ley 22.802/24.240) y de política de Meta, así que hace falta juntar
+    reales. Mensaje corto, sin presión, aclara que es opcional y que se
+    pediría permiso para usarlo (dato de compliance: aunque no haga falta
+    firma para un comentario breve, es más prolijo curarse en salud antes
+    de publicarlo). Genérico para toda la base -- para Claudio/Rodrigo (los
+    2 abonados reales) Daniel manda un texto más personalizado a mano desde
+    su perfil (Seguimiento > Ver > editar mensaje), no este genérico."""
+    nombre = nombre or ''
+    wa = (f"Hola {nombre}! Somos de PresupuestoPRO. Te escribimos por otra cosa: "
+          f"¿nos contás en 2-3 líneas qué te pareció usar la app? Nos ayudaría muchísimo "
+          f"para mostrarle a otros profesionales cómo les sirvió a otros como vos. Totalmente "
+          f"opcional, y si nos das el OK te pedimos permiso antes de usarlo en algún lado.")
+    email = (f"Hola {nombre}, te escribimos por algo distinto a lo de siempre: "
+             f"¿nos contás en 2-3 líneas qué te pareció usar PresupuestoPRO? Nos ayudaría "
+             f"muchísimo para mostrarle a otros profesionales de la construcción cómo les "
+             f"sirvió a otros como vos. Es totalmente opcional, y si nos das el OK te "
+             f"pedimos permiso antes de usarlo en algún lado." + WA_CTA)
+    return wa, email
+
+
 def _escribir_hoja_segmento(ws, usuarios, mensaje_fn):
     for c, h in enumerate(HEADERS_SEGMENTO, start=1):
         cell = ws.cell(row=1, column=c, value=h)
