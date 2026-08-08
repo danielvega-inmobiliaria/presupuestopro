@@ -77,6 +77,29 @@ def recibir_email():
     )
     db.commit()
     db.close()
+
+    # Aviso "llamar en caliente" (08/08/2026, PRIORIDAD 1, mismo criterio
+    # que el webhook de WhatsApp): si quien escribió tiene un contacto de
+    # retención en los últimos 30 días, avisar a Daniel YA por mail en vez
+    # de que dependa de revisar Admin > Email por su cuenta. No bloquea la
+    # respuesta al Worker si el aviso falla.
+    if usuario:
+        try:
+            from routes.whatsapp_bot import _contacto_retencion_reciente_por_user_id
+            segmento = _contacto_retencion_reciente_por_user_id(usuario['id'])
+            if segmento is not None:
+                from utils.notificaciones import notificar_admin_respuesta_retencion
+                notificar_admin_respuesta_retencion(
+                    uid=usuario['id'],
+                    nombre=nombre_remitente,
+                    contacto=remitente,
+                    canal='Email',
+                    segmento=segmento,
+                    texto_respuesta=texto,
+                )
+        except Exception as e_notif:
+            logger.warning("[email_bot] No se pudo avisar a Daniel: %s", e_notif)
+
     return jsonify({"ok": True, "guardado": True}), 200
 
 

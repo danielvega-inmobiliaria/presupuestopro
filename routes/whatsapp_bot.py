@@ -372,9 +372,15 @@ def _contacto_retencion_reciente(telefono, dias=_DIAS_VENTANA_RETENCION):
     menú de 10 categorías del bot de FAQ — Daniel quiere una conversación
     real para escuchar la experiencia del usuario, y el menú automático
     puede marearlo y hacer que abandone el chat sin decir lo que quería
-    decir. Esta función devuelve el nombre del usuario si `telefono`
-    pertenece a alguien que recibió un mensaje de retención (WhatsApp o
-    email, da igual el canal) en los últimos `dias` días, o None si no.
+    decir. Esta función devuelve un dict {'uid','nombre','segmento'} si
+    `telefono` pertenece a alguien que recibió un mensaje de retención
+    (WhatsApp o email, da igual el canal) en los últimos `dias` días, o
+    None si no.
+
+    Actualizado 08/08/2026 (aviso "llamar en caliente"): antes devolvía solo
+    el nombre (str) — ahora devuelve el dict de arriba porque el llamador
+    también necesita uid/segmento para armar el aviso a Daniel. Único
+    llamador hasta ahora: el webhook de WhatsApp más abajo.
 
     Comparación tolerante a formato: usa telefono_normalizado (mismo criterio
     que ya usa admin.whatsapp_inbox para cruzar teléfono ↔ usuario), así no
@@ -385,7 +391,7 @@ def _contacto_retencion_reciente(telefono, dias=_DIAS_VENTANA_RETENCION):
         return None
     db = get_db()
     filas = db.execute(
-        """SELECT u.nombre, u.telefono, rc.created_at
+        """SELECT u.id, u.nombre, u.telefono, rc.segmento, rc.created_at
            FROM retencion_contactos rc
            JOIN users u ON u.id = rc.user_id
            WHERE u.telefono IS NOT NULL AND u.telefono != ''
@@ -401,8 +407,33 @@ def _contacto_retencion_reciente(telefono, dias=_DIAS_VENTANA_RETENCION):
         except (ValueError, TypeError):
             continue
         if creado >= limite:
-            return f['nombre'] or ''
+            return {'uid': f['id'], 'nombre': f['nombre'] or '', 'segmento': f['segmento'] or ''}
     return None
+
+
+def _contacto_retencion_reciente_por_user_id(user_id, dias=_DIAS_VENTANA_RETENCION):
+    """Mismo criterio que _contacto_retencion_reciente (ventana de `dias`
+    días), pero buscando directo por user_id. Agregada 08/08/2026 para
+    routes/email_bot.py (aviso "llamar en caliente"), que ya tiene el id del
+    usuario por email y no necesita el cruce tolerante a formato de
+    teléfono. Devuelve el segmento (str, puede ser '') si hay un contacto
+    de retención reciente, o None si no."""
+    db = get_db()
+    fila = db.execute(
+        """SELECT segmento, created_at FROM retencion_contactos
+           WHERE user_id=? ORDER BY created_at DESC LIMIT 1""",
+        (user_id,),
+    ).fetchone()
+    db.close()
+    if not fila:
+        return None
+    try:
+        creado = datetime.fromisoformat(str(fila['created_at']))
+    except (ValueError, TypeError):
+        return None
+    if creado < datetime.utcnow() - timedelta(days=dias):
+        return None
+    return fila['segmento'] or ''
 
 
 def _sesion_vencida(telefono):
@@ -645,15 +676,34 @@ def recibir_mensaje():
         # no que se muestre el menú y la persona se maree y abandone antes
         # de contar su experiencia. Se guarda para Admin > WhatsApp y se
         # avisa que un humano va a responder, nada de matching automático.
-        nombre_retencion = _contacto_retencion_reciente(telefono)
-        if nombre_retencion is not None:
+        contacto_retencion = _contacto_retencion_reciente(telefono)
+        if contacto_retencion is not None:
             _guardar_consulta_sin_responder(telefono, texto)
+            nombre_retencion = contacto_retencion['nombre']
             saludo = f", {nombre_retencion.split()[0]}" if nombre_retencion else ""
             enviar_mensaje_whatsapp(
                 telefono,
                 f"¡Gracias por contarnos{saludo}! Te responde en breve alguien "
                 "del equipo de PresupuestoPRO (no un bot) 🙂",
             )
+            # Aviso "llamar en caliente" (08/08/2026, PRIORIDAD 1): de 180
+            # registrados, los únicos 2 abonados reales convirtieron por
+            # llamada telefónica de Daniel en el momento, no por mensaje
+            # automático — avisarle YA en vez de que dependa de revisar
+            # Admin > WhatsApp por su cuenta. No bloquea la respuesta al
+            # usuario si el mail de aviso falla.
+            try:
+                from utils.notificaciones import notificar_admin_respuesta_retencion
+                notificar_admin_respuesta_retencion(
+                    uid=contacto_retencion['uid'],
+                    nombre=nombre_retencion,
+                    contacto=telefono,
+                    canal='WhatsApp',
+                    segmento=contacto_retencion['segmento'],
+                    texto_respuesta=texto,
+                )
+            except Exception as e_notif:
+                logger.warning(f"[Retencion] No se pudo avisar a Daniel: {e_notif}")
             _actualizar_sesion(telefono)
             return '', 200
 

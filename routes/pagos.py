@@ -237,33 +237,18 @@ def _activar_suscripcion(db, user_id, payment_id, meses=1, plan_nombre='mensual'
     # de abajo (que ya tenía el formato de fecha correcto para mostrar).
     user_full = db.execute("SELECT email, nombre, apellido, telefono FROM users WHERE id=?", (user_id,)).fetchone()
     if user_full:
-        # Siempre notificar al admin también
-        try:
-            api_key = os.environ.get('RESEND_API_KEY')
-            admin_email = os.environ.get('ADMIN_EMAIL', 'danve61@gmail.com')
-            app_url = os.environ.get('APP_BASE_URL', 'https://web-production-0c9c1.up.railway.app')
-            if api_key:
-                resend.api_key = api_key
-                nombre_display = f"{user_full['nombre'] or ''} {user_full.get('apellido') or ''}".strip() or user_full['email']
-                tel = user_full.get('telefono') or 'sin teléfono'
-                resend.Emails.send({
-                    "from": "PresupuestoPRO <noreply@presupuestopro.com.ar>",
-                    "to": [admin_email],
-                    "subject": f"[PresupuestoPRO] Pago aprobado — {nombre_display}",
-                    "text": (
-                        f"Se activó una suscripción nueva.\n\n"
-                        f"Usuario:   {nombre_display}\n"
-                        f"Email:     {user_full['email']}\n"
-                        f"Teléfono:  {tel}\n"
-                        f"Vence:     {nueva_exp.isoformat()}\n"
-                        f"Payment:   {payment_id}\n\n"
-                        f"WhatsApp: https://wa.me/549{tel.replace(' ','').replace('-','').replace('+','')}\n"
-                        f"Link login: {app_url}/login"
-                    ),
-                })
-                logger.info(f"[Email] Admin notificado por activacion de {user_full['email']}")
-        except Exception as e_admin:
-            logger.warning(f"[Email] No se pudo notificar al admin: {e_admin}")
+        # Siempre notificar al admin también.
+        # Fix 08/08/2026: esto rompía SIEMPRE con AttributeError (sqlite3.Row
+        # no tiene .get()), silenciado por el except de abajo -- el mail de
+        # "pago aprobado" nunca se mandó desde que existe. Lógica movida a
+        # utils/notificaciones.py (notificar_admin_pago), reusada también
+        # por el aviso "llamar en caliente" -- ver ese archivo para el detalle.
+        from utils.notificaciones import notificar_admin_pago
+        ok_admin, detalle_admin = notificar_admin_pago(user_full, nueva_exp, payment_id)
+        if ok_admin:
+            logger.info(f"[Email] Admin notificado por activacion de {user_full['email']}")
+        else:
+            logger.warning(f"[Email] No se pudo notificar al admin: {detalle_admin}")
 
     # Enviar notificacion al usuario
     if user:
