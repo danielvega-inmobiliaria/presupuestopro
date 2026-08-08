@@ -300,6 +300,105 @@ def enviar_backlog_email_segmentos():
     return enviados
 
 
+# ─── backlog de mails a "Vencidos", de a poco (08/08/2026) ───────────────────
+# Pedido de Daniel: la tanda de arriba (enviar_backlog_email_segmentos)
+# excluye 'vencidos' a propósito porque el 07/08 la oferta 50%/48hs todavía
+# no estaba confirmada ni probada -- ya lo está (confirmado y probado de
+# punta a punta con Julián el mismo día). Hoy TODO "vencidos" es 100% manual:
+# ni el mail ni el link de descuento se generan solos, Daniel tiene que
+# entrar a cada perfil. Esto cubre ese backlog automáticamente, pero DE A
+# POCO ("cada cierta cantidad de tiempo hasta cubrir todos los atrasados",
+# pedido explícito de Daniel 08/08) en vez de mandarles a todos de una --
+# corre 1 vez por día, en un horario separado de la tanda general (10/19hs)
+# para no mezclar métricas, y manda como mucho LOTE_VENCIDOS por corrida.
+# Con el backlog actual (~45 vencidos) tarda unos días en ponerse al día;
+# después sigue al mismo ritmo bajo con los nuevos vencidos que aparezcan.
+#
+# Cubre las 3 variantes de "vencidos" (mismo criterio que ya usa Admin >
+# Seguimiento, vía _tipo_mensaje): conversion_d/conversion_b (eran
+# Segmento D/B, oferta 50%/48hs) y 'vencido' genérico (A/C, mensaje de
+# reactivación sin descuento). Para conversion_d/b, genera (o reusa) el
+# link de pago con descuento ANTES de armar el mail -- si no, el mail sale
+# sin el link (ver _link_promo_vigente en routes/admin.py).
+HORA_BACKLOG_VENCIDOS = 11  # ART -- separado de las 10/19hs de la tanda general
+LOTE_VENCIDOS = 6  # por corrida (1 vez por día) -- ritmo gradual pedido por Daniel
+
+
+def _candidatos_backlog_vencidos(db, limite):
+    """Mismo patrón que _candidatos_backlog_email, pero para la categoría
+    'vencidos' (excluida ahí a propósito, ver nota de arriba)."""
+    from routes.admin import _usuarios_seguimiento, _categoria, _tipo_mensaje
+    from routes.pagos import _crear_promo
+
+    candidatos = []
+    for fila in _usuarios_seguimiento():
+        if not fila.get('email'):
+            continue
+        if _categoria(fila) != 'vencidos':
+            continue
+        tipo = _tipo_mensaje(fila, 'vencidos')
+        ya = db.execute(
+            "SELECT 1 FROM retencion_contactos WHERE user_id=? AND canal='email' AND segmento=? LIMIT 1",
+            (fila['id'], tipo)
+        ).fetchone()
+        if ya:
+            continue
+        candidatos.append((fila, tipo))
+
+    candidatos.sort(key=lambda ft: ft[0].get('created_at') or '')
+    seleccionados = candidatos[:limite]
+
+    for fila, tipo in seleccionados:
+        if tipo in ('conversion_d', 'conversion_b'):
+            try:
+                _crear_promo(db, fila['id'], horas=48, descuento_pct=50)
+            except Exception as e:
+                print(f"[recordatorios] Error generando promo para user {fila['id']}: {e}")
+
+    return seleccionados
+
+
+def enviar_backlog_email_vencidos():
+    """Corre la tanda diaria de "vencidos" (ver nota de arriba). Devuelve la
+    cantidad mandada en ESTA corrida (0 si no hay RESEND_API_KEY, si no es
+    la hora asignada, o si otro worker ya corrió la tanda de hoy -- mismo
+    mecanismo de envios_batch_log que enviar_backlog_email_segmentos)."""
+    api_key = os.environ.get('RESEND_API_KEY')
+    if not api_key:
+        return 0
+
+    from datetime import datetime as _dt
+    ahora_art = _dt.utcnow() - timedelta(hours=3)
+    if ahora_art.hour != HORA_BACKLOG_VENCIDOS:
+        return 0
+    fecha_str = ahora_art.date().isoformat()
+
+    db = get_db()
+    cur = db.execute(
+        "INSERT OR IGNORE INTO envios_batch_log (tipo, fecha, hora) VALUES ('backlog_email_vencidos', ?, ?)",
+        (fecha_str, ahora_art.hour)
+    )
+    db.commit()
+    if cur.rowcount == 0:
+        db.close()
+        return 0  # otro worker ya corrió esta tanda hoy
+
+    from routes.admin import _enviar_email_seguimiento
+
+    candidatos = _candidatos_backlog_vencidos(db, LOTE_VENCIDOS)
+    enviados = 0
+    for fila, tipo in candidatos:
+        try:
+            ok, _cuerpo = _enviar_email_seguimiento(db, fila, tipo)
+            db.commit()
+            if ok:
+                enviados += 1
+        except Exception as e:
+            print(f"[recordatorios] Error mandando backlog vencidos a user {fila.get('id')}: {e}")
+    db.close()
+    return enviados
+
+
 # ─── recordatorio de 24hs para el link de pago con descuento (07/08/2026) ────
 # Campaña de conversión 50%/48hs (vencidos D/B, ver routes/admin.py y
 # routes/pagos.py). A la mitad del plazo (24hs después de generado el link),

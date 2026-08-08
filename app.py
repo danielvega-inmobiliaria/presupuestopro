@@ -5,7 +5,7 @@ from config import Config
 from database import init_db, migrate_db
 from routes import auth, dashboard, presupuesto, admin, pdf_routes, perfil, pagos, landing, costo_m2, sugerencias, manual, whatsapp_bot, social_bot, email_bot, webhooks_resend
 from utils.pdf_generator import iniciales_empresa
-from utils.recordatorios import enviar_recordatorios_inactividad, enviar_checkin_primera_suscripcion, enviar_backlog_email_segmentos, enviar_recordatorio_promo_24h
+from utils.recordatorios import enviar_recordatorios_inactividad, enviar_checkin_primera_suscripcion, enviar_backlog_email_segmentos, enviar_recordatorio_promo_24h, enviar_backlog_email_vencidos
 
 
 def local_dt(value, fmt='%d/%m %H:%M'):
@@ -102,6 +102,12 @@ def _iniciar_scheduler(app):
             n4 = enviar_recordatorio_promo_24h()
             if n4:
                 print(f"[scheduler] recordatorios de promo (24hs) mandados: {n4}")
+            # 08/08/2026, pedido de Daniel: backlog de "vencidos" (mail +
+            # link 50%/48hs si corresponde) de a poco, 1 vez por día -- ver
+            # utils/recordatorios.py.
+            n5 = enviar_backlog_email_vencidos()
+            if n5:
+                print(f"[scheduler] backlog de vencidos mandados: {n5}")
 
     scheduler = BackgroundScheduler(daemon=True)
     # next_run_time explícito: sin esto, APScheduler espera un intervalo
