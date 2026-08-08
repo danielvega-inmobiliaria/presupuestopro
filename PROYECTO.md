@@ -31,9 +31,59 @@ Origen: pregunta de Daniel sobre el campo "Precio unit. (editable según tu zona
 
 **Nota aparte, no urgente:** la descripción corta del proyecto (arriba, campo de 500 caracteres) todavía dice "Suscripción mensual vía Mercado Pago ($12.500 ARS)" -- desactualizada desde el cambio a 4 planes de pago único de hoy (cont. 22). Convendría actualizarla la próxima vez que se toque este archivo con margen para redactarla bien.
 
+### 🔵 08/08/2026 — DECIDIDO EN `UNIFICACION_PRESUPUESTOPRO`: pasa de idea a implementar. Falta arrancar el código acá.
+
+Daniel confirmó en `UNIFICACION_PRESUPUESTOPRO` que quiere avanzar con la idea de arriba, con 3 definiciones nuevas:
+
+1. **Precios propios por usuario, CON indicación de origen en la UI.** Además de guardar el precio editado por el usuario y reusarlo en cualquier presupuesto futuro (parte 1 de la idea original), la pantalla tiene que mostrarle de alguna forma de dónde sale cada precio que ve — ej. una etiqueta/badge por fila tipo "Precio general PresupuestoPRO" / "Tu precio guardado" / "Precio del proveedor de tu zona (Nombre)", para que no sea una lista de números sin contexto.
+
+2. **Zonas definidas por localidad (no por provincia/región), con umbral de 5+ usuarios.** Según el export de usuarios del 06/08/2026 (`APP_PRESUPUESTOPRO/A CONTACTAR/PresupuestoPRO_usuarios_a_contactar_2026-08-06.xlsx`, hoja "Todos los usuarios", campo Ciudad), las localidades que hoy llegan a ese umbral son: **Rosario (35), Buenos Aires (23), Santa Fe (10), Córdoba (7), La Plata (5), Mendoza (5)** — 6 zonas para arrancar. Paraná y Tandil están en 4, justo debajo del corte — conviene revisar de nuevo con un export más reciente antes de descartarlas. El resto de las localidades (con 1-4 usuarios cada una, dispersas en el resto del país) sigue con el precio general hasta que alguna cruce el umbral. **Ojo:** el campo Ciudad es texto libre con typos/variantes (ej. "Santa fe" vs "Santa fe capital", mayúsculas mezcladas) — antes de programar el corte automático por localidad conviene normalizar/agrupar esas variantes, si no el conteo por igualdad de string exacta va a subestimar algunas ciudades.
+
+3. **Contactar proveedores zonales para publicitar — nuevo ángulo de negocio, no solo de precios.** En cada una de esas 6 localidades, contactar corralones/proveedores locales para que aparezcan destacados/patrocinados a los usuarios de esa zona (ej. un bloque "Proveedores recomendados en tu zona" en la app) — pensado como posible fuente de ingresos adicional (publicidad/patrocinio local), no solo como fuente de precios de referencia. Esto es trabajo de relevamiento/ventas (contactar comercios), no solo de código — coordinar con Daniel el enfoque comercial (¿pago por aparecer? ¿canje? ¿gratis a cambio de mandar precios actualizados?) antes de salir a contactarlos.
+
+**Para arrancar la implementación real** (tabla de precios por usuario/zona, UI con badge de origen, lógica de zonas por localidad, cambios en `_calcular_materiales_desde_rubros`), seguir en este mismo proyecto — ya tiene todo el contexto de arriba.
+
+### 🔵 08/08/2026 — CAMBIO DE ALCANCE (mismo día, antes de terminar la implementación): se descarta "precio propio por usuario"
+
+Mientras se implementaba, Daniel frenó y planteó una duda de fondo: la app se vende con "precios actualizados para vos" -- dejar que cada usuario cargue y guarde su propio precio le delega investigar precios, contradice ese value prop, y además es un riesgo de calidad de datos (typos, precios viejos, sin curar). **Decisión: se descarta por completo la parte 1 (precio propio por usuario, guardado automático).** Queda solo zona, curada por Daniel con proveedores reales negociados. Para el caso de "el precio de mi zona está mal", en vez de que el usuario lo edite él mismo, se agrega un cartel en Paso 6 invitando a reportarlo por Sugerencias (pantalla que ya existía, sin cambios) -- Daniel decide con esos reportes a qué corralón vale la pena contactar. El campo "Precio unit." de Paso 6 (editable por presupuesto puntual, sin persistir) se mantiene igual que siempre, solo se le cambió el rótulo ("editable según tu zona" → "editable para este presupuesto") para no insinuar algo que ya no existe.
+
 ---
 
-_Última actualización: 07/08/2026 — 13:44 ART_
+### ✅ CIERRE 08/08/2026 — Precios de materiales por zona geográfica (parte 2/3 de la idea, con proveedores curados por Daniel) ⚠️ SIN COMMITEAR
+
+Implementación completa, con el alcance ya ajustado arriba: **solo zona** (sin precio editable por usuario). Prioridad de precio: **zona (si está cargado) > general** (igual que siempre, `analisis_sub.precio_ars`).
+
+**1) Base de datos** (`database.py`, migración `3m`):
+- `zonas` (id, nombre, proveedor_nombre, proveedor_info, activa) -- arranca con seed de las 6 zonas que cruzan el umbral de 5+ usuarios del export del 06/08 (Rosario, Buenos Aires, Santa Fe, Córdoba, La Plata, Mendoza), **sin ningún precio de proveedor cargado todavía** -- eso es trabajo de ventas/relevamiento de Daniel (parte 3 de la idea original, no es código).
+- `zona_localidades` (zona_id, clave_normalizada) -- tabla aparte (no un campo en `zonas`) para que Daniel pueda sumar variantes de cómo los usuarios escriben la misma ciudad real, desde Admin, sin re-deploy.
+- `precios_zona` (zona_id, sub_nombre, precio_ars) -- igual criterio de identidad de material que ya usa `_calcular_materiales_desde_rubros` (`sub_nombre`, no `analisis_sub.id`).
+
+**2) Lógica de precio** (`routes/presupuesto.py`):
+- `_zona_de_usuario(ciudad)`: matchea `users.ciudad` (ya normalizado desde el registro, ver tabla `localidades`) contra `zona_localidades` por `clave_normalizada`.
+- `_precios_zona_dict(zona_id)`: precios cargados de esa zona.
+- `_calcular_materiales_desde_rubros(p, redondear=True, user=None)`: nuevo parámetro `user` (opcional, compatibilidad hacia atrás -- sin `user` sigue funcionando igual que siempre). Si el usuario tiene zona con precios cargados, reemplaza `precio_ars` general por el de zona ANTES de la expansión recursiva de materiales compuestos (así el override se propaga solo también a materiales internos si Daniel algún día carga uno). Cada material del resultado ahora trae `origen`: `'zona'` o `'general'`.
+- Propagado a los 3 lugares que llaman esta función: `routes/presupuesto.py::materiales()` (Paso 6), `routes/costo_m2.py` (pantalla Costo/m²) y `routes/pdf_routes.py::cargar_presupuesto()` (fallback de materiales en PDF cuando modo="solo_mo").
+
+**3) UI para el usuario** (`templates/presupuesto/paso6_materiales.html`):
+- Badge dorado "📍 Precio de tu zona · {Proveedor}" en cada material con precio de zona (nada se muestra en los que usan precio general -- es el estado por default, no hace falta marcarlo).
+- Cartel nuevo invitando a reportar distorsión de precio vía Sugerencias (en vez de que el usuario edite y guarde su propio precio).
+- Rótulo del campo editable cambiado de "editable según tu zona" a "editable para este presupuesto" (ver nota de alcance arriba).
+- CSS nuevo `.badge-zona` en `static/css/style.css`.
+
+**4) Admin — pantalla de Zonas** (`routes/admin.py` + `templates/admin/zonas.html` + `templates/admin/zona_editar.html`, link nuevo en dashboard):
+- `/admin/zonas`: listado de las 6 zonas con proveedor, cantidad de precios cargados y localidades.
+- `/admin/zonas/nueva`: alta rápida de zona nueva (ej. cuando otra localidad cruce el umbral de 5 usuarios).
+- `/admin/zonas/<id>`: edición completa -- nombre, proveedor destacado + info de contacto, activa/inactiva, textarea de localidades (1 por línea, se normaliza sola), y grilla de precios reusando `_LISTA_PRECIOS` (misma lista curada que ya usa Admin > Precios) con el precio general de referencia al lado de cada campo -- dejar en blanco = sigue con precio general. También muestra cuántos usuarios activos caen hoy en esa zona (prioriza qué proveedor negociar primero).
+
+**Verificado con la app real (test funcional, no solo sintaxis):** `ast.parse` OK en los 5 `.py` tocados, Jinja2 parsea los 4 templates. Test end-to-end con `test_client()` real: (a) admin carga desde `/admin/zonas/<id>/guardar` un precio de proveedor para "Transporte material suelto" en zona Rosario ($19.000→$38.000) + 2 localidades -- confirmado en la base. (b) usuario de prueba con `ciudad='Rosario'` arma un presupuesto con ese material → `_calcular_materiales_desde_rubros` devuelve `precio_local=38000, origen='zona'`; un usuario sin ciudad (control) devuelve `precio_local=19000, origen='general'` -- prioridad zona>general funciona. (c) `GET /presupuesto/materiales` real (Paso 6) muestra el badge "Precio de tu zona" + nombre del proveedor + el cartel de Sugerencias en el HTML. (d) `GET /admin/zonas` muestra "Corralón El Cruce" y "1 precio cargado" en el listado.
+
+**Pendiente (no es código, es trabajo de Daniel):** cerrar acuerdos reales con proveedores en cada una de las 6 zonas y cargar los precios desde `/admin/zonas`. Hasta que eso pase, las 6 zonas existen pero no tienen ningún efecto (todo sigue con precio general, de forma transparente). También sigue pendiente revisar Paraná/Tandil (estaban en 4 usuarios, justo debajo del umbral) con un export más reciente -- si cruzan el umbral, alta rápida desde `/admin/zonas`.
+
+**Archivos tocados:** `database.py`, `routes/presupuesto.py`, `routes/costo_m2.py`, `routes/pdf_routes.py`, `routes/admin.py`, `templates/presupuesto/paso6_materiales.html`, `templates/admin/dashboard.html`, `static/css/style.css`. **Archivos nuevos:** `templates/admin/zonas.html`, `templates/admin/zona_editar.html`.
+
+---
+
+_Última actualización: 08/08/2026 — 12:40 ART_
 
 ### 🟡 CIERRE 07/08/2026 (cont. 25) — Fix zona horaria, parte 3: horarios completos (no solo fechas) mostrados en UTC crudo en 4 pantallas de Admin ⚠️ SIN COMMITEAR
 

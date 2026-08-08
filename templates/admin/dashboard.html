@@ -89,6 +89,10 @@
        registrarse solo). #}
     <a class="adm-fila" href="{{ url_for('admin.localidades') }}"><div class="t"><b>Localidades</b><span>Fusionar duplicados</span></div><i class="bi bi-chevron-right chev"></i></a>
     <a class="adm-fila" href="{{ url_for('admin.precios') }}"><div class="t"><b>Precios de materiales</b></div><i class="bi bi-chevron-right chev"></i></a>
+    {# Fix 08/08/2026, pedido de Daniel: zonas geográficas con precios de
+       proveedor destacado (curados por Daniel, no editables por el usuario
+       -- ver PROYECTO.md "Ideas Futuras" 08/08). #}
+    <a class="adm-fila" href="{{ url_for('admin.zonas') }}"><div class="t"><b>Zonas y proveedores</b><span>Precios por localidad</span></div><i class="bi bi-chevron-right chev"></i></a>
     <a class="adm-fila" href="{{ url_for('admin.tipos_cambio') }}"><div class="t"><b>Tipos de cambio</b></div><i class="bi bi-chevron-right chev"></i></a>
     <a class="adm-fila" href="{{ url_for('admin.configuracion') }}"><div class="t"><b>Configuración</b><span>GG%, Imp%, validación de cuenta</span></div><i class="bi bi-chevron-right chev"></i></a>
     <a class="adm-fila" href="{{ url_for('admin.rendimientos') }}"><div class="t"><b>Rendimientos HOF/HAY</b></div><i class="bi bi-chevron-right chev"></i></a>

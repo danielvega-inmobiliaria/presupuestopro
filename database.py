@@ -2,6 +2,7 @@ import sqlite3
 import os
 from werkzeug.security import generate_password_hash
 from config import Config
+from utils.normalizacion import clave_normalizada
 
 def get_db():
     os.makedirs(os.path.dirname(Config.DATABASE), exist_ok=True)
@@ -2800,6 +2801,81 @@ def migrate_db():
             db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3l_done','2026-08-07')")
             db.commit()
             print("[migrate_db] 3l: retencion_promos agregada (pago diferenciado 50%/48hs)")
+
+        # Fix 08/08/2026, pedido de Daniel (decidido en UNIFICACION_PRESUPUESTOPRO,
+        # ver PROYECTO.md "Ideas Futuras" 06-08/08): precios de materiales por
+        # zona geográfica, con prioridad zona > general (analisis_sub.precio_ars,
+        # como hoy). Mismo criterio de identidad de material que ya usa
+        # _calcular_materiales_desde_rubros en routes/presupuesto.py: `sub_nombre`
+        # (no analisis_sub.id, que el resto del código tampoco usa como
+        # referencia).
+        #
+        # 08/08/2026, mismo día: Daniel descartó a propósito la idea original de
+        # "precio propio por usuario, guardado y reusado" -- contradice el value
+        # prop de la app ("ya te resolvimos los precios"), y un precio cargado
+        # por cada usuario sin curar es un riesgo de calidad de datos. En cambio:
+        # zona curada por Daniel (proveedor real negociado) + botón para que el
+        # usuario reporte distorsión de precio vía Sugerencias (ya existe esa
+        # pantalla, no hace falta nada nuevo ahí). Por eso NO hay tabla
+        # `precios_usuario` acá -- solo zona.
+        #
+        # zonas / zona_localidades / precios_zona: infraestructura para precios
+        # de proveedores destacados por zona. Arranca con las 6 zonas que ya
+        # cruzan el umbral de 5+ usuarios según el export del 06/08 (Rosario,
+        # Buenos Aires, Santa Fe, Córdoba, La Plata, Mendoza), PERO sin ningún
+        # precio de proveedor cargado todavía -- eso depende de que Daniel cierre
+        # acuerdos reales con corralones de cada zona (trabajo de ventas/
+        # relevamiento, no de código). zona_localidades es una tabla aparte (no
+        # un campo único en `zonas`) para poder sumar variantes de nombre de
+        # localidad a mano desde Admin sin tocar código -- el campo Ciudad de
+        # los usuarios es texto libre asistido, así que puede haber más de una
+        # forma de escribir la misma ciudad real.
+        ya_3m = db.execute("SELECT valor FROM config WHERE clave='3m_done'").fetchone()
+        if not ya_3m:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS zonas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL UNIQUE,
+                    proveedor_nombre TEXT DEFAULT '',
+                    proveedor_info TEXT DEFAULT '',
+                    activa INTEGER DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS zona_localidades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    zona_id INTEGER NOT NULL REFERENCES zonas(id),
+                    clave_normalizada TEXT NOT NULL,
+                    UNIQUE(zona_id, clave_normalizada)
+                )
+            """)
+            db.execute("CREATE INDEX IF NOT EXISTS idx_zona_localidades_clave ON zona_localidades(clave_normalizada)")
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS precios_zona (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    zona_id INTEGER NOT NULL REFERENCES zonas(id),
+                    sub_nombre TEXT NOT NULL,
+                    precio_ars REAL NOT NULL,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(zona_id, sub_nombre)
+                )
+            """)
+            db.commit()
+
+            # Seed de las 6 zonas iniciales + su localidad principal (Daniel
+            # puede sumar variantes de nombre desde Admin > Zonas sin re-deploy).
+            for nombre_zona in ['Rosario', 'Buenos Aires', 'Santa Fe', 'Córdoba', 'La Plata', 'Mendoza']:
+                db.execute("INSERT OR IGNORE INTO zonas (nombre) VALUES (?)", (nombre_zona,))
+                zona_id = db.execute("SELECT id FROM zonas WHERE nombre=?", (nombre_zona,)).fetchone()[0]
+                db.execute(
+                    "INSERT OR IGNORE INTO zona_localidades (zona_id, clave_normalizada) VALUES (?,?)",
+                    (zona_id, clave_normalizada(nombre_zona))
+                )
+            db.commit()
+            db.execute("INSERT OR REPLACE INTO config (clave,valor) VALUES ('3m_done','2026-08-08')")
+            db.commit()
+            print("[migrate_db] 3m: zonas/zona_localidades/precios_zona agregadas (6 zonas seed, sin precios de proveedor todavía)")
 
     except Exception as e:
         print(f"[migrate_db] {e}")

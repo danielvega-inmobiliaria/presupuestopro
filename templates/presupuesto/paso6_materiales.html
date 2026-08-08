@@ -12,6 +12,15 @@
 <div class="aviso aviso-alerta"><i class="bi bi-exclamation-triangle"></i> No se encontraron materiales. Revisá el cómputo en el paso 2.</div>
 {% endif %}
 
+{# Fix 08/08/2026: los precios ya no los edita/guarda cada usuario -- los
+   cura Daniel por zona con proveedores reales. Este cartel reemplaza esa
+   idea: si un precio está desactualizado, el usuario avisa por Sugerencias
+   (ya existe esa pantalla) en vez de cargar el suyo. #}
+<div class="aviso" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a5f">
+  <i class="bi bi-info-circle"></i>
+  <div>¿Algún precio no coincide con tu zona? <a href="{{ url_for('sugerencias.index') }}" target="_blank">Contanos qué corralón consultar desde Sugerencias</a> y lo revisamos.</div>
+</div>
+
 <form method="post" id="formMateriales" data-wizard-form>
   <div class="bloque" id="tbl-mats">
     <div id="tbody-mats">
@@ -24,9 +33,16 @@
         <div class="grupo">{{ cat_labels.get(cur_cat, 'General') }}</div>
       {% endif %}
       <div class="fila mat-row" data-idx="{{ loop.index0 }}" {% if loop.first %}id="tour-materiales-precio"{% endif %}>
-        <div class="fila-nom">{{ m.nombre }}</div>
+        <div class="fila-nom">
+          {{ m.nombre }}
+          {% if (m.origen|default('general')) == 'zona' %}
+          <span class="badge-zona" title="Precio del proveedor destacado de tu zona{% if zona_proveedor %} ({{ zona_proveedor }}){% endif %}">
+            <i class="bi bi-geo-alt-fill"></i> Precio de tu zona{% if zona_proveedor %} · {{ zona_proveedor }}{% endif %}
+          </span>
+          {% endif %}
+        </div>
         <div class="fila-precio">
-          <span>Precio unit. (editable según tu zona)</span>
+          <span>Precio unit. (editable para este presupuesto)</span>
           <div class="precio-suf">
             <span>{{ simbolo }}</span>
             <input type="number" class="precio-unit" min="0" step="1"

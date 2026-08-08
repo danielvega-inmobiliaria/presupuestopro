@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Zonas y proveedores — Admin{% endblock %}
+
+{% block content %}
+<div class="pp2 pp2-con-barra">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;flex-wrap:wrap">
+    <div style="font-weight:700;font-size:19px"><i class="bi bi-geo-alt"></i> Zonas y proveedores</div>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn2 btn2-min" style="margin-left:auto">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+  <p class="ayuda" style="padding:0 0 12px">
+    Precio de materiales curado por zona geográfica, con proveedores reales que vos negociás -- NO lo edita el usuario.
+    Una zona sin ningún precio cargado sigue usando el precio general de forma transparente. Los usuarios ven el precio
+    de su zona automáticamente según la Ciudad de su registro.
+  </p>
+
+  {# Fix 08/08/2026: alta rápida de zona nueva -- arranca con la localidad
+     principal, el resto (variantes de nombre, proveedor, precios) se carga
+     al entrar a editarla. #}
+  <form method="post" action="{{ url_for('admin.zonas_nueva') }}"
+        class="bloque" style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:12px 14px">
+    <div class="campo" style="margin-bottom:0;flex:1;min-width:220px">
+      <label>Nueva zona (nombre de la localidad principal)</label>
+      <input type="text" name="nombre" class="n" placeholder="Ej: Neuquén" required>
+    </div>
+    <button type="submit" class="btn2 btn2-min">
+      <i class="bi bi-plus-lg"></i> Crear zona
+    </button>
+  </form>
+
+  <div class="bloque">
+    {% for z in zonas %}
+    <a class="adm-fila" href="{{ url_for('admin.zona_editar', zona_id=z.id) }}">
+      <div class="t">
+        <b>{{ z.nombre }}</b>
+        <span>
+          {% if z.proveedor_nombre %}Proveedor: {{ z.proveedor_nombre }} · {% endif %}
+          {{ z.n_precios }} precio{{ 's' if z.n_precios != 1 }} cargado{{ 's' if z.n_precios != 1 }}
+          · {{ z.n_localidades }} localidad{{ 'es' if z.n_localidades != 1 }}
+          {% if not z.activa %} · <span style="color:#b91c1c">inactiva</span>{% endif %}
+        </span>
+      </div>
+      <i class="bi bi-chevron-right chev"></i>
+    </a>
+    {% else %}
+    <p class="ayuda" style="padding:14px">Todavía no hay zonas creadas.</p>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

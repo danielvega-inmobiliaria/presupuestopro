@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}{{ zona.nombre }} — Zonas — Admin{% endblock %}
+
+{% block content %}
+<div class="pp2 pp2-con-barra">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px;flex-wrap:wrap">
+    <div style="font-weight:700;font-size:19px"><i class="bi bi-geo-alt"></i> Zona: {{ zona.nombre }}</div>
+    <a href="{{ url_for('admin.zonas') }}" class="btn2 btn2-min" style="margin-left:auto">
+      <i class="bi bi-arrow-left"></i> Volver a Zonas
+    </a>
+  </div>
+  <p class="ayuda" style="padding:0 0 12px">
+    <strong>{{ n_usuarios }}</strong> usuario{{ 's' if n_usuarios != 1 }} activo{{ 's' if n_usuarios != 1 }} caen hoy en esta zona
+    según su Ciudad de registro. Dejá un precio en blanco para que ese material siga usando el precio general.
+  </p>
+
+  <form method="post" action="{{ url_for('admin.zona_guardar', zona_id=zona.id) }}" id="formZona">
+
+    {# ── DATOS DE LA ZONA ── #}
+    <div class="bloque">
+      <div class="bloque-hd">Datos de la zona</div>
+      <div class="fila">
+        <div class="fila-nom">Nombre de la zona</div>
+        <div class="campo" style="margin-bottom:0"><input type="text" name="nombre" class="n" value="{{ zona.nombre }}" required></div>
+      </div>
+      <div class="fila">
+        <div class="fila-nom">Proveedor destacado</div>
+        <div class="campo" style="margin-bottom:0"><input type="text" name="proveedor_nombre" class="n" value="{{ zona.proveedor_nombre or '' }}" placeholder="Ej: Corralón El Cruce"></div>
+      </div>
+      <div class="fila">
+        <div class="fila-nom">Info del proveedor</div>
+        <div class="campo" style="margin-bottom:0"><input type="text" name="proveedor_info" class="n" value="{{ zona.proveedor_info or '' }}" placeholder="Contacto, dirección, notas del acuerdo"></div>
+      </div>
+      <div class="fila">
+        <div class="fila-nom">Zona activa</div>
+        <div class="campo" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400">
+            <input type="checkbox" name="activa" {% if zona.activa %}checked{% endif %} style="width:18px;height:18px">
+            Si se desmarca, ningún usuario de esta zona recibe precio de proveedor (vuelve todo a precio general)
+          </label>
+        </div>
+      </div>
+      <div class="fila">
+        <div class="fila-nom">Localidades de esta zona</div>
+        <div class="campo" style="margin-bottom:0">
+          <textarea name="localidades" class="n" rows="4" style="width:100%;font:inherit;padding:8px" placeholder="1 por línea, ej:&#10;Rosario&#10;Rosario Norte&#10;Funes">{{ localidades|join('\n') }}</textarea>
+          <span class="ayuda" style="margin:4px 0 0;display:block">Texto libre, 1 por línea -- se normaliza solo (sin tildes/mayúsculas). Sumá acá variantes de cómo los usuarios escriben la misma ciudad real.</span>
+        </div>
+      </div>
+    </div>
+
+    {# ── PRECIOS DE PROVEEDOR ── #}
+    {% for s in sectores %}
+    <div class="bloque">
+      <div class="bloque-hd">{{ s.sector }}</div>
+      {% for item in s['items'] %}
+      <div class="fila">
+        <div class="fila-nom">{{ item.nombre }}</div>
+        <div class="duo">
+          <div class="campo" style="margin-bottom:0">
+            <label>Precio general (referencia)</label>
+            <div class="num" style="min-height:var(--tap);display:flex;align-items:center;color:var(--gris);font-size:15px">
+              $ {{ '{:,.2f}'.format(item.precio_general).replace(',','.') }}
+            </div>
+          </div>
+          <div class="campo sufijo" style="margin-bottom:0">
+            <label>Precio de esta zona</label>
+            <input type="number" name="calc_{{ item.nombre }}" class="n"
+                   value="{{ item.precio_zona if item.precio_zona is not none else '' }}"
+                   step="0.01" min="0" placeholder="sin cargar = usa general">
+            <span>$/un</span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div class="barra-tot">
+      <div class="bt-txt"><span class="bt-lbl">Se aplica a los usuarios de esta zona desde ahora</span></div>
+      <button type="submit" class="btn2 btn2-1">
+        <i class="bi bi-save"></i> Guardar zona
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

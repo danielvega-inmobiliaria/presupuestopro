@@ -7,6 +7,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from utils.auth import login_required
 from utils.trial import trial_required
 from utils.verificacion import verificacion_required
+from utils.normalizacion import clave_normalizada
 from utils.calculations import (
     RUBROS_DEFAULT, SUBCONTRATOS_SUGERIDOS, PAISES,
     calcular_dias_obra, calcular_cuotas, calcular_cuadro_pago,
@@ -257,9 +258,67 @@ def _materiales_por_unidad_items():
     return resultado
 
 
-def _calcular_materiales_desde_rubros(p, redondear=True):
+def _zona_de_usuario(ciudad):
+    """Fix 08/08/2026, pedido de Daniel: precios de materiales por zona
+    geográfica (proveedor destacado por localidad, curado por Daniel -- NO
+    precio editable por el usuario, ver PROYECTO.md 'Ideas Futuras' 08/08
+    para la decisión de por qué se descartó esa otra idea).
+
+    Devuelve el id de zona para una `ciudad` de usuario (users.ciudad), o
+    None si esa localidad todavía no está en ninguna zona (sigue con precio
+    general). Matchea por clave_normalizada -- Daniel puede sumar variantes
+    de nombre de una misma ciudad real a una zona desde Admin > Zonas, sin
+    tocar código (el campo Ciudad es texto libre asistido, puede haber más
+    de una forma de escribirla)."""
+    if not ciudad:
+        return None
+    try:
+        db = get_db()
+        row = db.execute(
+            """SELECT zl.zona_id FROM zona_localidades zl
+               JOIN zonas z ON z.id = zl.zona_id
+               WHERE zl.clave_normalizada=? AND z.activa=1""",
+            (clave_normalizada(ciudad),)
+        ).fetchone()
+        db.close()
+        return row['zona_id'] if row else None
+    except Exception as e:
+        print(f"[_zona_de_usuario] error: {e}")
+        return None
+
+
+def _precios_zona_dict(zona_id):
+    """{sub_nombre: precio_ars} de precios_zona para esa zona -- vacío si no
+    hay zona o si Daniel todavía no cargó ningún precio de proveedor para
+    ella (zona sin proveedor cerrado todavía sigue 100% con precio general,
+    de forma transparente)."""
+    if not zona_id:
+        return {}
+    try:
+        db = get_db()
+        rows = db.execute(
+            "SELECT sub_nombre, precio_ars FROM precios_zona WHERE zona_id=?",
+            (zona_id,)
+        ).fetchall()
+        db.close()
+        return {r['sub_nombre']: r['precio_ars'] for r in rows}
+    except Exception as e:
+        print(f"[_precios_zona_dict] error: {e}")
+        return {}
+
+
+def _calcular_materiales_desde_rubros(p, redondear=True, user=None):
     """Recalcula la lista de materiales (formato TOT MAT) desde analisis_sub
     usando las cantidades actuales de los rubros en el presupuesto.
+
+    `user` (fila de la tabla users, opcional): si se pasa y tiene `ciudad`
+    asignada a una zona con precios de proveedor cargados (ver
+    _zona_de_usuario/_precios_zona_dict arriba), esos precios reemplazan al
+    precio general de analisis_sub para los materiales que la zona tenga
+    cargados -- el resto sigue con precio general. Cada material del
+    resultado trae `origen` ('zona' o 'general') para que la UI pueda
+    mostrar de dónde sale el precio (Paso 6, ver templates/presupuesto/
+    paso6_materiales.html). Fix 08/08/2026.
 
     redondear=True  (default, presupuesto real / PDF): cantidad de compra
         redondeada arriba a unidad comercial (bolsa/u entera) — correcto
@@ -277,6 +336,13 @@ def _calcular_materiales_desde_rubros(p, redondear=True):
         referencia. Con redondear=False se usa la cantidad real fraccionaria
         tanto para mostrar como para el subtotal."""
     try:
+        precios_zona = _precios_zona_dict(_zona_de_usuario(user['ciudad'] if user else None))
+        # Claves normalizadas de los materiales que la zona del usuario tiene
+        # cargados -- se usa después para el badge 'origen' del resultado
+        # final (comparación por nombre normalizado, igual criterio que el
+        # resto de esta función usa para unificar sinónimos).
+        zona_keys_normalizadas = {normalize_nombre(sn) for sn in precios_zona}
+
         db2 = get_db()
         subs_rows = db2.execute(
             "SELECT item_nombre, sub_nombre, cant_por_unit, precio_ars, es_material "
@@ -288,10 +354,14 @@ def _calcular_materiales_desde_rubros(p, redondear=True):
         for row in subs_rows:
             key = ANALISIS_NAME_MAP.get(normalize_nombre(row['item_nombre']),
                                         normalize_nombre(row['item_nombre']))
+            # Precio de zona reemplaza al general SOLO para los materiales que
+            # esa zona tiene cargados -- el resto sigue con precio_ars general,
+            # de forma transparente (ver docstring de la función).
+            precio_efectivo = precios_zona.get(row['sub_nombre'], row['precio_ars'])
             analisis_mat.setdefault(key, []).append({
                 'nombre': row['sub_nombre'],
                 'cant':   row['cant_por_unit'],
-                'precio': row['precio_ars'],
+                'precio': precio_efectivo,
             })
 
         mat_acum = {}
@@ -374,6 +444,7 @@ def _calcular_materiales_desde_rubros(p, redondear=True):
                 'unidad':       unidad,
                 'precio_local': round(precio_unit),
                 'subtotal':     round(cant_final * precio_unit),
+                'origen':       'zona' if normalize_nombre(nombre) in zona_keys_normalizadas else 'general',
                 'categoria':    cat_num,
             })
         return sorted(result, key=lambda m: _categoria_material(m['nombre']))
@@ -1364,13 +1435,27 @@ def materiales():
         except Exception:
             pass
     if p_full.get('rubros'):
-        mats_previos = _calcular_materiales_desde_rubros(p_full)
+        mats_previos = _calcular_materiales_desde_rubros(p_full, user=g.user)
     else:
         mats_previos = p.get('materiales', [])
     total_calc = sum(m.get('subtotal', 0) for m in mats_previos)
+
+    # Fix 08/08/2026: nombre del proveedor destacado de la zona (si Daniel ya
+    # cerró uno) para el badge "Precio de tu zona (Proveedor)" -- se busca acá
+    # aparte porque _calcular_materiales_desde_rubros devuelve una lista, no
+    # hace falta cambiar su firma para esto.
+    zona_id = _zona_de_usuario(g.user['ciudad'] if g.user else None)
+    zona_proveedor = None
+    if zona_id:
+        db_z = get_db()
+        zr = db_z.execute("SELECT proveedor_nombre FROM zonas WHERE id=?", (zona_id,)).fetchone()
+        db_z.close()
+        zona_proveedor = zr['proveedor_nombre'] if zr and zr['proveedor_nombre'] else None
+
     return render_template('presupuesto/paso6_materiales.html',
                            mats_previos=mats_previos, total_calc=total_calc,
                            simbolo=simbolo, tasa=tasa,
+                           zona_proveedor=zona_proveedor,
                            p=p, user=g.user)
 
 

@@ -153,7 +153,10 @@ def resultado():
     # bolsa/unidad entera más cercana infla el costo (ej. Cemento Albañilería
     # aparecía como 1 bolsa completa consumida por m2 cuando en realidad son
     # ~0.8 bolsas). Ver docstring de _calcular_materiales_desde_rubros.
-    mat_items_raw = _calcular_materiales_desde_rubros(p_sintetico, redondear=False)
+    # Fix 08/08/2026: pasa g.user para que Costo/m2 también respete el precio
+    # de zona (si el usuario tiene una asignada con proveedor cargado) en vez
+    # de mostrar siempre el precio general -- mismo criterio que Paso 6.
+    mat_items_raw = _calcular_materiales_desde_rubros(p_sintetico, redondear=False, user=g.user)
     mat_items = [{
         'nombre':          m['nombre'],
         'cantidad':        m['cantidad'],

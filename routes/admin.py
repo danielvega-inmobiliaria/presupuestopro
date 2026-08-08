@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 from openpyxl import load_workbook
 from utils.auth import admin_required
 from utils.calculations import PAISES
-from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado, telefono_valido
+from utils.normalizacion import PROVINCIAS_AR, telefono_normalizado, telefono_valido, clave_normalizada
 from utils.exportar_contactos import (
     generar_excel_usuarios_a_contactar, _segmento, SEG_A, SEG_B, SEG_C, SEG_D, SEG_ACTIVO,
     _mensaje_activacion, _mensaje_seguimiento, _mensaje_sin_uso, _mensaje_solo_costo_m2,
@@ -2419,6 +2419,161 @@ def precios_actualizar():
     db.close()
     flash(f'Precios actualizados ({actualizados} ítems).', 'success')
     return redirect(url_for('admin.precios'))
+
+
+# ZONAS Y PROVEEDORES
+# Fix 08/08/2026, pedido de Daniel (decidido en UNIFICACION_PRESUPUESTOPRO,
+# ver PROYECTO.md "Ideas Futuras" 08/08): precio de materiales curado por
+# zona geográfica con proveedores reales que Daniel negocia -- a propósito
+# NO es editable por el usuario (se descartó esa idea el mismo día, ver nota
+# en database.py migración 3m). Reusa _LISTA_PRECIOS (misma lista curada que
+# ya usa Admin > Precios) para que Daniel cargue, para cada zona, solo los
+# materiales donde tiene un precio de proveedor real -- el resto de la lista
+# queda en blanco y sigue usando el precio general de forma transparente.
+@bp.route('/zonas')
+@admin_required
+def zonas():
+    db = get_db()
+    rows = db.execute("""
+        SELECT z.*,
+               (SELECT COUNT(*) FROM precios_zona pz WHERE pz.zona_id=z.id) AS n_precios,
+               (SELECT COUNT(*) FROM zona_localidades zl WHERE zl.zona_id=z.id) AS n_localidades
+        FROM zonas z ORDER BY z.nombre
+    """).fetchall()
+    db.close()
+    return render_template('admin/zonas.html', zonas=rows, user=g.user)
+
+
+@bp.route('/zonas/nueva', methods=['POST'])
+@admin_required
+def zonas_nueva():
+    nombre = (request.form.get('nombre') or '').strip()
+    if not nombre:
+        flash('Poné un nombre para la zona.', 'error')
+        return redirect(url_for('admin.zonas'))
+    db = get_db()
+    ya_existe = db.execute("SELECT id FROM zonas WHERE nombre=?", (nombre,)).fetchone()
+    if ya_existe:
+        flash(f'Ya existe una zona "{nombre}".', 'error')
+        db.close()
+        return redirect(url_for('admin.zonas'))
+    db.execute("INSERT INTO zonas (nombre) VALUES (?)", (nombre,))
+    zona_id = db.execute("SELECT id FROM zonas WHERE nombre=?", (nombre,)).fetchone()['id']
+    # La localidad principal arranca sola con el propio nombre de la zona
+    # (Daniel puede sumar variantes desde la pantalla de edición).
+    db.execute("INSERT OR IGNORE INTO zona_localidades (zona_id, clave_normalizada) VALUES (?,?)",
+               (zona_id, clave_normalizada(nombre)))
+    db.commit()
+    db.close()
+    flash(f'Zona "{nombre}" creada.', 'success')
+    return redirect(url_for('admin.zona_editar', zona_id=zona_id))
+
+
+@bp.route('/zonas/<int:zona_id>')
+@admin_required
+def zona_editar(zona_id):
+    db = get_db()
+    zona = db.execute("SELECT * FROM zonas WHERE id=?", (zona_id,)).fetchone()
+    if not zona:
+        db.close()
+        flash('Zona no encontrada.', 'error')
+        return redirect(url_for('admin.zonas'))
+
+    localidades_rows = db.execute(
+        "SELECT clave_normalizada FROM zona_localidades WHERE zona_id=? ORDER BY clave_normalizada",
+        (zona_id,)
+    ).fetchall()
+    precios_rows = db.execute(
+        "SELECT sub_nombre, precio_ars FROM precios_zona WHERE zona_id=?", (zona_id,)
+    ).fetchall()
+    precios_zona_dict = {r['sub_nombre']: r['precio_ars'] for r in precios_rows}
+    general_rows = db.execute(
+        "SELECT sub_nombre, MAX(precio_ars) as precio_ars FROM analisis_sub "
+        "WHERE es_material=1 GROUP BY sub_nombre"
+    ).fetchall()
+    # Cuántos usuarios activos caen hoy en esta zona (mismo campo Ciudad que
+    # usa _zona_de_usuario) -- referencia para que Daniel priorice qué zona
+    # vale la pena negociar primero.
+    n_usuarios = 0
+    claves_zona = {r['clave_normalizada'] for r in localidades_rows}
+    if claves_zona:
+        ciudades = db.execute("SELECT ciudad FROM users WHERE is_admin=0 AND ciudad != ''").fetchall()
+        n_usuarios = sum(1 for u in ciudades if clave_normalizada(u['ciudad']) in claves_zona)
+    db.close()
+    general_dict = {r['sub_nombre']: r['precio_ars'] for r in general_rows}
+
+    sectores = []
+    for sector, nombres in _LISTA_PRECIOS:
+        items = [{
+            'nombre':         n,
+            'precio_general': general_dict.get(n, 0),
+            'precio_zona':    precios_zona_dict.get(n),
+        } for n in nombres]
+        sectores.append({'sector': sector, 'items': items})
+
+    return render_template('admin/zona_editar.html', zona=zona,
+                           localidades=[r['clave_normalizada'] for r in localidades_rows],
+                           n_usuarios=n_usuarios, sectores=sectores, user=g.user)
+
+
+@bp.route('/zonas/<int:zona_id>/guardar', methods=['POST'])
+@admin_required
+def zona_guardar(zona_id):
+    db = get_db()
+    zona = db.execute("SELECT id FROM zonas WHERE id=?", (zona_id,)).fetchone()
+    if not zona:
+        db.close()
+        flash('Zona no encontrada.', 'error')
+        return redirect(url_for('admin.zonas'))
+
+    nombre = (request.form.get('nombre') or '').strip()
+    proveedor_nombre = (request.form.get('proveedor_nombre') or '').strip()
+    proveedor_info = (request.form.get('proveedor_info') or '').strip()
+    activa = 1 if request.form.get('activa') == 'on' else 0
+    if nombre:
+        db.execute(
+            "UPDATE zonas SET nombre=?, proveedor_nombre=?, proveedor_info=?, activa=? WHERE id=?",
+            (nombre, proveedor_nombre, proveedor_info, activa, zona_id)
+        )
+
+    # Localidades: la pantalla manda 1 por línea (texto libre) -- se
+    # normaliza y se reemplaza la lista completa de esta zona.
+    localidades_texto = request.form.get('localidades', '')
+    claves = sorted({clave_normalizada(l) for l in localidades_texto.splitlines() if l.strip()})
+    db.execute("DELETE FROM zona_localidades WHERE zona_id=?", (zona_id,))
+    for clave in claves:
+        db.execute("INSERT OR IGNORE INTO zona_localidades (zona_id, clave_normalizada) VALUES (?,?)",
+                   (zona_id, clave))
+
+    # Precios de proveedor: campo vacío o 0 = "no cargado todavía", borra
+    # cualquier override existente y ese material vuelve al precio general.
+    cargados = 0
+    for key, val in request.form.items():
+        if not key.startswith('calc_'):
+            continue
+        sub_nombre = key[5:]
+        val = (val or '').strip()
+        if not val:
+            db.execute("DELETE FROM precios_zona WHERE zona_id=? AND sub_nombre=?", (zona_id, sub_nombre))
+            continue
+        try:
+            precio = float(val)
+        except ValueError:
+            continue
+        if precio <= 0:
+            db.execute("DELETE FROM precios_zona WHERE zona_id=? AND sub_nombre=?", (zona_id, sub_nombre))
+        else:
+            db.execute(
+                "INSERT OR REPLACE INTO precios_zona (zona_id, sub_nombre, precio_ars, updated_at) "
+                "VALUES (?,?,?,CURRENT_TIMESTAMP)",
+                (zona_id, sub_nombre, precio)
+            )
+            cargados += 1
+    db.commit()
+    db.close()
+    flash(f'Zona guardada ({cargados} precios de proveedor cargados).', 'success')
+    return redirect(url_for('admin.zona_editar', zona_id=zona_id))
+
 
 # TIPOS DE CAMBIO
 @bp.route('/tipos-cambio', methods=['GET', 'POST'])

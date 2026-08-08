@@ -60,6 +60,23 @@ body { background: #f8f9fa; }
 /* Badges */
 .badge-pais { font-size: .85rem; padding: .35em .7em; }
 
+/* Fix 08/08/2026: badge "Precio de tu zona" en Paso 6 (Materiales) --
+   marca los materiales cuyo precio viene de un proveedor destacado de la
+   zona del usuario (curado por Daniel), en vez del precio general. */
+.badge-zona {
+  display: inline-block;
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .2em .55em;
+  margin-left: .4em;
+  border-radius: 999px;
+  background: #eab30822;
+  color: #92650a;
+  border: 1px solid #eab30866;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 /* Sticky wizard nav */
 .wizard-sticky-nav {
   position: sticky;

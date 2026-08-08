@@ -20,6 +20,9 @@ def cargar_presupuesto(pid, user_id):
     empresa_row = db.execute(
         "SELECT * FROM empresa_perfil WHERE user_id=?", (user_id,)
     ).fetchone()
+    # Fix 08/08/2026: para que el fallback de materiales de acá abajo también
+    # respete el precio de zona (no solo el general), igual que Paso 6/Costo m2.
+    user_row = db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
     db.close()
     if not pres:
         return None, None
@@ -36,7 +39,7 @@ def cargar_presupuesto(pid, user_id):
     # en vivo desde los rubros (misma fuente que usa el paso 6 normalmente).
     if p.get('modo') == 'solo_mo' and not p.get('materiales'):
         try:
-            p['materiales'] = _calcular_materiales_desde_rubros(p)
+            p['materiales'] = _calcular_materiales_desde_rubros(p, user=user_row)
         except Exception:
             p['materiales'] = []
     empresa = dict(empresa_row) if empresa_row else {}
