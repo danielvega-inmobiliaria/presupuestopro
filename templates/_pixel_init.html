@@ -1,0 +1,23 @@
+{# Meta Pixel — snippet de init + PageView (PresupuestoPRO Pixel, id
+   1189868074213923). Extraído a partial 08/08/2026 para reusar el MISMO
+   snippet en templates/base.html y en las 2 vistas de retorno de pago
+   (routes/pagos.py::retorno()/promo_retorno()), que arman su HTML con
+   render_template_string y no extienden base.html -- evita que el ID del
+   Pixel quede duplicado suelto en 3 lugares que podrían desincronizarse
+   (Flask resuelve {% include %} contra este mismo archivo real desde
+   render_template_string, mismo jinja_env que render_template).
+   El <noscript> de fallback y el meta tag de verificación de dominio se
+   dejan SOLO en base.html -- no hacen falta para que Purchase funcione, y
+   no tiene sentido repetir la verificación de dominio en cada página. #}
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1189868074213923');
+fbq('track', 'PageView');
+</script>

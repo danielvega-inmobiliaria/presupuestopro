@@ -83,7 +83,42 @@ Implementación completa, con el alcance ya ajustado arriba: **solo zona** (sin 
 
 ---
 
-_Última actualización: 08/08/2026 — 12:40 ART_
+### 🔵 08/08/2026 — Evento `Purchase` en el Meta Pixel (decidido en `UNIFICACION_PRESUPUESTOPRO`), PRIORIDAD para destrabar retargeting de `META_ADS` — sin empezar
+
+**Por qué:** con datos del export del 06/08 se confirmó que de 180 registrados solo hay 2 abonados reales, los dos por llamada telefónica — la campaña de Meta Ads de hoy solo mide/optimiza hacia `CompleteRegistration` (registro gratis), nunca hacia el pago real, porque **el Pixel no tiene ningún evento de compra**. Sin este evento no se puede armar el Custom Audience de "registrados sin comprar" ni medir si una campaña de retargeting funciona.
+
+**Dónde está el Pixel hoy (para no reinventar el patrón que ya funciona):**
+- `templates/base.html` (línea ~24-38): carga el snippet base del Pixel (`fbq('init', '1189868074213923')` + `fbq('track','PageView')`) — heredado por cualquier template que extienda `base.html`.
+- `CompleteRegistration` NO se dispara en `registro.html` (esa vista redirige directo, sin pantalla propia) sino en `templates/dashboard.html` (línea ~153-162): `routes/landing.py` agrega `?nuevo_registro=1` al redirect post-alta, y `dashboard.html` (que sí extiende `base.html`, así que ya tiene `fbq` cargado) dispara `fbq('track','CompleteRegistration')` una sola vez si ese query param está presente. Patrón simple y ya probado en producción.
+
+**El problema para replicar el mismo patrón con `Purchase`:** la pantalla de pago exitoso NO es `dashboard.html` — son `routes/pagos.py::retorno()` (línea ~811) y `routes/pagos.py::promo_retorno()` (línea ~781, variante para los links de la oferta 50%/48hs), y las dos usan `render_template_string(...)` con HTML standalone que **NO extiende `base.html`** — hoy no tienen el Pixel cargado para nada. Dos caminos, a decidir en el chat de implementación:
+1. Agregar el snippet completo del Pixel + `fbq('track','Purchase', {value: ..., currency:'ARS'})` directo en esos 2 `render_template_string`, condicionado a `tipo == 'success'` (duplica unas pocas líneas de init, pero es el cambio más chico).
+2. Refactorizar esas 2 vistas para que extiendan `base.html` (más prolijo, pero es un cambio más grande sobre una pantalla que hoy es intencionalmente standalone/liviana).
+
+**De dónde sacar `value` (monto) para el evento:** `_procesar_pago_por_id()` (línea ~289) ya calcula `monto_ars` y `plan_nombre` internamente pero **hoy no los devuelve** al caller (`retorno()`/`promo_retorno()`), solo devuelve `False` si no está aprobado. Hay que modificar el `return` para que entregue esos datos (o un dict) y así poder pasarlos al template para armar el `value` del evento.
+
+**Gap conocido, aceptar por ahora:** `routes/pagos.py::webhook()` (línea ~874) también llama a `_procesar_pago_por_id()`, pero es server-to-server (Mercado Pago llamando a Railway) — no hay navegador, así que **no puede disparar un Pixel client-side**. Si un usuario paga y jamás vuelve a `/retorno` (cierra la pestaña), ese `Purchase` no se va a trackear. Para destrabar la campaña de retargeting alcanza con lo que se trackee vía `/retorno` (es el flujo normal de vuelta de Mercado Pago); si más adelante hace falta cobertura completa, la solución es agregar la Conversions API de Meta (servidor↔servidor) dentro de `_activar_suscripcion()` — no hace falta para arrancar.
+
+**No hay riesgo de duplicado:** el evento del Pixel va SOLO en el render del template de `/retorno`/`/promo_retorno` (nunca dentro de `_procesar_pago_por_id()` ni `_activar_suscripcion()`, que corren también desde `/webhook`) — así que aunque el pago se procese 2 veces (retorno + webhook, ya deduplicado a nivel de base de datos por `payment_id`), el Pixel solo se dispara una vez, cuando el navegador realmente carga esa página.
+
+**Para arrancar:** seguir en este mismo proyecto, ya tiene los números de línea y el patrón de referencia (`CompleteRegistration`) documentados arriba.
+
+---
+
+### ✅ CIERRE 08/08/2026 — Evento `Purchase` del Meta Pixel implementado ⚠️ SIN COMMITEAR
+
+Resuelta la decisión que había quedado pendiente arriba ("2 caminos, a decidir en el chat de implementación"): ni duplicar el snippet a mano en 3 lugares ni refactorizar `retorno()`/`promo_retorno()` para que extiendan `base.html` (`promo_retorno()` es un link **sin login** -- confirmado con grep, no tiene ningún decorator de auth -- así que atarla a `base.html`, que asume contexto de sesión/usuario en el nav, era el camino más arriesgado de los 2 que planteaba la spec). **Tercer camino:** se extrajo el snippet de init del Pixel a un partial nuevo, `templates/_pixel_init.html`, y las 3 vistas (`base.html`, `retorno()`, `promo_retorno()`) lo incluyen con `{% include '_pixel_init.html' %}` -- funciona igual desde `render_template_string` que desde `render_template` (mismo `jinja_env`). Un solo lugar con el ID del Pixel, cero riesgo de que las 3 copias se desincronicen (el mismo tipo de bug que ya apareció 2 veces esta semana con `date('now')`/`local_dt`).
+
+- **`_procesar_pago_por_id()`** (`routes/pagos.py`): el `return` pasó de `bool(user)`/`False` a `None` (no se activó nada) o `{'monto_ars':.., 'plan_nombre':..}` (éxito) -- ya calculaba estos datos internamente (incluso con el descuento de promo aplicado), solo no los exponía. Confirmado que ninguno de los 3 callers (`retorno()`, `promo_retorno()`, `webhook()`) leía el valor de retorno antes, así que el cambio de forma no rompe nada.
+- **`retorno()` y `promo_retorno()`**: capturan ese dict, y si `tipo=='success'` y hay `monto_ars`, disparan `fbq('track', 'Purchase', {value: <monto>, currency: 'ARS'})` en el `<head>` del HTML armado con `render_template_string`.
+- **Gap conocido y aceptado** (igual que decía la spec): `/webhook` no puede disparar Pixel (server-to-server, sin navegador) -- si un usuario paga y cierra la pestaña sin volver a `/retorno`, ese `Purchase` no se trackea. Alcanza para destrabar la campaña de retargeting; cobertura completa requeriría la Conversions API de Meta más adelante, no se hizo ahora.
+- **Verificado con la app real (test funcional, no solo sintaxis):** `ast.parse` OK, Jinja2 parsea los 2 templates tocados/nuevos. Test end-to-end con `test_client()` real (SDK de Mercado Pago mockeado, sin pegarle a la API real): (a) pago aprobado plan Semestral ($68.994) vía `/pagos/retorno` → HTML contiene `fbq('track', 'Purchase', {value: 68994, currency: 'ARS'})`, suscripción activada en la base con el monto correcto. (b) `status=pending` → confirma que Purchase NO se dispara. (c) `/pagos/promo/<token>/retorno` **sin sesión activa** (session limpiada a propósito en el test) con 50% de descuento sobre plan Mensual → carga 200 igual y dispara `value: 7250` (mitad de $14.499, redondeado) -- confirma que el fix no rompió el flujo sin login.
+
+**Archivos tocados:** `templates/base.html`, `routes/pagos.py`. **Archivo nuevo:** `templates/_pixel_init.html`.
+
+---
+
+_Última actualización: 08/08/2026 — 15:40 ART_
 
 ### 🟡 CIERRE 07/08/2026 (cont. 25) — Fix zona horaria, parte 3: horarios completos (no solo fechas) mostrados en UTC crudo en 4 pantallas de Admin ⚠️ SIN COMMITEAR
 

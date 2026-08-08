@@ -302,7 +302,15 @@ def _procesar_pago_por_id(payment_id):
     deduplicación por payment_id (fix 05/08) haría que /webhook, con el dato
     correcto, ya no pueda corregirlo. Consultar el pago por API en los 2
     lugares evita ambos problemas: los meses/plan siempre salen del lado
-    servidor↔MP, nunca de un query param o de la sesión."""
+    servidor↔MP, nunca de un query param o de la sesión.
+
+    Fix 08/08/2026: el return ahora devuelve `None` si no se activó nada, o
+    un dict `{'monto_ars':.., 'plan_nombre':..}` si se activó -- antes
+    devolvía solo `bool(user)`, insuficiente para armar el evento `Purchase`
+    del Meta Pixel en retorno()/promo_retorno() (necesitan el monto real
+    cobrado, ya calculado acá mismo más abajo). Ningún caller (retorno(),
+    promo_retorno(), webhook()) leía el valor de retorno hasta ahora, así que
+    este cambio de forma no rompe nada existente."""
     sdk = _get_sdk()
     result = sdk.payment().get(payment_id)
     payment = result.get("response", {})
@@ -310,7 +318,7 @@ def _procesar_pago_por_id(payment_id):
     estado = payment.get("status", "")
     if estado != "approved":
         logger.info(f"[MP] payment {payment_id} estado={estado!r}, no se activa nada.")
-        return False
+        return None
 
     metadata    = payment.get("metadata", {}) or {}
     payer       = payment.get("payer", {}) or {}
@@ -358,7 +366,9 @@ def _procesar_pago_por_id(payment_id):
     else:
         logger.warning(f"[MP] Usuario no encontrado para payment {payment_id}: email={payer_email} meta_id={user_id_meta}")
     db.close()
-    return bool(user)
+    if not user:
+        return None
+    return {'monto_ars': monto_ars, 'plan_nombre': plan_nombre}
 
 
 # ─── rutas ────────────────────────────────────────────────────────────────────
@@ -785,9 +795,10 @@ def promo_retorno(token):
     status = request.args.get('status') or request.args.get('collection_status', '')
     payment_id = request.args.get('payment_id') or request.args.get('collection_id', '')
 
+    pago_info = None
     if status == 'approved' and payment_id:
         try:
-            _procesar_pago_por_id(payment_id)
+            pago_info = _procesar_pago_por_id(payment_id)
         except Exception as e:
             logger.error(f"[MP promo_retorno] Error procesando {payment_id}: {e}")
         mensaje = "¡Pago aprobado! Tu cuenta ya está reactivada con el descuento."
@@ -799,13 +810,24 @@ def promo_retorno(token):
         mensaje = "El pago no se completó. Podés volver a intentarlo desde el mismo link."
         tipo = "danger"
 
+    # Fix 08/08/2026: mismo evento Purchase que retorno() (ver comentario ahí
+    # abajo) -- esta vista NO tiene sesión (link de promo sin login), así que
+    # el include del partial del Pixel no puede depender de g.user/sesión, y
+    # de hecho no lo hace (_pixel_init.html es estático, sin variables).
+    monto_ars = (pago_info or {}).get('monto_ars')
+
     return render_template_string("""
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% include '_pixel_init.html' %}
+{% if tipo == 'success' and monto_ars %}
+<script>fbq('track', 'Purchase', {value: {{ monto_ars | round | int }}, currency: 'ARS'});</script>
+{% endif %}
+</head>
 <body><div class="container py-5 text-center">
 <div class="alert alert-{{ tipo }} fs-5">{{ mensaje }}</div>
 <a href="/login" class="btn btn-primary mt-2">Iniciar sesión</a>
-</div></body></html>""", mensaje=mensaje, tipo=tipo)
+</div></body></html>""", mensaje=mensaje, tipo=tipo, monto_ars=monto_ars)
 
 
 @bp.route('/retorno')
@@ -816,12 +838,13 @@ def retorno():
     payment_id      = request.args.get('payment_id') or request.args.get('collection_id', '')
     preference_id   = request.args.get('preference_id') or session.pop('mp_preference_id', None)
 
+    pago_info = None
     if status == 'approved' and payment_id:
         # Fix 06/08/2026: antes llamaba a _activar_suscripcion() con meses=1
         # fijo, sin importar qué plan se pagó -- ver docstring completo en
         # _procesar_pago_por_id() más arriba.
         try:
-            _procesar_pago_por_id(payment_id)
+            pago_info = _procesar_pago_por_id(payment_id)
         except Exception as e:
             logger.error(f"[MP retorno] Error procesando {payment_id}: {e}")
         mensaje = "Pago aprobado! Ya podes usar PresupuestoPRO."
@@ -833,11 +856,26 @@ def retorno():
         mensaje = "El pago no se completo. Podes intentarlo de nuevo."
         tipo = "danger"
 
+    # Fix 08/08/2026, decidido en UNIFICACION_PRESUPUESTOPRO (ver PROYECTO.md
+    # "Ideas Futuras" 08/08): evento Purchase del Meta Pixel -- hasta hoy el
+    # Pixel solo medía CompleteRegistration (registro gratis), nunca el pago
+    # real, así que Meta Ads no podía optimizar ni armar audiencias de
+    # retargeting hacia compradores. Esta vista NO extiende base.html (HTML
+    # standalone con render_template_string), así que el Pixel se incluye acá
+    # a mano vía el partial templates/_pixel_init.html. Solo se dispara si
+    # monto_ars > 0 (evita mandar un evento con value vacío si por algún
+    # motivo _procesar_pago_por_id no devolvió el monto).
+    monto_ars = (pago_info or {}).get('monto_ars')
+
     html = """
 <!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <title>PresupuestoPRO - Estado de pago</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="manifest" href="/static/manifest.json">
+{% include '_pixel_init.html' %}
+{% if tipo == 'success' and monto_ars %}
+<script>fbq('track', 'Purchase', {value: {{ monto_ars | round | int }}, currency: 'ARS'});</script>
+{% endif %}
 </head><body><div class="container py-5 text-center">
 <div class="alert alert-{{ tipo }} fs-5">{{ mensaje }}</div>
 {% if tipo == 'success' %}
@@ -867,7 +905,7 @@ document.getElementById('btnInstalar')?.addEventListener('click', async () => {
 </script>
 </body></html>
 """
-    return render_template_string(html, mensaje=mensaje, tipo=tipo)
+    return render_template_string(html, mensaje=mensaje, tipo=tipo, monto_ars=monto_ars)
 
 
 @bp.route('/webhook', methods=['POST'])
