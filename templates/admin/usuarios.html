@@ -344,10 +344,13 @@ const APP_URL = 'https://web-production-0c9c1.up.railway.app/login';
 function waActivacion(tel, nombre) {
   let num = tel.replace(/[^0-9+]/g, '');
   // Si ya tiene código de país, usar tal cual; si no, asumir Argentina (+549)
+  // Fix 07/08/2026: faltaba sacar el "0" de larga distancia (ej. "0341...")
+  // antes de anteponer 549 -- daba un número con un dígito de más, inválido
+  // para WhatsApp (reportado por Daniel probando con un número real).
   if (!num.startsWith('+') && !num.startsWith('54')) {
-    num = '549' + num;  // Argentina: +549 + número local (sin 0)
+    num = '549' + num.replace(/^0/, '');  // Argentina: +549 + número local (sin 0)
   } else if (num.startsWith('54') && !num.startsWith('549')) {
-    num = '549' + num.slice(2);  // corregir 54XXX → 549XXX
+    num = '549' + num.slice(2).replace(/^0/, '');  // corregir 54XXX → 549XXX
   }
   num = num.replace(/^\+/, '');
   const msg = `Hola ${nombre || ''}, tu cuenta de PresupuestoPRO esta lista. Ingresa en: ${APP_URL}`;

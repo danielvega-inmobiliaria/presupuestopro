@@ -1176,9 +1176,13 @@ def seguimiento_detalle(uid):
 </div>
 <script>
 function abrirWhatsapp(tel, mensaje) {
+  // Fix 07/08/2026: no sacaba el "0" de larga distancia (ej. "0341...") antes
+  // de anteponer "549" -- daba un número con un dígito de más e inválido
+  // para WhatsApp (mismo bug que waActivacion() en templates/admin/usuarios.html,
+  // corregido ahí también).
   let num = (tel || '').replace(/[^0-9+]/g, '');
-  if (!num.startsWith('+') && !num.startsWith('54')) num = '549' + num;
-  else if (num.startsWith('54') && !num.startsWith('549')) num = '549' + num.slice(2);
+  if (!num.startsWith('+') && !num.startsWith('54')) num = '549' + num.replace(/^0/, '');
+  else if (num.startsWith('54') && !num.startsWith('549')) num = '549' + num.slice(2).replace(/^0/, '');
   num = num.replace(/^\\+/, '');
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(mensaje), '_blank');
 }
